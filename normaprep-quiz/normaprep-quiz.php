@@ -3,7 +3,7 @@
  * Plugin Name:       NormaPrep Quiz
  * Plugin URI:        https://github.com/【votre-compte】/normaprep-quiz
  * Description:       Module d'examens blancs pour la certification ISO/IEC 27001 Lead Implementer : scénarios, questions à choix multiples, composition d'examens par thèmes, correction détaillée et suivi de progression.
- * Version:           0.5.0
+ * Version:           0.6.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            Julie CORNU
@@ -32,7 +32,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Version courante. IMPORTANT : cette valeur doit rester synchronisée avec
 // la ligne « Version: » de l'en-tête ci-dessus.
-define( 'NPQ_VERSION', '0.5.0' );
+define( 'NPQ_VERSION', '0.6.0' );
 
 // Chemin absolu vers le dossier du plugin sur le serveur (pour charger des fichiers PHP).
 define( 'NPQ_PATH', plugin_dir_path( __FILE__ ) );
@@ -60,6 +60,9 @@ define( 'NPQ_TABLE_PREFIX', 'npq_' );
 function npq_activation() {
     require_once NPQ_PATH . 'includes/class-npq-installer.php';
     NPQ_Installer::creer_tables();
+
+    require_once NPQ_PATH . 'includes/class-npq-comptes.php';
+    NPQ_Comptes::creer_role();
 }
 register_activation_hook( __FILE__, 'npq_activation' );
 
@@ -90,6 +93,10 @@ function npq_init() {
     // Logique de composition et de correction (disponible partout).
     require_once NPQ_PATH . 'logic/class-npq-composeur.php';
     require_once NPQ_PATH . 'logic/class-npq-correcteur.php';
+
+    // Gestion des comptes abonnés (rôle, lien WordPress, droits d'accès).
+    require_once NPQ_PATH . 'includes/class-npq-comptes.php';
+    NPQ_Comptes::init();
 
     // Chargement de l'import de contenu (uniquement dans l'administration).
     if ( is_admin() ) {
