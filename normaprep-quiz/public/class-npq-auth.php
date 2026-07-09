@@ -309,8 +309,9 @@ class NPQ_Auth {
             return self::flash( 'Identifiants incorrects.', 'erreur' );
         }
 
-        // Redirige vers l'accueil (ou plus tard vers le tableau de bord).
-        wp_safe_redirect( home_url( '/' ) );
+        // Redirige vers l'espace abonné.
+        $page_espace = get_option( 'npq_page_espace_id' );
+        wp_safe_redirect( $page_espace ? get_permalink( $page_espace ) : home_url( '/' ) );
         exit;
     }
 
