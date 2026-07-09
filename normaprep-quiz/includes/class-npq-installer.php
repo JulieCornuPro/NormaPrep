@@ -41,15 +41,32 @@ class NPQ_Installer {
          * CONTENU
          * ===================================================================== */
 
+        // --- Certifications : le sommet de la hiérarchie de contenu ---
+        // Une certification (ex. ISO 27001 Lead Implementer) regroupe scénarios,
+        // questions et examens. Permet de gérer plusieurs certifications à terme.
+        $sql[] = "CREATE TABLE {$p}certification (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            code VARCHAR(30) NOT NULL,
+            nom VARCHAR(190) NOT NULL,
+            actif TINYINT(1) NOT NULL DEFAULT 1,
+            date_creation DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            UNIQUE KEY code (code)
+        ) $charset;";
+
         // --- Scénarios : le contexte d'entreprise qui encadre les questions ---
         $sql[] = "CREATE TABLE {$p}scenario (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            certification_id BIGINT UNSIGNED NULL,
+            ref_externe VARCHAR(50) NULL,
             nom VARCHAR(190) NOT NULL,
             resume TEXT NULL,
             contexte LONGTEXT NOT NULL,
             statut VARCHAR(20) NOT NULL DEFAULT 'publie',
             date_creation DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY  (id)
+            PRIMARY KEY  (id),
+            UNIQUE KEY ref_externe (ref_externe),
+            KEY certification_id (certification_id)
         ) $charset;";
 
         // --- Types de tags : article ISO, domaine, phase, compétence... ---
@@ -73,6 +90,8 @@ class NPQ_Installer {
         // --- Questions : rattachées à un scénario, avec explication de la correction ---
         $sql[] = "CREATE TABLE {$p}question (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            certification_id BIGINT UNSIGNED NULL,
+            ref_externe VARCHAR(50) NULL,
             scenario_id BIGINT UNSIGNED NULL,
             domaine VARCHAR(20) NOT NULL,
             enonce LONGTEXT NOT NULL,
@@ -81,6 +100,8 @@ class NPQ_Installer {
             difficulte VARCHAR(20) NOT NULL DEFAULT 'hard',
             statut VARCHAR(20) NOT NULL DEFAULT 'publie',
             PRIMARY KEY  (id),
+            UNIQUE KEY ref_externe (ref_externe),
+            KEY certification_id (certification_id),
             KEY scenario_id (scenario_id),
             KEY domaine (domaine)
         ) $charset;";
@@ -112,12 +133,14 @@ class NPQ_Installer {
         // type = 'fige' (liste de questions fixe) ou 'genere' (base d'un modèle de génération)
         $sql[] = "CREATE TABLE {$p}examen_modele (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            certification_id BIGINT UNSIGNED NULL,
             nom VARCHAR(190) NOT NULL,
             description TEXT NULL,
             type VARCHAR(20) NOT NULL DEFAULT 'fige',
             actif TINYINT(1) NOT NULL DEFAULT 1,
             date_creation DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY  (id)
+            PRIMARY KEY  (id),
+            KEY certification_id (certification_id)
         ) $charset;";
 
         // --- Liaison modèle d'examen <-> questions (pour les modèles figés) ---
@@ -133,15 +156,19 @@ class NPQ_Installer {
          * UTILISATEURS (séparés des comptes d'administration WordPress)
          * ===================================================================== */
 
-        // --- Utilisateurs abonnés : distincts des comptes WordPress ---
+        // --- Utilisateurs abonnés : fiche MÉTIER reliée au compte WordPress ---
+        // L'authentification (mot de passe, session) est gérée par WordPress.
+        // Cette table ne stocke que les informations propres à NormaPrep.
+        // wp_user_id fait le lien avec le compte WordPress (table wp_users).
         $sql[] = "CREATE TABLE {$p}utilisateur (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            email VARCHAR(190) NOT NULL,
+            wp_user_id BIGINT UNSIGNED NOT NULL,
+            email VARCHAR(190) NULL,
             nom_affiche VARCHAR(190) NULL,
             role VARCHAR(20) NOT NULL DEFAULT 'gratuit',
             date_inscription DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
-            UNIQUE KEY email (email)
+            UNIQUE KEY wp_user_id (wp_user_id)
         ) $charset;";
 
         // --- Abonnements : au plus un actif par utilisateur ---
