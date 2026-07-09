@@ -1,0 +1,3757 @@
+{
+  "meta": {
+    "schema_version": "1.0",
+    "generated_at": "2026-07-08",
+    "certification": "ISO/IEC 27001:2022 Lead Implementer",
+    "domains": {
+      "D1": {
+        "code": "D1",
+        "label": "Fondamentaux et principes de la sécurité de l'information"
+      },
+      "D2": {
+        "code": "D2",
+        "label": "Exigences du SMSI (ISO/IEC 27001)"
+      },
+      "D3": {
+        "code": "D3",
+        "label": "Planification du SMSI"
+      },
+      "D4": {
+        "code": "D4",
+        "label": "Mise en œuvre du SMSI"
+      },
+      "D5": {
+        "code": "D5",
+        "label": "Surveillance, mesure, analyse et évaluation"
+      },
+      "D6": {
+        "code": "D6",
+        "label": "Amélioration continue"
+      },
+      "D7": {
+        "code": "D7",
+        "label": "Audit interne et préparation à la certification"
+      }
+    },
+    "counts": {
+      "scenarios": 7,
+      "questions": 80
+    }
+  },
+  "scenarios": [
+    {
+      "id": "SC0",
+      "name": "NovaTech SA",
+      "summary": "NovaTech SA — ESN cloud, 380 employés, Bordeaux",
+      "context": "NovaTech SA est une ESN spécialisée dans le développement d'applications SaaS pour le secteur des ressources humaines. Elle héberge ses plateformes sur AWS et traite les données personnelles de 800 000 employés appartenant à ses 120 clients. L'entreprise vient d'être rachetée par un groupe américain coté en bourse, ce qui implique de nouvelles exigences de conformité (SOX, CCPA). Le nouveau DG mandate un projet SMSI avec certification ISO 27001 dans 12 mois. Karim, Lead Implementer PECB, est recruté. Lors de son audit de démarrage, il constate : aucune politique de sécurité formelle n'existe, les droits d'accès à la base de données de production ne sont pas revus depuis 18 mois, trois anciens développeurs ont encore des accès actifs, et l'équipe cloud a mis en place des mesures de sécurité AWS non documentées. Le DSI affirme que \"tout est sécurisé car on utilise AWS\" et propose d'exclure toutes les mesures technologiques de la SoA au motif qu'AWS les gère pour eux.",
+      "related_standards": [
+        "SOX",
+        "CCPA"
+      ]
+    },
+    {
+      "id": "SC1",
+      "name": "FinSecure Banque",
+      "summary": "FinSecure Banque — banque régionale, 2 800 employés, Lyon",
+      "context": "FinSecure est une banque régionale soumise à DORA, aux exigences BCE/EBA et au règlement NIS2. Elle possède 45 agences et traite quotidiennement 2 millions de transactions. Son SMSI a été certifié il y a 14 mois. La RSSI, Diane, prépare le premier audit de surveillance. Elle découvre plusieurs problèmes : (1) Un incident majeur de fuite de données clients survenu 3 mois après la certification n'a jamais été formellement traité selon la procédure de non-conformité (art. 10.2) — l'équipe a \"corrigé le bug\" mais sans analyse des causes. (2) Le plan de traitement des risques approuvé lors de la certification a été modifié unilatéralement par le DSI sans consulter les propriétaires des risques. (3) La revue de direction du dernier trimestre a été conduite sans les éléments d'entrée relatifs aux résultats d'appréciation des risques et à l'état du plan de traitement, l'ordre du jour ayant été allégé \"pour aller vite\". (4) 12 des 15 objectifs de sécurité fixés lors de la certification ne disposent d'aucune mesure quantifiable définie.",
+      "related_standards": [
+        "DORA",
+        "NIS2"
+      ]
+    },
+    {
+      "id": "SC2",
+      "name": "CityHôpital",
+      "summary": "CityHôpital — CHU public, 4 200 agents, Marseille",
+      "context": "CityHôpital est un CHU public de 4 200 agents gérant des données de santé soumises aux référentiels HDS (Hébergeur de Données de Santé) et RGPD. Le DSI, Hugo, pilote l'implémentation ISO 27001. L'analyse des écarts révèle un niveau de maturité moyen de 1,4/5. Hugo décide de définir le périmètre du SMSI de façon très restreinte : uniquement le datacenter principal. Il justifie cette décision en expliquant que \"les soignants ne sont pas concernés par la sécurité de l'information\". Trois semaines plus tard, un médecin envoie des radios par WhatsApp à un confrère d'une autre institution. Hugo indique que cet incident est \"hors périmètre\". Par ailleurs, pour l'appréciation des risques, Hugo choisit une approche orientée actifs (inventaire des actifs → identification des menaces/vulnérabilités par actif). Son consultant suggère une approche orientée événements (identification directe des scénarios de risque). Hugo refuse car \"l'approche actifs est la seule reconnue par ISO 27001\".",
+      "related_standards": [
+        "RGPD",
+        "HDS"
+      ]
+    },
+    {
+      "id": "SC3",
+      "name": "LogiGroup",
+      "summary": "LogiGroup — transport & logistique, 1 500 employés, Strasbourg",
+      "context": "LogiGroup est un groupe de transport et logistique opérant dans 6 pays de l'UE. Le groupe a récemment subi une attaque par ransomware ayant paralysé ses opérations pendant 72 heures, causant 4 M€ de pertes. Le COMEX mandate une certification ISO 27001 en 18 mois. Marc, chef de projet SMSI, découvre que : le groupe utilise 3 ERP différents selon les filiales, certains en mode cloud SaaS, d'autres on-premise ; les accords avec les prestataires logistiques tiers ne contiennent aucune clause de sécurité ; l'équipe IT gère les incidents de manière informelle, sans classification ni escalade formalisées. Marc propose d'étendre le périmètre du SMSI à toutes les filiales d'emblée. Le RSSI s'y oppose car \"chaque filiale a ses propres risques\". Pour la SoA, Marc veut inclure toutes les 93 mesures de l'Annexe A, estimant que \"il vaut mieux trop que pas assez\". L'auditeur interne pressenti est un collègue de Marc qui a participé à la conception des mesures de sécurité déployées après l'attaque.",
+      "related_standards": []
+    },
+    {
+      "id": "SC4",
+      "name": "AgroTech Industries",
+      "summary": "AgroTech Industries — agroalimentaire, 950 employés, Rennes",
+      "context": "AgroTech est un fabricant agroalimentaire gérant des recettes propriétaires confidentielles, des lignes de production automatisées (SCADA/OT) et des données de traçabilité. La DG a décidé d'implémenter ISO 27001 après un espionnage industriel présumé. Lucie, Lead Implementer, définit un périmètre couvrant les systèmes IT et OT. Pour les systèmes SCADA, le fournisseur refuse de les inclure dans l'appréciation des risques car \"les systèmes industriels ne relèvent pas de la sécurité de l'information\". Lucie intègre les systèmes SCADA dans le périmètre malgré tout. Pour la gestion documentaire, Lucie utilise SharePoint sans contrôle de version formalisé. Concernant la politique de sécurité, elle rédige un document de 65 pages très détaillé intégrant à la fois les exigences stratégiques et les procédures techniques. Le DRH soulève que les employés de production ne lisent pas l'anglais et que la politique est rédigée uniquement en anglais. Pour les objectifs de sécurité, Lucie fixe comme objectif : \"Améliorer la sécurité des recettes propriétaires\".",
+      "related_standards": []
+    },
+    {
+      "id": "SC5",
+      "name": "EduConnect",
+      "summary": "EduConnect — EdTech, 120 employés, Paris",
+      "context": "EduConnect est une startup EdTech traitant des données d'élèves mineurs pour 850 établissements scolaires. Elle vient d'obtenir un financement de série B et doit se certifier ISO 27001 pour remporter un marché public européen. Théo, Lead Implementer, note que : l'entreprise n'a aucun audit interne réalisé à ce jour ; la politique de sécurité, rédigée il y a 6 mois, n'a jamais été communiquée aux employés ; les développeurs ont tous les mêmes droits d'accès root sur tous les environnements (dev, test, production) ; aucun processus de gestion des changements n'existe. Pour l'audit interne, Théo propose que le RSSI audite l'ensemble du périmètre car \"il est le plus compétent\". Pour la revue de direction, le PDG suggère de la tenir en 30 minutes lors d'un conseil d'administration. Pour répondre rapidement aux exigences, Théo envisage d'adopter directement un pack de politiques ISO 27001 \"clé en main\" acheté en ligne, sans les adapter au contexte spécifique d'EduConnect. Il justifie : \"les exigences ISO 27001 sont les mêmes pour tout le monde\".",
+      "related_standards": []
+    },
+    {
+      "id": "SC6",
+      "name": "PharmaCorp",
+      "summary": "PharmaCorp — laboratoire pharma, 3 100 employés, Toulouse",
+      "context": "PharmaCorp est un laboratoire pharmaceutique préparant son audit de certification Étape 2, prévu dans 4 semaines. Isabelle, Lead Implementer, coordonne la préparation finale. L'audit interne réalisé 6 semaines avant a révélé 2 non-conformités majeures et 4 mineures. Pour les NC majeures : (NC1) la SoA n'a pas été mise à jour suite à l'acquisition d'une filiale 5 mois plus tôt ; (NC2) les journaux d'activité des serveurs de R&D ne sont conservés que 15 jours alors que la politique interne exige 90 jours. Les actions correctives ont été \"en cours de traitement\" mais l'efficacité n'a pas été vérifiée. Le directeur juridique découvre que 3 procédures importantes ont été rédigées par des prestataires extérieurs et ne correspondent pas aux pratiques réelles. Il propose de les \"harmoniser rapidement\" en modifiant les pratiques pour les aligner sur les procédures — sans analyse d'impact. L'auditeur externe de Étape 1 avait formulé 5 points de préoccupation ; Isabelle n'a traité formellement que 2 d'entre eux, estimant les 3 autres \"non critiques\".",
+      "related_standards": []
+    }
+  ],
+  "questions": [
+    {
+      "id": "Q001",
+      "scenario_id": "SC0",
+      "domain": "D1",
+      "domain_label": "Fondamentaux et principes de la sécurité de l'information",
+      "difficulty": "hard",
+      "question": "L'argument du DSI de NovaTech — 'AWS gère la sécurité, donc les mesures technologiques sont inutiles' — reflète quelle incompréhension fondamentale du modèle de responsabilité partagée ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "AWS garantit contractuellement la conformité ISO 27001 de ses clients, donc le DSI a raison sur ce point précis même si sa formulation est maladroite"
+        },
+        {
+          "id": "B",
+          "text": "Dans le modèle partagé, AWS sécurise l'infrastructure sous-jacente, mais NovaTech reste seule responsable de la sécurité des données, des accès, des applications et des configurations qu'elle déploie dessus"
+        },
+        {
+          "id": "C",
+          "text": "Le modèle de responsabilité partagée ne s'applique qu'aux services IaaS, pas aux services PaaS ou SaaS qu'utilise NovaTech"
+        },
+        {
+          "id": "D",
+          "text": "AWS prend effectivement en charge toutes les mesures technologiques de l'Annexe A dès lors qu'un accord de niveau de service (SLA) est signé"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "Le modèle de responsabilité partagée signifie qu'AWS sécurise 'le cloud' (infrastructure physique, hyperviseurs, réseau), mais NovaTech sécurise 'ce qui est dans le cloud' : gestion des identités et accès (IAM), protection des données, configuration des services, journalisation. La mesure 5.23 exige que NovaTech définisse ses propres processus de sécurité cloud, indépendamment des garanties AWS.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [
+          "5.23"
+        ],
+        "project_phases": [],
+        "skill_type": "analyse",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q002",
+      "scenario_id": "SC0",
+      "domain": "D1",
+      "domain_label": "Fondamentaux et principes de la sécurité de l'information",
+      "difficulty": "hard",
+      "question": "Les accès toujours actifs des 3 anciens développeurs chez NovaTech constituent une violation de quelle mesure de l'Annexe A, et pour quelle raison précise ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Mesure 5.11 (Restitution des actifs), car les anciens employés auraient dû rendre leurs équipements lors de leur départ"
+        },
+        {
+          "id": "B",
+          "text": "Mesure 6.5 (Responsabilités après fin d'emploi), car elle exige uniquement de communiquer les obligations résiduelles de confidentialité"
+        },
+        {
+          "id": "C",
+          "text": "Mesure 5.18 (Droits d'accès), qui exige que les droits soient supprimés à la fin du contrat, car des droits actifs pour d'anciens employés violent directement le cycle de vie des accès"
+        },
+        {
+          "id": "D",
+          "text": "Mesure 8.2 (Droits d'accès privilégiés), mais uniquement si ces anciens développeurs avaient des droits administrateurs"
+        }
+      ],
+      "answer": "C",
+      "answer_index": 2,
+      "explanation": "La mesure 5.18 exige que les droits d'accès soient 'pourvus, révisés, modifiés et supprimés' selon les règles établies. La suppression des accès à la fin d'un contrat est un processus fondamental du cycle de vie. La mesure 5.11 couvre la restitution physique des actifs (équipements), pas les droits logiques.",
+      "tags": {
+        "iso27001_clauses": [
+          "6.5",
+          "8.2"
+        ],
+        "annexA_controls": [
+          "5.11",
+          "5.18",
+          "6.5",
+          "8.2"
+        ],
+        "project_phases": [
+          "operation"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q003",
+      "scenario_id": "SC0",
+      "domain": "D2",
+      "domain_label": "Exigences du SMSI (ISO/IEC 27001)",
+      "difficulty": "hard",
+      "question": "Karim doit défendre l'inclusion des mesures technologiques dans la SoA face au DSI. Quel argument est le plus fondé au regard de l'ISO 27001 ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Les mesures de l'Annexe A peuvent être exclues si un fournisseur de confiance les prend en charge à condition que cela soit documenté dans la SoA avec justification valable"
+        },
+        {
+          "id": "B",
+          "text": "ISO 27001 interdit formellement toute externalisation des mesures de sécurité à des fournisseurs cloud, ce qui invalide l'argument du DSI"
+        },
+        {
+          "id": "C",
+          "text": "Même si AWS implémente des mesures techniques, NovaTech doit démontrer qu'elle a évalué si ces mesures répondent à ses risques spécifiques, et elle reste responsable du résultat — l'exclusion d'une mesure requiert une justification basée sur l'absence de risque associé"
+        },
+        {
+          "id": "D",
+          "text": "Les mesures technologiques de l'Annexe A (section 8) sont optionnelles pour les entreprises SaaS car elles sont par nature couvertes par leurs fournisseurs d'infrastructure"
+        }
+      ],
+      "answer": "C",
+      "answer_index": 2,
+      "explanation": "ISO 27003 précise que l'organisation reste responsable de son SMSI même si des mesures sont implémentées par des fournisseurs. L'exclusion d'une mesure de la SoA requiert de démontrer qu'elle n'est pas nécessaire au regard des risques — pas simplement qu'un tiers la gère. La note 2 de 6.1.3 précise que l'Annexe A aide à 's'assurer qu'aucune mesure nécessaire n'a été omise'.",
+      "tags": {
+        "iso27001_clauses": [
+          "6.1.3"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "risques"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q004",
+      "scenario_id": "SC0",
+      "domain": "D3",
+      "domain_label": "Planification du SMSI",
+      "difficulty": "hard",
+      "question": "Les mesures de sécurité AWS non documentées découvertes par Karim posent quel problème spécifique du point de vue de l'ISO 27001 ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Elles sont valides tant que AWS les garantit contractuellement dans son SLA et que NovaTech peut produire ce contrat lors de l'audit"
+        },
+        {
+          "id": "B",
+          "text": "Sans documentation, NovaTech ne peut ni démontrer leur conformité avec les exigences identifiées dans la SoA, ni évaluer leur efficacité, ni les intégrer dans l'appréciation des risques résiduels"
+        },
+        {
+          "id": "C",
+          "text": "Les mesures non documentées constituent uniquement un problème lors de l'audit de certification, mais pas pendant la phase d'implémentation"
+        },
+        {
+          "id": "D",
+          "text": "Elles doivent être redocumentées mais peuvent temporairement figurer dans la SoA comme 'en cours de mise en œuvre'"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 8.1 exige que 'les informations documentées doivent être disponibles dans une mesure suffisante pour avoir l'assurance que les processus ont été suivis comme prévu'. Sans documentation, NovaTech ne peut pas : vérifier que les mesures correspondent aux risques identifiés, démontrer leur efficacité, ni les inclure valablement dans la SoA (qui doit indiquer si les mesures sont mises en œuvre).",
+      "tags": {
+        "iso27001_clauses": [
+          "8.1"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "risques",
+          "operation",
+          "certification"
+        ],
+        "skill_type": "analyse",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q005",
+      "scenario_id": "SC0",
+      "domain": "D3",
+      "domain_label": "Planification du SMSI",
+      "difficulty": "hard",
+      "question": "Le rachat de NovaTech par le groupe américain introduit des exigences SOX et CCPA. Comment Karim doit-il les intégrer dans la planification du SMSI ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "SOX et CCPA sont des réglementations financières et de vie privée distinctes d'ISO 27001 et doivent être gérées dans des projets séparés sans lien avec le SMSI"
+        },
+        {
+          "id": "B",
+          "text": "Ces exigences constituent des exigences pertinentes de parties intéressées au sens de l'article 4.2 et doivent influencer la définition du périmètre, les objectifs de sécurité et le choix des mesures de traitement des risques"
+        },
+        {
+          "id": "C",
+          "text": "SOX et CCPA remplacent ISO 27001 pour les filiales américaines, donc le SMSI ne doit couvrir que les entités françaises"
+        },
+        {
+          "id": "D",
+          "text": "Ces réglementations n'ont pas d'impact sur l'ISO 27001 car elles portent sur la gouvernance financière et la protection des données, pas sur la sécurité de l'information au sens strict"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 4.2 demande d'identifier 'les parties intéressées concernées par le SMSI' et 'les exigences pertinentes de ces parties intéressées'. Le groupe américain, les régulateurs SEC (SOX) et les autorités de protection des données en Californie (CCPA) sont des parties intéressées dont les exigences doivent être intégrées dans la planification du SMSI.",
+      "tags": {
+        "iso27001_clauses": [
+          "4.2"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage",
+          "risques"
+        ],
+        "skill_type": "application",
+        "related_standards": [
+          "SOX",
+          "CCPA"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q006",
+      "scenario_id": "SC0",
+      "domain": "D4",
+      "domain_label": "Mise en œuvre du SMSI",
+      "difficulty": "hard",
+      "question": "Karim rédige la politique de sécurité de NovaTech. Parmi les éléments suivants, lequel ne constitue PAS une exigence de l'article 5.2 ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "La politique doit être appropriée à la mission de l'organisation et inclure l'engagement d'amélioration continue"
+        },
+        {
+          "id": "B",
+          "text": "La politique doit définir précisément les sanctions disciplinaires applicables en cas de violation, avec leur gradation selon la gravité"
+        },
+        {
+          "id": "C",
+          "text": "La politique doit inclure des objectifs de sécurité de l'information ou fournir un cadre pour les établir"
+        },
+        {
+          "id": "D",
+          "text": "La politique doit être disponible sous forme d'information documentée et communiquée au sein de l'organisation"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 5.2 définit 4 exigences de contenu (a, b, c, d) et 3 exigences de diffusion (e, f, g). Les sanctions disciplinaires ne font pas partie des exigences de la politique au sens de l'article 5.2 — elles relèvent de la mesure 6.4 (Processus disciplinaire) de l'Annexe A. Une politique trop procédurale et détaillée risque aussi de mélanger les niveaux (stratégique vs opérationnel).",
+      "tags": {
+        "iso27001_clauses": [
+          "5.2",
+          "6.4"
+        ],
+        "annexA_controls": [
+          "6.4"
+        ],
+        "project_phases": [
+          "documentation",
+          "amelioration"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q007",
+      "scenario_id": "SC0",
+      "domain": "D4",
+      "domain_label": "Mise en œuvre du SMSI",
+      "difficulty": "hard",
+      "question": "Pour les données des 800 000 employés traités par NovaTech, quelle combinaison de mesures de l'Annexe A doit obligatoirement être considérée, et pourquoi la mesure 5.23 seule est-elle insuffisante ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "La mesure 5.23 suffit car elle couvre l'intégralité des risques cloud incluant la protection des données personnelles hébergées dans AWS"
+        },
+        {
+          "id": "B",
+          "text": "Les mesures 5.23, 5.34, 8.11 et 8.12 forment un ensemble minimal cohérent : 5.23 couvre la gouvernance cloud, 5.34 les exigences de protection des DCP, 8.11 le masquage des données, et 8.12 la prévention des fuites"
+        },
+        {
+          "id": "C",
+          "text": "La mesure 5.19 (sécurité fournisseurs) est la seule applicable car AWS est un fournisseur de services"
+        },
+        {
+          "id": "D",
+          "text": "Les mesures 5.31 et 5.34 suffisent car elles couvrent respectivement la conformité légale et la protection des données personnelles"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "Les données de 800 000 employés créent des risques multiples nécessitant des mesures complémentaires : 5.23 pour le gouvernance des services cloud, 5.34 pour les obligations RGPD/CCPA, 8.11 pour protéger les données lors des traitements (anonymisation, pseudonymisation), et 8.12 pour prévenir les fuites de données sensibles. Aucune mesure isolée ne peut couvrir l'ensemble de ce profil de risque.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [
+          "5.19",
+          "5.23",
+          "5.31"
+        ],
+        "project_phases": [
+          "operation"
+        ],
+        "skill_type": "identification",
+        "related_standards": [
+          "RGPD",
+          "CCPA"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q008",
+      "scenario_id": "SC0",
+      "domain": "D5",
+      "domain_label": "Surveillance, mesure, analyse et évaluation",
+      "difficulty": "hard",
+      "question": "Karim met en place des indicateurs de performance pour NovaTech. Lequel de ces indicateurs est un 'mesurage d'efficacité' selon ISO/IEC 27004, et non un simple mesurage de performance ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Nombre de patches de sécurité appliqués dans les 30 jours suivant leur publication par les éditeurs"
+        },
+        {
+          "id": "B",
+          "text": "Taux de complétion des formations de sensibilisation à la sécurité par les employés"
+        },
+        {
+          "id": "C",
+          "text": "Pourcentage de réduction du volume de données exposées en cas d'incident, mesuré après la mise en œuvre du DLP"
+        },
+        {
+          "id": "D",
+          "text": "Nombre de vulnérabilités critiques identifiées lors du dernier scan de sécurité"
+        }
+      ],
+      "answer": "C",
+      "answer_index": 2,
+      "explanation": "ISO/IEC 27004 distingue les mesurages de performance (caractéristiques d'activités : nombre de patches, taux de formation) des mesurages d'efficacité (effet produit sur les objectifs de sécurité). La réduction du volume de données exposées mesure l'effet réel de la mesure DLP sur l'objectif 'protéger les données sensibles' — c'est un mesurage d'efficacité.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [],
+        "project_phases": [
+          "documentation",
+          "operation",
+          "mesure"
+        ],
+        "skill_type": "identification",
+        "related_standards": [
+          "ISO/IEC 27004"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q009",
+      "scenario_id": "SC0",
+      "domain": "D6",
+      "domain_label": "Amélioration continue",
+      "difficulty": "hard",
+      "question": "NovaTech subit un incident de sécurité mineur. Karim traite immédiatement l'incident puis classe le dossier. Quelle lacune critique dans le processus d'amélioration continue cela révèle-t-il ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Aucune lacune, car l'article 10.2 distingue les incidents (traités selon la procédure de gestion des incidents) des non-conformités (traitées selon 10.2), et un incident résolu ne déclenche pas automatiquement 10.2"
+        },
+        {
+          "id": "B",
+          "text": "Karim a omis l'étape d'analyse des causes pour déterminer si l'incident révèle une non-conformité du SMSI nécessitant une action corrective formelle selon l'article 10.2"
+        },
+        {
+          "id": "C",
+          "text": "Karim aurait dû suspendre le SMSI et informer l'organisme de certification avant de traiter l'incident"
+        },
+        {
+          "id": "D",
+          "text": "L'incident aurait dû être escaladé à la direction avant tout traitement opérationnel, même pour un incident mineur"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "Un incident de sécurité peut révéler une faiblesse du SMSI constituant une non-conformité. L'article 10.2 requiert d'évaluer si une action corrective est nécessaire pour éliminer les causes et prévenir la récurrence. La frontière entre 'incident traité' et 'non-conformité nécessitant 10.2' est précisément ce point d'analyse des causes. Ignorer cette étape est la lacune critique.",
+      "tags": {
+        "iso27001_clauses": [
+          "10.2"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "documentation",
+          "amelioration",
+          "certification"
+        ],
+        "skill_type": "analyse",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q010",
+      "scenario_id": "SC0",
+      "domain": "D7",
+      "domain_label": "Audit interne et préparation à la certification",
+      "difficulty": "hard",
+      "question": "Karim prépare l'audit de certification. Le directeur marketing propose d'exclure le département commercial du périmètre d'audit car 'ils ne touchent pas aux systèmes sensibles'. Comment Karim doit-il répondre ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Le directeur a raison : un département qui ne traite pas de données sensibles peut légitimement être exclu du périmètre d'audit sans impact sur la certification"
+        },
+        {
+          "id": "B",
+          "text": "L'auditeur peut accepter cette exclusion si elle est documentée dans la SoA avec une justification d'absence de risque"
+        },
+        {
+          "id": "C",
+          "text": "Si le département commercial est dans le périmètre du SMSI tel que défini à l'article 4.3, l'auditeur vérifiera tous les processus concernés dans ce périmètre — une exclusion arbitraire lors de l'audit sans modification du périmètre documenté constituerait une non-conformité"
+        },
+        {
+          "id": "D",
+          "text": "Karim peut accepter l'exclusion pour l'Étape 2 uniquement, à condition de la mentionner dans le plan d'audit"
+        }
+      ],
+      "answer": "C",
+      "answer_index": 2,
+      "explanation": "Le périmètre d'audit doit correspondre au périmètre du SMSI défini en 4.3 et documenté. Exclure un département présent dans le périmètre documenté lors de l'audit reviendrait à tromper l'auditeur. Si le département commercial doit être exclu, le périmètre doit être formellement modifié selon l'article 4.3 et 6.3 (planification des modifications) avant l'audit.",
+      "tags": {
+        "iso27001_clauses": [
+          "4.3",
+          "6.3"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage",
+          "risques",
+          "amelioration",
+          "certification"
+        ],
+        "skill_type": "application",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q011",
+      "scenario_id": "SC0",
+      "domain": "D7",
+      "domain_label": "Audit interne et préparation à la certification",
+      "difficulty": "hard",
+      "question": "Lors de la préparation à l'audit de certification, l'équipe de NovaTech souhaite savoir quels documents sont OBLIGATOIREMENT requis sous forme d'informations documentées par l'ISO 27001. Quelle liste est correcte ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Politique de sécurité, SoA, plan de traitement des risques, résultats de l'appréciation des risques, programme d'audit interne, résultats d'audit, résultats de la revue de direction, NC et actions correctives"
+        },
+        {
+          "id": "B",
+          "text": "Politique de sécurité, SoA uniquement : tous les autres documents sont optionnels selon la taille de l'organisation"
+        },
+        {
+          "id": "C",
+          "text": "Politique de sécurité, SoA, plan de traitement des risques, et les informations documentées des articles 4 à 10 uniquement si l'organisation les juge nécessaires à l'efficacité"
+        },
+        {
+          "id": "D",
+          "text": "La norme n'exige aucune liste fixe de documents : c'est l'organisation qui détermine librement quelles informations documentées sont nécessaires selon l'article 7.5.1"
+        }
+      ],
+      "answer": "A",
+      "answer_index": 0,
+      "explanation": "L'ISO 27001 impose explicitement plusieurs informations documentées dans les articles 4 à 10 (domaine d'application art.4.3, politique art.5.2, résultats d'appréciation art.6.1.2, SoA art.6.1.3, résultats de traitement art.8.3, résultats d'audit art.9.2.2, résultats de revue art.9.3.3, NC et actions correctives art.10.2) ainsi que les informations que l'organisation juge nécessaires (art.7.5.1b).",
+      "tags": {
+        "iso27001_clauses": [
+          "10.2",
+          "4.3",
+          "5.2",
+          "6.1.2",
+          "6.1.3",
+          "7.5",
+          "7.5.1",
+          "8.3",
+          "9.2.2",
+          "9.3.3"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage",
+          "risques",
+          "documentation",
+          "audit_revue",
+          "amelioration",
+          "certification"
+        ],
+        "skill_type": "identification",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q012",
+      "scenario_id": "SC1",
+      "domain": "D6",
+      "domain_label": "Amélioration continue",
+      "difficulty": "hard",
+      "question": "L'incident de fuite de données chez FinSecure a été 'corrigé' sans traitement formel selon l'article 10.2. Quelles sont les deux conséquences directes de cette omission pour l'audit de surveillance ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Aucune conséquence directe, car un incident technique résolu n'est pas une non-conformité au sens de l'article 10.2 qui ne s'applique qu'aux écarts procéduraux"
+        },
+        {
+          "id": "B",
+          "text": "L'auditeur identifiera une non-conformité à l'article 10.2 (absence d'analyse des causes et d'action corrective documentée), et potentiellement une seconde non-conformité à l'article 9.1 si cet incident n'a pas alimenté les indicateurs de performance"
+        },
+        {
+          "id": "C",
+          "text": "L'auditeur identifiera uniquement une observation (pas une NC) car la correction technique a bien eu lieu"
+        },
+        {
+          "id": "D",
+          "text": "La non-conformité sera limitée à l'article 7.5 car il manque uniquement la documentation de l'incident"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 10.2 exige : réagir ET corriger (fait), mais aussi évaluer les causes, mettre en œuvre des actions correctives et vérifier leur efficacité (non fait). L'absence de ces étapes constitue une NC à 10.2. De plus, cet incident aurait dû alimenter les résultats de surveillance (art.9.1) et figurer parmi les éléments d'entrée de la revue de direction (art.9.3.2 d1). L'auditeur relèvera probablement les deux manquements.",
+      "tags": {
+        "iso27001_clauses": [
+          "10.2",
+          "7.5",
+          "9.1",
+          "9.3.2"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "documentation",
+          "mesure",
+          "audit_revue",
+          "amelioration"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q013",
+      "scenario_id": "SC1",
+      "domain": "D3",
+      "domain_label": "Planification du SMSI",
+      "difficulty": "hard",
+      "question": "Le DSI de FinSecure a modifié unilatéralement le plan de traitement des risques après la certification. Quelle combinaison d'articles de l'ISO 27001 a été violée ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Articles 6.1.3 f) uniquement, car l'approbation des propriétaires des risques est la seule exigence procédurale pour modifier le plan de traitement"
+        },
+        {
+          "id": "B",
+          "text": "Articles 6.1.3 f) (approbation des propriétaires des risques absente), 6.3 (modification du SMSI sans planification), et potentiellement 8.1 (contrôle des modifications prévues)"
+        },
+        {
+          "id": "C",
+          "text": "Article 5.3 uniquement, car seule la direction générale peut modifier les documents de gestion des risques"
+        },
+        {
+          "id": "D",
+          "text": "Article 8.2 uniquement, car la modification du plan de traitement équivaut à une nouvelle appréciation des risques"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "Trois violations : 6.1.3 f) exige l'approbation des propriétaires des risques pour le plan de traitement et l'acceptation des risques résiduels ; 6.3 (planification des modifications) exige que les modifications du SMSI soient planifiées ; 8.1 exige de 'contrôler les modifications prévues, analyser les conséquences des imprévues'. Une modification unilatérale viole ces trois articles simultanément.",
+      "tags": {
+        "iso27001_clauses": [
+          "5.3",
+          "6.1.3",
+          "6.3",
+          "8.1",
+          "8.2"
+        ],
+        "annexA_controls": [
+          "5.3"
+        ],
+        "project_phases": [
+          "risques",
+          "operation",
+          "certification"
+        ],
+        "skill_type": "identification",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q014",
+      "scenario_id": "SC1",
+      "domain": "D5",
+      "domain_label": "Surveillance, mesure, analyse et évaluation",
+      "difficulty": "hard",
+      "question": "La revue de direction de FinSecure s'est tenue sans les résultats d'appréciation des risques ni l'état du plan de traitement. En plus de l'article 9.3.2, quel autre article de la norme est impacté par cette lacune ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "L'article 5.1 uniquement, car l'absence d'éléments d'entrée reflète un manque de leadership de la direction"
+        },
+        {
+          "id": "B",
+          "text": "L'article 10.1 (amélioration continue), car sans ces informations la direction ne peut pas décider d'améliorations pertinentes, créant une rupture dans le cycle PDCA"
+        },
+        {
+          "id": "C",
+          "text": "L'article 7.4 uniquement, car les éléments d'entrée manquants représentent un problème de communication interne"
+        },
+        {
+          "id": "D",
+          "text": "L'article 6.2 uniquement, car les objectifs de sécurité ne peuvent être évalués sans les résultats du plan de traitement"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 9.3.2 liste les éléments d'entrée obligatoires (dont les résultats d'appréciation et l'état du plan de traitement). Mais l'article 9.3.3 exige que les résultats de la revue incluent 'des décisions relatives aux opportunités d'amélioration continue'. Sans les informations de risque, ces décisions ne peuvent être fondées, ce qui crée une rupture dans le cycle d'amélioration continue (art.10.1). Les deux articles sont donc impactés.",
+      "tags": {
+        "iso27001_clauses": [
+          "10.1",
+          "5.1",
+          "6.2",
+          "7.4",
+          "9.3.2",
+          "9.3.3"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "risques",
+          "audit_revue",
+          "amelioration"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q015",
+      "scenario_id": "SC1",
+      "domain": "D3",
+      "domain_label": "Planification du SMSI",
+      "difficulty": "hard",
+      "question": "12 des 15 objectifs de sécurité de FinSecure n'ont aucune mesure quantifiable. Quelle exigence spécifique de l'article 6.2 est violée, et quelle nuance importante la norme introduit-elle sur ce point ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "L'article 6.2 b) exige que les objectifs soient absolument quantifiables et mesurables : l'absence de mesure chiffrée constitue une non-conformité sans nuance possible"
+        },
+        {
+          "id": "B",
+          "text": "L'article 6.2 b) exige que les objectifs soient 'mesurables (si possible)' — la nuance 'si possible' signifie qu'un objectif peut être qualitatif si une mesure quantitative est réellement impossible, mais cette impossibilité doit être justifiée"
+        },
+        {
+          "id": "C",
+          "text": "L'article 6.2 ne contient aucune exigence de mesurabilité des objectifs, cette exigence provient uniquement de l'ISO 27004"
+        },
+        {
+          "id": "D",
+          "text": "L'article 6.2 exige que les objectifs soient surveillés et communiqués, mais pas nécessairement mesurables au sens quantitatif"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 6.2 b) formule l'exigence avec la nuance 'mesurables (si possible)'. Cette parenthèse signifie que la norme reconnaît que certains objectifs peuvent difficile à quantifier, mais l'organisation doit démontrer pourquoi. En pratique, 12/15 objectifs sans aucune mesure suggère une absence d'effort pour définir des indicateurs, ce qui constitue une non-conformité à l'esprit de l'article même si la lettre laisse une marge.",
+      "tags": {
+        "iso27001_clauses": [
+          "6.2"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "mesure",
+          "amelioration"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": [
+          "ISO/IEC 27004"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q016",
+      "scenario_id": "SC1",
+      "domain": "D2",
+      "domain_label": "Exigences du SMSI (ISO/IEC 27001)",
+      "difficulty": "hard",
+      "question": "FinSecure est soumise à DORA et NIS2 en plus d'ISO 27001. Quelle affirmation décrit correctement la relation entre ces référentiels ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "DORA remplace ISO 27001 pour les institutions financières européennes : FinSecure n'a pas besoin de la certification ISO 27001 si elle est conforme à DORA"
+        },
+        {
+          "id": "B",
+          "text": "NIS2 et DORA créent des exigences spécifiques sectorielles qui complètent ISO 27001 — une organisation conforme à ISO 27001 n'est pas automatiquement conforme à DORA/NIS2, et inversement"
+        },
+        {
+          "id": "C",
+          "text": "La conformité ISO 27001 certifiée garantit automatiquement la conformité à DORA et NIS2, rendant ces vérifications supplémentaires inutiles"
+        },
+        {
+          "id": "D",
+          "text": "DORA et NIS2 sont des exigences techniques qui doivent être intégrées uniquement dans la SoA comme mesures additionnelles à l'Annexe A"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "DORA (résilience opérationnelle numérique des entités financières) et NIS2 (cybersécurité des entités essentielles et importantes) ont des exigences propres (tests TLPT, registres TIC tiers, reporting d'incidents 24h, gouvernance) qui vont au-delà d'ISO 27001. La conformité ISO 27001 contribue à DORA/NIS2 mais ne les remplace pas — un SMSI certifié ISO 27001 doit être complété par des contrôles spécifiques pour satisfaire ces réglementations.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [],
+        "project_phases": [
+          "risques",
+          "certification"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": [
+          "DORA",
+          "NIS2"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q017",
+      "scenario_id": "SC1",
+      "domain": "D5",
+      "domain_label": "Surveillance, mesure, analyse et évaluation",
+      "difficulty": "hard",
+      "question": "L'auditeur de surveillance de FinSecure demande à examiner les preuves de surveillance et de mesurage des 12 derniers mois. Diane ne peut produire que des rapports informels pour 4 des 15 objectifs. Quelle conséquence directe cela peut-il avoir ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "L'auditeur formulera une observation mais pas une non-conformité, car des rapports informels constituent des preuves valables selon l'article 7.5"
+        },
+        {
+          "id": "B",
+          "text": "L'auditeur identifiera une non-conformité à l'article 9.1 ('des informations documentées doivent être disponibles comme preuve des résultats') pour les 11 objectifs sans preuves formelles"
+        },
+        {
+          "id": "C",
+          "text": "L'absence de preuves pour 4 objectifs seulement n'est pas suffisante pour remettre en cause la certification, sauf si ces 4 objectifs concernent des risques critiques"
+        },
+        {
+          "id": "D",
+          "text": "Diane peut régulariser la situation en produisant rétroactivement des tableaux de bord reconstitués à partir des données disponibles"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 9.1 stipule explicitement : 'Des informations documentées doivent être disponibles comme preuve des résultats.' Cette exigence ne distingue pas les objectifs 'critiques' des autres. L'absence de preuves formelles pour 11/15 objectifs constitue une non-conformité. La reconstitution rétrospective de preuves poserait un problème d'intégrité similaire à l'antidatage et serait détectée par un auditeur expérimenté.",
+      "tags": {
+        "iso27001_clauses": [
+          "7.5",
+          "9.1"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "documentation",
+          "mesure",
+          "amelioration",
+          "certification"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q018",
+      "scenario_id": "SC1",
+      "domain": "D7",
+      "domain_label": "Audit interne et préparation à la certification",
+      "difficulty": "hard",
+      "question": "Pendant l'audit de surveillance, l'auditeur identifie une NC majeure liée à la modification non autorisée du plan de traitement des risques. Quel délai standard FinSecure a-t-elle généralement pour résoudre une NC majeure avant risque de suspension de certification ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "7 jours ouvrés maximum, car une NC majeure lors d'un audit de surveillance exige une réponse immédiate"
+        },
+        {
+          "id": "B",
+          "text": "Il n'existe pas de délai standardisé : c'est l'organisme de certification qui fixe le délai selon la nature et la gravité de la NC, généralement entre 30 et 90 jours"
+        },
+        {
+          "id": "C",
+          "text": "6 mois maximum, correspondant à la durée entre deux audits de surveillance annuels"
+        },
+        {
+          "id": "D",
+          "text": "La certification est automatiquement suspendue dès la détection d'une NC majeure, sans délai de régularisation possible"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "Il n'existe pas de délai universel fixé par ISO 27001. Selon les règles des organismes de certification (et ISO/IEC 27006), pour les NC majeures lors d'un audit de surveillance, l'organisme fixe un délai de régularisation — généralement 30 à 90 jours. Si ce délai n'est pas respecté ou si les actions correctives sont insuffisantes, la certification peut être suspendue puis retirée. La suspension immédiate automatique n'est pas prévue.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [],
+        "project_phases": [
+          "risques",
+          "mesure",
+          "certification"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": [
+          "ISO/IEC 27006"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q019",
+      "scenario_id": "SC1",
+      "domain": "D4",
+      "domain_label": "Mise en œuvre du SMSI",
+      "difficulty": "hard",
+      "question": "FinSecure veut mettre en place une politique de traitement des incidents conforme à ISO 27001. Quelle mesure de l'Annexe A impose spécifiquement un mécanisme permettant au personnel de signaler les incidents, et quelle erreur fréquente les organisations commettent-elles sur ce point ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "La mesure 5.24 impose ce mécanisme et l'erreur fréquente est de limiter les signalements aux incidents avérés plutôt qu'aux événements suspects"
+        },
+        {
+          "id": "B",
+          "text": "La mesure 6.8 impose un mécanisme de déclaration des événements de sécurité par le personnel, et l'erreur fréquente est de ne prévoir ce mécanisme que pour le personnel IT en oubliant l'ensemble des employés"
+        },
+        {
+          "id": "C",
+          "text": "La mesure 5.26 impose ce mécanisme, et l'erreur fréquente est de ne pas tester les procédures de réponse avant un incident réel"
+        },
+        {
+          "id": "D",
+          "text": "La mesure 5.25 impose ce mécanisme, et l'erreur fréquente est de ne pas distinguer événement de sécurité et incident de sécurité"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "La mesure 6.8 exige 'un mécanisme au personnel pour déclarer rapidement les événements de sécurité de l'information observés ou suspectés'. L'erreur fréquente est de limiter ce mécanisme à l'équipe IT ou au RSSI. La mesure couvre l'ensemble du personnel — un commercial, une secrétaire ou un technicien doit pouvoir signaler facilement un comportement suspect ou une erreur de manipulation. La mesure 5.24 couvre la planification de la gestion des incidents (côté équipe de réponse).",
+      "tags": {
+        "iso27001_clauses": [
+          "6.8"
+        ],
+        "annexA_controls": [
+          "5.24",
+          "5.25",
+          "5.26",
+          "6.8"
+        ],
+        "project_phases": [
+          "documentation",
+          "operation"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q020",
+      "scenario_id": "SC1",
+      "domain": "D6",
+      "domain_label": "Amélioration continue",
+      "difficulty": "hard",
+      "question": "FinSecure souhaite améliorer son SMSI en s'appuyant sur une approche de risque proactive plutôt que réactive. Quel article ISO 27001 autorise explicitement de considérer les opportunités (et pas seulement les risques) dans la planification ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "L'article 10.1 (amélioration continue) est le seul article à traiter des opportunités d'amélioration dans le SMSI"
+        },
+        {
+          "id": "B",
+          "text": "L'article 6.1.1 exige de déterminer non seulement les risques mais aussi les opportunités qui nécessitent d'être abordés pour atteindre les résultats escomptés du SMSI"
+        },
+        {
+          "id": "C",
+          "text": "L'ISO 27001 ne traite jamais d'opportunités, uniquement de risques à maîtriser, car c'est une norme de sécurité et non de management stratégique"
+        },
+        {
+          "id": "D",
+          "text": "L'article 9.3.2 g) traite des opportunités uniquement dans le contexte de la revue de direction"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 6.1.1 demande de déterminer 'les risques et opportunités qui nécessitent d'être abordés' pour assurer que le SMSI atteint ses résultats, empêche les effets indésirables et favorise l'amélioration continue. ISO 27001 intègre donc explicitement la gestion des opportunités dès la planification, pas seulement dans la revue de direction.",
+      "tags": {
+        "iso27001_clauses": [
+          "10.1",
+          "6.1.1",
+          "9.3.2"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage",
+          "risques",
+          "audit_revue",
+          "amelioration"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q021",
+      "scenario_id": "SC1",
+      "domain": "D3",
+      "domain_label": "Planification du SMSI",
+      "difficulty": "hard",
+      "question": "FinSecure a récemment intégré une activité de gestion de patrimoine privé (private banking). L'article 6.3 (Planification des modifications) s'applique-t-il à cette situation, et quelles actions sont requises ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "L'article 6.3 ne s'applique qu'aux modifications des mesures techniques du SMSI, pas aux évolutions du modèle commercial"
+        },
+        {
+          "id": "B",
+          "text": "L'article 6.3 s'applique car cette activité peut modifier le contexte, les risques et le périmètre du SMSI — des modifications planifiées doivent inclure une mise à jour du périmètre (4.3), une nouvelle appréciation des risques (6.1.2) et potentiellement une révision de la SoA (6.1.3)"
+        },
+        {
+          "id": "C",
+          "text": "L'article 6.3 s'applique uniquement si la nouvelle activité implique des systèmes d'information nouveaux, pas si elle utilise l'infrastructure existante"
+        },
+        {
+          "id": "D",
+          "text": "L'article 8.2 remplace l'article 6.3 dans ce cas, car c'est un changement significatif qui déclenche une nouvelle appréciation des risques"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 6.3 (introduit en 2022) s'applique dès que 'l'organisation détermine qu'il est nécessaire de modifier le SMSI'. Une nouvelle activité à forte exigence réglementaire (private banking est soumis à des exigences spécifiques de confidentialité et de conformité) constitue une modification significative. Elle peut modifier le périmètre (4.3), les parties intéressées (4.2), les risques (6.1.2) et les mesures requises (6.1.3). Les deux articles 6.3 et 8.2 s'articulent : 6.3 pour planifier la modification, 8.2 pour déclencher la réévaluation des risques.",
+      "tags": {
+        "iso27001_clauses": [
+          "4.2",
+          "4.3",
+          "6.1.2",
+          "6.1.3",
+          "6.3",
+          "8.2"
+        ],
+        "annexA_controls": [
+          "6.1"
+        ],
+        "project_phases": [
+          "cadrage",
+          "risques"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q022",
+      "scenario_id": "SC2",
+      "domain": "D3",
+      "domain_label": "Planification du SMSI",
+      "difficulty": "hard",
+      "question": "La définition du périmètre SMSI de CityHôpital (uniquement le datacenter) en excluant les soignants est-elle défendable au regard de l'article 4.3, et pour quelle raison précise ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Oui, un périmètre restreint est toujours possible selon l'article 4.3 qui laisse l'organisation totalement libre de définir ses limites"
+        },
+        {
+          "id": "B",
+          "text": "Oui, car les soignants ne sont pas des utilisateurs primaires des systèmes d'information dans un sens technique, leur exclusion est donc justifiable"
+        },
+        {
+          "id": "C",
+          "text": "Non, car l'article 4.3 exige de prendre en compte les 'interfaces et dépendances entre les activités de l'organisation et celles d'autres organisations' — les soignants accèdent aux systèmes d'information de santé et représentent un vecteur de risque incontournable"
+        },
+        {
+          "id": "D",
+          "text": "Non, car ISO 27001 impose que le périmètre couvre obligatoirement l'ensemble de l'organisation sans exception"
+        }
+      ],
+      "answer": "C",
+      "answer_index": 2,
+      "explanation": "L'article 4.3 n'exige pas un périmètre exhaustif, mais impose de considérer les interfaces et dépendances. Les soignants qui accèdent aux DMP (Dossiers Médicaux Partagés), partagent des données par messagerie non sécurisée, ou utilisent des dispositifs médicaux connectés créent des interfaces avec les systèmes du datacenter. Les exclure du périmètre sans traiter ces interfaces reviendrait à créer des angles morts délibérés, ce qui ne satisfait pas l'esprit de l'article 4.3.",
+      "tags": {
+        "iso27001_clauses": [
+          "4.3"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q023",
+      "scenario_id": "SC2",
+      "domain": "D1",
+      "domain_label": "Fondamentaux et principes de la sécurité de l'information",
+      "difficulty": "hard",
+      "question": "L'incident WhatsApp des radios chez CityHôpital constitue une violation de quelle propriété de l'information, et pourquoi l'argument 'd'Hugo' ('hors périmètre') est-il problématique ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "C'est une violation de la disponibilité uniquement, car WhatsApp peut être considéré comme un canal de communication valide entre professionnels de santé"
+        },
+        {
+          "id": "B",
+          "text": "C'est une violation de la confidentialité (données de santé partagées hors des canaux sécurisés autorisés), et l'argument 'hors périmètre' est problématique car cet incident démontre précisément une lacune dans la définition du périmètre SMSI"
+        },
+        {
+          "id": "C",
+          "text": "C'est une violation de l'intégrité des données car WhatsApp compresse les images médicales, réduisant leur qualité diagnostique"
+        },
+        {
+          "id": "D",
+          "text": "L'incident est effectivement hors périmètre et Hugo a raison : ISO 27001 ne peut pas contrôler les comportements individuels des employés en dehors du périmètre défini"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'envoi de données de santé via WhatsApp viole la confidentialité (données accessibles à des tiers non autorisés, stockées sur des serveurs tiers hors du contrôle de l'hôpital) et les réglementations HDS/RGPD. Que cet incident soit 'hors périmètre' révèle précisément un défaut de conception du périmètre : si les soignants accèdent à des données sensibles et peuvent les exfiltrer via des canaux non sécurisés, le périmètre aurait dû couvrir cette interface.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage"
+        ],
+        "skill_type": "analyse",
+        "related_standards": [
+          "RGPD",
+          "HDS"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q024",
+      "scenario_id": "SC2",
+      "domain": "D3",
+      "domain_label": "Planification du SMSI",
+      "difficulty": "hard",
+      "question": "Hugo affirme que l'approche 'orientée actifs' est 'la seule reconnue par ISO 27001'. Cette affirmation est-elle exacte ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Oui, l'article 6.1.2 c) impose explicitement une approche orientée actifs en demandant d'identifier les risques liés aux 'informations' entrant dans le périmètre du SMSI"
+        },
+        {
+          "id": "B",
+          "text": "Non, ISO 27001 n'impose aucune méthodologie d'appréciation des risques spécifique. L'article 6.1.2 définit des exigences fonctionnelles (cohérence, identification, analyse, évaluation) que toute méthodologie compatible doit respecter"
+        },
+        {
+          "id": "C",
+          "text": "Non, mais l'approche orientée actifs est obligatoire pour les secteurs régulés comme la santé qui disposent de référentiels sectoriels spécifiques"
+        },
+        {
+          "id": "D",
+          "text": "Oui, l'ISO 27005 impose explicitement l'approche orientée actifs comme méthodologie de référence pour la mise en œuvre d'ISO 27001"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 6.1.2 fixe des exigences fonctionnelles (le processus doit produire des résultats cohérents, identifier les risques CIA, leurs propriétaires, analyser les conséquences et la vraisemblance) sans prescrire de méthode. ISO 27005:2022 présente d'ailleurs deux approches possibles : orientée actifs (inventaire → menaces/vulnérabilités → risques) ET orientée événements (scénarios de risque directs). L'organisation choisit selon son contexte.",
+      "tags": {
+        "iso27001_clauses": [
+          "6.1.2"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage",
+          "risques",
+          "operation"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": [
+          "ISO/IEC 27005"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q025",
+      "scenario_id": "SC2",
+      "domain": "D4",
+      "domain_label": "Mise en œuvre du SMSI",
+      "difficulty": "hard",
+      "question": "Pour CityHôpital avec un niveau de maturité de 1,4/5, quelle approche de mise en œuvre des mesures de sécurité est recommandée par les bonnes pratiques PECB ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Implémenter immédiatement toutes les 93 mesures de l'Annexe A en parallèle pour maximiser la couverture de sécurité dès le départ"
+        },
+        {
+          "id": "B",
+          "text": "Prioriser les mesures selon les risques identifiés (traiter d'abord les risques élevés), adopter une approche progressive par vagues, et viser un niveau de maturité 3 comme cible initiale réaliste"
+        },
+        {
+          "id": "C",
+          "text": "Reporter la mise en œuvre des mesures techniques à un second projet et se concentrer uniquement sur la documentation pour obtenir rapidement la certification"
+        },
+        {
+          "id": "D",
+          "text": "Atteindre le niveau de maturité 5 (optimisé) sur un sous-ensemble restreint de mesures plutôt qu'un niveau 2 sur l'ensemble"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "Avec un niveau de maturité initial de 1,4/5, une approche exhaustive et simultanée serait irréaliste (ressources, délais, capacité organisationnelle). Les bonnes pratiques PECB recommandent de prioriser selon les niveaux de risque, d'adopter une approche progressive (quick wins sur risques critiques, puis déploiement par vagues), et de viser un niveau de maturité 3 ('Définis') comme cible initiale — les processus normalisés, documentés et communiqués en formation.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [],
+        "project_phases": [
+          "operation",
+          "certification"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q026",
+      "scenario_id": "SC2",
+      "domain": "D2",
+      "domain_label": "Exigences du SMSI (ISO/IEC 27001)",
+      "difficulty": "hard",
+      "question": "Pour CityHôpital, la mesure 5.34 (Protection de la vie privée et des DCP) interagit avec le référentiel HDS. Quelle affirmation décrit correctement cette relation ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "La certification HDS remplace intégralement la mesure 5.34 pour les établissements de santé certifiés HDS"
+        },
+        {
+          "id": "B",
+          "text": "La mesure 5.34 impose d'identifier et de respecter les exigences légales et contractuelles de protection des DCP : pour CityHôpital, le RGPD, le secret médical et les exigences HDS sont toutes des sources d'exigences à intégrer dans le SMSI"
+        },
+        {
+          "id": "C",
+          "text": "La mesure 5.34 ne couvre que les données administratives des patients, le secret médical relevant du Code de la Santé Publique et donc hors périmètre ISO 27001"
+        },
+        {
+          "id": "D",
+          "text": "La mesure 5.34 et HDS sont deux systèmes incompatibles qui nécessitent des approches de sécurité distinctes et ne peuvent être intégrés dans un SMSI unique"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "La mesure 5.34 demande d'identifier et respecter toutes les exigences légales, réglementaires et contractuelles applicables à la protection des DCP. Pour CityHôpital, ces sources sont multiples : RGPD (données personnelles), Code de la Santé Publique (secret médical), référentiel HDS (hébergement de données de santé). Ces exigences doivent toutes être identifiées (art.5.31) et intégrées dans le SMSI, ce qui crée une complémentarité et non une incompatibilité entre ces référentiels.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [
+          "5.34"
+        ],
+        "project_phases": [
+          "cadrage",
+          "certification"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": [
+          "RGPD",
+          "HDS"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q027",
+      "scenario_id": "SC2",
+      "domain": "D5",
+      "domain_label": "Surveillance, mesure, analyse et évaluation",
+      "difficulty": "hard",
+      "question": "CityHôpital veut mesurer l'efficacité de ses formations de sensibilisation. Parmi ces approches, laquelle constitue le mesurage le plus pertinent selon ISO/IEC 27004 ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Compter le nombre d'heures de formation dispensées et le taux de présence pour démontrer la réalisation du programme de sensibilisation"
+        },
+        {
+          "id": "B",
+          "text": "Mesurer le taux de déclaration des événements de sécurité suspects par le personnel non-IT avant et après la formation, pour évaluer le changement de comportement réel"
+        },
+        {
+          "id": "C",
+          "text": "Réaliser un test de connaissances théoriques à la fin de chaque session pour valider l'acquisition des concepts"
+        },
+        {
+          "id": "D",
+          "text": "Calculer le coût par employé formé et le comparer au benchmark sectoriel pour évaluer l'efficience du programme"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "ISO/IEC 27004 distingue les mesurages de performance (heures dispensées, taux de présence, scores de tests) des mesurages d'efficacité (changement comportemental réel). Le taux de déclaration d'événements suspects par le personnel non-IT mesure directement l'effet produit par la formation sur l'objectif 'améliorer la vigilance du personnel' — c'est le mesurage d'efficacité le plus pertinent. Les autres options mesurent des outputs (activités réalisées) plutôt que des outcomes (effets produits).",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [],
+        "project_phases": [
+          "documentation",
+          "mesure"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": [
+          "ISO/IEC 27004"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q028",
+      "scenario_id": "SC2",
+      "domain": "D7",
+      "domain_label": "Audit interne et préparation à la certification",
+      "difficulty": "hard",
+      "question": "Lors de l'audit interne de CityHôpital, l'auditeur interne doit évaluer si l'incident WhatsApp constitue une non-conformité. Quelle démarche d'audit est correcte selon ISO 19011 ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "L'auditeur interne ne doit pas analyser les incidents individuels car son rôle se limite à vérifier la documentation et les procédures formelles"
+        },
+        {
+          "id": "B",
+          "text": "L'auditeur doit collecter des preuves d'audit objectives : examiner si une politique de transfert d'informations (5.14) existe, vérifier si des mesures de sécurité pour les appareils mobiles (8.1 et 6.7) sont implémentées, et constater l'écart entre la pratique observée et les exigences"
+        },
+        {
+          "id": "C",
+          "text": "L'auditeur doit immédiatement classer cet incident comme non-conformité majeure sans investigation complémentaire car l'utilisation de WhatsApp pour des données de santé est évidente"
+        },
+        {
+          "id": "D",
+          "text": "L'auditeur interne de CityHôpital ne peut pas traiter cet incident car il a été déclaré 'hors périmètre' par le DSI, et l'auditeur doit respecter cette décision managériale"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "Selon ISO 19011, un audit repose sur des preuves objectives, pas des suppositions. L'auditeur doit : vérifier l'existence de politiques relatives au transfert d'informations (5.14), à la sécurité des appareils mobiles (8.1), au travail à distance (6.7) ; constater si ces politiques sont connues des soignants (7.3) ; et documenter l'écart entre pratique observée et exigences. La conclusion (NC majeure, mineure, ou observation) découle de cette analyse, pas d'un jugement a priori.",
+      "tags": {
+        "iso27001_clauses": [
+          "6.7",
+          "7.3",
+          "8.1"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage",
+          "documentation",
+          "operation",
+          "audit_revue",
+          "amelioration"
+        ],
+        "skill_type": "application",
+        "related_standards": [
+          "ISO 19011"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q029",
+      "scenario_id": "SC3",
+      "domain": "D3",
+      "domain_label": "Planification du SMSI",
+      "difficulty": "hard",
+      "question": "La proposition de Marc d'étendre le périmètre SMSI à toutes les filiales d'emblée est-elle une bonne pratique, et quels risques comporte-t-elle ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Oui, un périmètre maximal dès le début réduit le risque de devoir élargir le SMSI ultérieurement et simplifie la gouvernance du groupe"
+        },
+        {
+          "id": "B",
+          "text": "L'extension à toutes les filiales simultanément augmente massivement la complexité du projet (multiplicité des contextes, réglementations de 6 pays, systèmes hétérogènes) — une approche progressive par périmètre prioritaire est recommandée pour maîtriser les délais et les risques"
+        },
+        {
+          "id": "C",
+          "text": "L'extension multi-filiales est obligatoire selon l'ISO 27001 qui interdit les périmètres restreints pour les groupes de sociétés"
+        },
+        {
+          "id": "D",
+          "text": "La position du RSSI est correcte : chaque filiale doit obtenir sa propre certification ISO 27001 indépendante, un SMSI de groupe étant incompatible avec la norme"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 4.3 permet de définir librement le périmètre, mais un périmètre trop large dès le départ peut rendre le projet ingérable. Pour un groupe multinational avec des systèmes hétérogènes et des réglementations différentes selon les pays, la bonne pratique PECB recommande de démarrer par un périmètre prioritaire (siège + entités les plus critiques), certifier ce périmètre, puis étendre progressivement. Un SMSI de groupe est possible et même recommandé, mais son déploiement doit être phasé.",
+      "tags": {
+        "iso27001_clauses": [
+          "4.3"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage",
+          "operation",
+          "certification"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q030",
+      "scenario_id": "SC3",
+      "domain": "D2",
+      "domain_label": "Exigences du SMSI (ISO/IEC 27001)",
+      "difficulty": "hard",
+      "question": "Marc veut inclure toutes les 93 mesures de l'Annexe A dans la SoA de LogiGroup. Pourquoi cette approche est-elle contre-productive du point de vue de l'ISO 27001 ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "C'est une approche acceptable car inclure toutes les mesures démontre une démarche de sécurité maximale appréciée par les auditeurs"
+        },
+        {
+          "id": "B",
+          "text": "La SoA doit refléter les mesures nécessaires au regard des risques identifiés — inclure des mesures non justifiées par les risques crée des obligations non pertinentes, alourdit inutilement le SMSI et rend impossible la démonstration de la mise en œuvre effective lors de l'audit"
+        },
+        {
+          "id": "C",
+          "text": "ISO 27001 interdit d'inclure toutes les 93 mesures car la note 3 de l'article 6.1.3 précise que l'Annexe A n'est pas exhaustive"
+        },
+        {
+          "id": "D",
+          "text": "Les 93 mesures ne peuvent être toutes incluses car certaines sont mutuellement exclusives selon les recommandations d'ISO 27002"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "La SoA (art.6.1.3 d) doit contenir 'les mesures nécessaires' — pas 'le maximum possible'. Inclure des mesures sans lien avec les risques identifiés (ex: mesure 8.4 Accès aux codes source pour une entreprise logistique sans développement logiciel) crée des obligations arbitraires. Lors de l'audit, l'auditeur vérifiera que TOUTES les mesures déclarées applicables sont effectivement mises en œuvre — l'inclusion non justifiée de 93 mesures garantit de nombreuses non-conformités.",
+      "tags": {
+        "iso27001_clauses": [
+          "6.1.3",
+          "8.4"
+        ],
+        "annexA_controls": [
+          "6.1",
+          "8.4"
+        ],
+        "project_phases": [
+          "risques",
+          "operation",
+          "amelioration"
+        ],
+        "skill_type": "analyse",
+        "related_standards": [
+          "ISO/IEC 27002"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q031",
+      "scenario_id": "SC3",
+      "domain": "D7",
+      "domain_label": "Audit interne et préparation à la certification",
+      "difficulty": "hard",
+      "question": "Le collègue de Marc qui a participé à la conception des mesures de sécurité est pressenti comme auditeur interne. Quel principe d'audit de l'ISO 19011 est violé, et quelle conséquence cela a-t-il sur la valeur de l'audit ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Aucun principe n'est violé si le collègue a une certification d'auditeur : la compétence prime sur l'indépendance pour les audits internes"
+        },
+        {
+          "id": "B",
+          "text": "Le principe d'impartialité (ISO 19011 §4) est violé — auditer des mesures qu'on a soi-même conçues crée un conflit d'intérêts structurel qui invalide la valeur de l'audit : l'auditeur ne peut pas objectivement évaluer ses propres travaux"
+        },
+        {
+          "id": "C",
+          "text": "Le principe de confidentialité est violé car le collègue dispose d'informations privilégiées sur le système audité"
+        },
+        {
+          "id": "D",
+          "text": "L'article 9.2.2 b) de l'ISO 27001 interdit formellement les audits internes réalisés par des membres de l'équipe projet SMSI"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "ISO 19011 §4 liste les principes d'audit dont l'impartialité ('base de l'audit'). L'article 9.2.2 b) d'ISO 27001 exige de 'sélectionner des auditeurs et réaliser des audits qui assurent l'objectivité et l'impartialité'. Un auditeur qui évalue ses propres travaux a structurellement intérêt à valider ses décisions passées. La valeur probante de l'audit est compromise et l'organisme de certification externe considérerait cet audit interne comme invalide.",
+      "tags": {
+        "iso27001_clauses": [
+          "9.2.2"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "documentation",
+          "audit_revue",
+          "certification"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": [
+          "ISO 19011"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q032",
+      "scenario_id": "SC3",
+      "domain": "D4",
+      "domain_label": "Mise en œuvre du SMSI",
+      "difficulty": "hard",
+      "question": "LogiGroup utilise 3 ERP hétérogènes selon les filiales. Quelle approche de documentation est la plus adaptée selon les bonnes pratiques de gestion des informations documentées ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Créer un document unique très détaillé couvrant les 3 ERP avec toutes leurs spécificités, pour garantir l'exhaustivité et la cohérence de la documentation SMSI"
+        },
+        {
+          "id": "B",
+          "text": "Adopter une architecture documentaire à deux niveaux : des procédures générales transversales applicables à tous les ERP (politiques de contrôle d'accès, gestion des incidents) et des instructions de travail spécifiques à chaque ERP pour les aspects techniques"
+        },
+        {
+          "id": "C",
+          "text": "Documenter uniquement l'ERP le plus utilisé et indiquer que les autres 'suivent les mêmes principes'"
+        },
+        {
+          "id": "D",
+          "text": "Ne documenter les spécificités des ERP que dans la SoA en tant que contexte, sans procédures d'exploitation séparées"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 7.5.1 exige les informations documentées nécessaires à l'efficacité du SMSI, et 7.5.3 requiert qu'elles soient disponibles et appropriées à l'usage. Pour des systèmes hétérogènes, une architecture à deux niveaux est la bonne pratique : les politiques et procédures générales (contrôle d'accès, gestion des droits) sont communes, tandis que les instructions techniques sont spécifiques à chaque ERP. Cela évite la duplication et maintient la cohérence tout en restant praticable.",
+      "tags": {
+        "iso27001_clauses": [
+          "7.5.1",
+          "7.5.3"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage",
+          "risques",
+          "documentation"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q033",
+      "scenario_id": "SC3",
+      "domain": "D4",
+      "domain_label": "Mise en œuvre du SMSI",
+      "difficulty": "hard",
+      "question": "L'absence de clauses de sécurité dans les accords avec les prestataires logistiques tiers de LogiGroup viole quelles mesures de l'Annexe A, et quelle est la priorité pour remédier à cette situation ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Mesure 5.19 uniquement, car les contrats commerciaux couvrent implicitement les exigences de sécurité de base"
+        },
+        {
+          "id": "B",
+          "text": "Mesures 5.19 (processus de gestion des risques fournisseurs), 5.20 (exigences dans les accords fournisseurs) et 5.22 (surveillance des fournisseurs) — la priorité est de cartographier les fournisseurs par criticité et d'inclure des clauses de sécurité adaptées dans les nouveaux contrats et à l'occasion des renouvellements"
+        },
+        {
+          "id": "C",
+          "text": "La mesure 5.21 (chaîne d'approvisionnement TIC) uniquement, car elle s'applique spécifiquement au secteur logistique"
+        },
+        {
+          "id": "D",
+          "text": "Aucune mesure spécifique ne s'applique aux prestataires logistiques non informatiques, car l'Annexe A cible principalement les fournisseurs de services IT"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "Les trois mesures 5.19/5.20/5.22 forment un ensemble cohérent pour la gestion des tiers. 5.19 impose des processus de gestion des risques fournisseurs (y compris logistiques s'ils ont accès à des informations ou systèmes), 5.20 exige des clauses contractuelles spécifiques, et 5.22 impose la surveillance continue. La priorité pratique est de cartographier les fournisseurs (criticité × accès aux informations), puis d'agir en priorité sur les contrats les plus risqués.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [
+          "5.19",
+          "5.21"
+        ],
+        "project_phases": [
+          "mesure"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q034",
+      "scenario_id": "SC3",
+      "domain": "D6",
+      "domain_label": "Amélioration continue",
+      "difficulty": "hard",
+      "question": "Suite à l'attaque ransomware, LogiGroup veut s'assurer que la mesure 8.13 (Sauvegarde des informations) est efficacement mise en œuvre. Qu'est-ce qui différencie une mise en œuvre conforme d'une mise en œuvre insuffisante ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Une mise en œuvre conforme signifie que des sauvegardes sont réalisées quotidiennement et stockées dans le datacenter principal"
+        },
+        {
+          "id": "B",
+          "text": "Une mise en œuvre conforme nécessite que les sauvegardes soient non seulement réalisées, mais aussi testées régulièrement selon une politique définie, stockées dans un emplacement séparé des systèmes de production, et que les procédures de restauration soient documentées et éprouvées"
+        },
+        {
+          "id": "C",
+          "text": "La mesure 8.13 est satisfaite dès lors que le fournisseur cloud garantit contractuellement la sauvegarde des données dans son SLA"
+        },
+        {
+          "id": "D",
+          "text": "Une mise en œuvre conforme impose uniquement de documenter la politique de sauvegarde, la réalisation effective des sauvegardes relevant de l'opérationnel non auditable"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "La mesure 8.13 exige que 'des copies de sauvegarde de l'information, des logiciels et des systèmes doivent être conservées et testées régulièrement selon la politique spécifique à la thématique de la sauvegarde'. L'incident ransomware de LogiGroup illustre ce que signifie une sauvegarde non testée : on ne découvre que les sauvegardes sont corrompues ou incomplètes qu'au moment de la restauration, c'est-à-dire trop tard. Le stockage hors production et les tests réguliers de restauration sont les éléments clés.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [
+          "8.13"
+        ],
+        "project_phases": [
+          "documentation",
+          "operation"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q035",
+      "scenario_id": "SC4",
+      "domain": "D3",
+      "domain_label": "Planification du SMSI",
+      "difficulty": "hard",
+      "question": "L'objectif de sécurité d'AgroTech 'Améliorer la sécurité des recettes propriétaires' satisfait-il les exigences de l'article 6.2 ? Justifiez précisément.",
+      "options": [
+        {
+          "id": "A",
+          "text": "Oui, cet objectif est suffisamment précis pour orienter les actions de sécurité et peut être conservé tel quel dans le SMSI"
+        },
+        {
+          "id": "B",
+          "text": "Non, cet objectif viole l'article 6.2 b) (non mesurable), 6.2 d) (impossible à surveiller faute d'indicateur) et 6.2 k) (absence d'échéance) — il doit être reformulé de façon SMART avec des indicateurs définis"
+        },
+        {
+          "id": "C",
+          "text": "Non uniquement pour la mesurabilité : il suffit d'ajouter un KPI pour le rendre conforme à l'article 6.2"
+        },
+        {
+          "id": "D",
+          "text": "Oui car l'article 6.2 b) contient la nuance 'si possible' pour la mesurabilité : la sécurité des recettes étant difficile à quantifier, l'objectif est acceptable en l'état"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 6.2 liste plusieurs exigences : b) mesurable si possible, c) tenir compte des résultats de l'appréciation des risques, d) surveillés, e) communiqués, f) mis à jour si approprié, g) documentés, h-l) avec un plan précisant quoi/ressources/responsable/échéance/évaluation. Cet objectif viole au moins b (aucun indicateur défini), d (impossible à surveiller sans indicateur), et h-l (aucun plan d'action précis). La nuance 'si possible' de b ne dispense pas d'efforts pour définir des indicateurs — elle couvre uniquement les cas où une quantification est réellement impossible.",
+      "tags": {
+        "iso27001_clauses": [
+          "6.2"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "risques",
+          "mesure"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q036",
+      "scenario_id": "SC4",
+      "domain": "D4",
+      "domain_label": "Mise en œuvre du SMSI",
+      "difficulty": "hard",
+      "question": "Le fournisseur des systèmes SCADA d'AgroTech refuse leur inclusion dans l'appréciation des risques. Quelle est la position correcte de Lucie selon l'ISO 27001 ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Lucie doit respecter la décision du fournisseur car les systèmes SCADA relèvent de la sécurité OT (Operational Technology) qui est hors du périmètre d'ISO 27001, une norme exclusivement dédiée à la sécurité IT"
+        },
+        {
+          "id": "B",
+          "text": "Lucie a raison d'intégrer les systèmes SCADA : si ces systèmes traitent, stockent ou transmettent des informations entrant dans le périmètre du SMSI (recettes, données de production), ils doivent être inclus dans l'appréciation des risques indépendamment des objections du fournisseur"
+        },
+        {
+          "id": "C",
+          "text": "Lucie peut inclure les risques SCADA dans l'appréciation uniquement si le fournisseur cosigne le plan de traitement des risques associés"
+        },
+        {
+          "id": "D",
+          "text": "Lucie doit créer un SMSI séparé pour les systèmes OT selon la norme IEC 62443, ISO 27001 ne pouvant pas couvrir les environnements industriels"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'ISO 27001 couvre la sécurité de l'information sans distinction entre IT et OT. L'article 4.3 demande de définir les 'limites et l'applicabilité' en tenant compte des processus de l'organisation. Si les SCADA contrôlent la production de recettes propriétaires (un actif informationnel clé d'AgroTech), ils entrent dans le périmètre. Le refus du fournisseur ne modifie pas les obligations de l'organisation — il peut être traité via les mesures 5.19/5.20 (sécurité fournisseurs et accords).",
+      "tags": {
+        "iso27001_clauses": [
+          "4.3"
+        ],
+        "annexA_controls": [
+          "5.19"
+        ],
+        "project_phases": [
+          "cadrage",
+          "risques"
+        ],
+        "skill_type": "application",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q037",
+      "scenario_id": "SC4",
+      "domain": "D4",
+      "domain_label": "Mise en œuvre du SMSI",
+      "difficulty": "hard",
+      "question": "La politique de sécurité d'AgroTech est rédigée uniquement en anglais dans une entreprise où des employés de production ne lisent pas l'anglais. Quel principe fondamental de la gestion des informations documentées est violé, et quelle exigence spécifique ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Aucun principe n'est violé : la politique de sécurité est un document de direction qui s'adresse à la direction générale et aux managers, pas aux opérateurs de production"
+        },
+        {
+          "id": "B",
+          "text": "L'article 7.5.2 b) exige que le format (notamment la langue) soit approprié. La mesure 6.3 exige une sensibilisation adaptée au personnel. Une politique dans une langue incomprise d'une partie du personnel ne peut pas être communiquée ni comprise, violant aussi l'article 5.2 f) (la politique doit être communiquée au sein de l'organisation)"
+        },
+        {
+          "id": "C",
+          "text": "L'article 7.3 exige uniquement que les personnes soient sensibilisées, sans préciser la langue : une traduction n'est donc pas requise par la norme"
+        },
+        {
+          "id": "D",
+          "text": "La violation porte uniquement sur la mesure 6.3 (formation et sensibilisation) et peut être corrigée par des sessions de formation en langue locale sans modifier la politique"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 7.5.2 b) exige que les informations documentées aient un 'format (par exemple langue, version logicielle, graphiques) et le support (papier, électronique) appropriés'. L'article 5.2 f) exige que la politique soit 'communiquée au sein de l'organisation'. La mesure 6.3 exige une sensibilisation 'appropriée'. Une politique incompréhensible pour une partie du personnel ne peut pas être communiquée ni appliquée — ce qui viole simultanément plusieurs exigences.",
+      "tags": {
+        "iso27001_clauses": [
+          "5.2",
+          "6.3",
+          "7.3",
+          "7.5.2"
+        ],
+        "annexA_controls": [
+          "6.3"
+        ],
+        "project_phases": [
+          "documentation"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q038",
+      "scenario_id": "SC4",
+      "domain": "D2",
+      "domain_label": "Exigences du SMSI (ISO/IEC 27001)",
+      "difficulty": "hard",
+      "question": "La politique de 65 pages d'AgroTech mélange exigences stratégiques et procédures techniques. Quelle est la conséquence pratique principale de ce défaut de structure, en lien avec l'architecture des politiques PECB ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "C'est une bonne pratique car regrouper tout dans un document unique facilite la gestion documentaire et évite la prolifération de documents"
+        },
+        {
+          "id": "B",
+          "text": "Une politique stratégique de haut niveau mélangée avec des procédures techniques est ingérable : les mises à jour des procédures techniques impliquent de re-valider toute la politique stratégique, elle ne peut pas être communiquée aux parties externes, et les employés ne peuvent pas identifier ce qui s'applique à leur rôle"
+        },
+        {
+          "id": "C",
+          "text": "La longueur est le seul problème : un document de 65 pages peut être valide si son contenu est bien structuré avec une table des matières"
+        },
+        {
+          "id": "D",
+          "text": "Le problème principal est la validation : un document aussi long ne peut pas être approuvé efficacement par la direction selon les délais raisonnables du processus de validation"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "La formation PECB distingue trois niveaux de politiques : niveau 1 (stratégique, courte, stable, communiquée à tous), niveau 2 (spécifique à un domaine) et niveau 3 (spécifique à une thématique, procédurale). Mélanger les niveaux crée des problèmes de gouvernance : chaque modification technique déclenche une re-validation de toute la politique stratégique, la politique ne peut pas être communiquée aux parties extérieures (clause de confidentialité sur les procédures), et les employés de production ne savent pas ce qui les concerne directement.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [],
+        "project_phases": [
+          "documentation"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q039",
+      "scenario_id": "SC4",
+      "domain": "D5",
+      "domain_label": "Surveillance, mesure, analyse et évaluation",
+      "difficulty": "hard",
+      "question": "AgroTech veut démontrer lors de son audit que les risques liés aux recettes propriétaires sont correctement gérés. Quelle combinaison de preuves est la plus convaincante selon une approche basée sur les évidences d'audit ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "La politique de sécurité signée par le PDG et mentionnant les recettes propriétaires comme actifs critiques"
+        },
+        {
+          "id": "B",
+          "text": "L'appréciation des risques documentée identifiant les risques sur les recettes, le plan de traitement approuvé par les propriétaires des risques, les preuves de mise en œuvre des mesures (ex: journaux de contrôle d'accès, résultats de tests DLP), et les résultats de surveillance mesurant leur efficacité"
+        },
+        {
+          "id": "C",
+          "text": "La déclaration d'applicabilité (SoA) listant toutes les mesures applicables à la protection des recettes avec statut 'mise en œuvre'"
+        },
+        {
+          "id": "D",
+          "text": "Les certifications de l'équipe de sécurité (CISSP, CISM) démontrant la compétence des personnes responsables de la protection des recettes"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "Un auditeur expérimenté recherche une chaîne de preuves complète (evidence chain) : risque identifié → traitement décidé → mesures mises en œuvre → efficacité démontrée. La politique seule est insuffisante (intention sans mise en œuvre), la SoA seule l'est aussi (plan sans preuves d'exécution), et les certifications des personnes ne prouvent pas l'efficacité des contrôles. Seule la combinaison : appréciation documentée + plan approuvé + preuves de mise en œuvre + mesures de surveillance constitue une démonstration complète.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [],
+        "project_phases": [
+          "risques",
+          "documentation",
+          "operation",
+          "mesure",
+          "certification"
+        ],
+        "skill_type": "identification",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q040",
+      "scenario_id": "SC5",
+      "domain": "D7",
+      "domain_label": "Audit interne et préparation à la certification",
+      "difficulty": "hard",
+      "question": "Théo propose que le RSSI d'EduConnect audite l'ensemble du périmètre SMSI. Quelle alternative spécifique est recommandée lorsqu'une organisation manque d'auditeurs internes indépendants ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Le PDG peut réaliser l'audit interne car il dispose de l'autorité nécessaire pour auditer toutes les fonctions de l'organisation"
+        },
+        {
+          "id": "B",
+          "text": "L'organisation peut faire appel à des auditeurs qualifiés externes (consultants, membres de l'organisme de certification) pour réaliser l'audit interne, ou s'appuyer sur une rotation entre collaborateurs d'autres services n'ayant pas participé à la conception des mesures auditées"
+        },
+        {
+          "id": "C",
+          "text": "Pour les petites organisations comme EduConnect, l'ISO 27001 prévoit une dérogation permettant au RSSI d'auditer ses propres processus sous certaines conditions"
+        },
+        {
+          "id": "D",
+          "text": "L'audit interne peut être supprimé si l'organisation s'engage à accélérer le passage à l'Étape 2 de certification dans les 3 mois"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 9.2.2 b) exige l'objectivité et l'impartialité, mais n'impose pas que l'auditeur soit un employé. ISO 19011 recommande des alternatives pour les petites organisations : externalisation à un consultant qualifié, échange croisé d'auditeurs entre organisations, ou audit par des membres de l'organisation n'ayant pas participé aux processus audités. La dérogation pour petites organisations n'existe pas dans ISO 27001.",
+      "tags": {
+        "iso27001_clauses": [
+          "9.2.2"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage",
+          "audit_revue",
+          "certification"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": [
+          "ISO 19011"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q041",
+      "scenario_id": "SC5",
+      "domain": "D3",
+      "domain_label": "Planification du SMSI",
+      "difficulty": "hard",
+      "question": "L'adoption d'un pack de politiques 'clé en main' sans adaptation au contexte d'EduConnect est-elle conforme à l'approche ISO 27001 ? Identifiez le problème fondamental.",
+      "options": [
+        {
+          "id": "A",
+          "text": "Oui, utiliser des modèles de politiques est une bonne pratique reconnue par PECB qui recommande cette approche pour accélérer la mise en œuvre"
+        },
+        {
+          "id": "B",
+          "text": "Non, car l'article 4.1 exige de comprendre le contexte de l'organisation et l'article 5.2 exige que la politique soit 'appropriée à la mission de l'organisation' — des politiques génériques non adaptées ne peuvent pas satisfaire ces exigences, et seront perçues comme non crédibles lors de l'audit"
+        },
+        {
+          "id": "C",
+          "text": "Oui à condition que le pack provienne d'un éditeur reconnu et certifié ISO 27001 lui-même"
+        },
+        {
+          "id": "D",
+          "text": "Non uniquement si les politiques ne couvrent pas les 93 mesures de l'Annexe A : si la couverture est complète, l'adaptation n'est pas nécessaire"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 4.1 exige de déterminer les enjeux propres à l'organisation, 4.2 ses parties intéressées spécifiques, et 5.2 a) que la politique soit 'appropriée à la mission'. EduConnect a un profil très particulier : traitement de données de mineurs, clients établissements scolaires, startup en hyper-croissance. Des politiques génériques ne peuvent pas refléter ces spécificités. Un auditeur expérimenté identifiera facilement des politiques copy-paste par leur manque de référence au contexte réel de l'organisation.",
+      "tags": {
+        "iso27001_clauses": [
+          "4.1",
+          "4.2",
+          "5.2"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage",
+          "documentation",
+          "operation"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q042",
+      "scenario_id": "SC5",
+      "domain": "D4",
+      "domain_label": "Mise en œuvre du SMSI",
+      "difficulty": "hard",
+      "question": "Tous les développeurs d'EduConnect ont des droits root sur tous les environnements. Quelle combinaison de mesures de l'Annexe A est violée, et quel principe fondamental de sécurité cela transgresse-t-il ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Uniquement la mesure 8.2 (Droits d'accès privilégiés) car les droits root sont par définition des droits privilégiés"
+        },
+        {
+          "id": "B",
+          "text": "Les mesures 5.3 (Séparation des tâches), 5.15 (Contrôle d'accès), 8.2 (Droits privilégiés) et 8.31 (Séparation des environnements) sont simultanément violées, transgressant le principe du moindre privilège et la séparation des tâches"
+        },
+        {
+          "id": "C",
+          "text": "Uniquement les mesures 5.15 et 8.31, car le problème principal est l'absence de séparation entre environnements dev, test et production"
+        },
+        {
+          "id": "D",
+          "text": "La mesure 5.3 (Séparation des tâches) uniquement, car un développeur ne devrait pas avoir accès à l'environnement de production"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "Cette situation viole plusieurs mesures simultanément : 5.3 (un développeur peut à lui seul modifier le code ET le déployer en production, sans validation indépendante), 5.15 (pas de règles d'accès fondées sur les besoins métier), 8.2 (les droits root ne sont pas limités et gérés), et 8.31 (les environnements dev/test/prod ne sont pas séparés). Le principe du moindre privilège (chaque personne n'accède qu'à ce dont elle a strictement besoin) est le fondement de sécurité transgressé.",
+      "tags": {
+        "iso27001_clauses": [
+          "5.3",
+          "8.2"
+        ],
+        "annexA_controls": [
+          "5.3",
+          "5.15",
+          "8.2"
+        ],
+        "project_phases": [],
+        "skill_type": "identification",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q043",
+      "scenario_id": "SC5",
+      "domain": "D5",
+      "domain_label": "Surveillance, mesure, analyse et évaluation",
+      "difficulty": "hard",
+      "question": "Le PDG d'EduConnect veut une revue de direction de 30 minutes. Quels éléments d'entrée de l'article 9.3.2 sont les plus susceptibles d'être négligés dans un format aussi court, et quelle conséquence cela a-t-il ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Une revue de 30 minutes est acceptable si un compte-rendu formel est produit : la durée n'est pas prescrite par l'article 9.3.2"
+        },
+        {
+          "id": "B",
+          "text": "Avec 7 éléments d'entrée obligatoires dont certains nécessitent une présentation et une discussion (résultats d'appréciation des risques, retours parties intéressées, résultats d'audit), 30 minutes garantit que plusieurs éléments ne seront que survolés — ce qui compromet la qualité des décisions de sortie requises par l'article 9.3.3 et constitue potentiellement une NC"
+        },
+        {
+          "id": "C",
+          "text": "Les 30 minutes sont suffisantes si les éléments d'entrée ont été pré-documentés et partagés en amont : la durée ne détermine pas la conformité"
+        },
+        {
+          "id": "D",
+          "text": "La durée n'a aucune importance : seul le compte-rendu formel (art.9.3.3) détermine la conformité de la revue de direction"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 9.3.2 liste 7 éléments d'entrée obligatoires dont certains sont complexes (résultats d'appréciation des risques avec leurs implications, résultats des audits internes, retours des parties intéressées). L'article 9.3.3 exige que les résultats incluent 'des décisions relatives aux opportunités d'amélioration et aux éventuels changements'. Une revue express ne permet pas une délibération réelle — un compte-rendu formel reflétant des décisions non fondées sur une analyse sérieuse des éléments d'entrée constitue une forme de conformité de façade détectable lors d'un audit.",
+      "tags": {
+        "iso27001_clauses": [
+          "9.3.2",
+          "9.3.3"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage",
+          "risques",
+          "audit_revue",
+          "amelioration"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q044",
+      "scenario_id": "SC5",
+      "domain": "D1",
+      "domain_label": "Fondamentaux et principes de la sécurité de l'information",
+      "difficulty": "hard",
+      "question": "EduConnect traite des données d'élèves mineurs. Quelle exigence spécifique s'ajoute aux obligations générales du SMSI et quelle mesure de l'Annexe A y est directement liée ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Aucune exigence spécifique supplémentaire : ISO 27001 traite toutes les données personnelles de manière identique indépendamment de l'âge des personnes concernées"
+        },
+        {
+          "id": "B",
+          "text": "Le traitement de données de mineurs crée des obligations renforcées au titre du RGPD (article 8, consentement parental, interdiction du profilage à des fins publicitaires) qui constituent des exigences de parties intéressées (art.4.2) à intégrer dans le SMSI, notamment via la mesure 5.34 (Protection des DCP) et potentiellement ISO 27701"
+        },
+        {
+          "id": "C",
+          "text": "Les données de mineurs relèvent uniquement du Code pénal et sont hors du périmètre de l'ISO 27001"
+        },
+        {
+          "id": "D",
+          "text": "La seule obligation supplémentaire est de désigner un DPO, ce qui satisfait automatiquement les exigences ISO 27001 pour ce type de données"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "Le RGPD prévoit des protections renforcées pour les données de mineurs (article 8 : consentement parental pour les moins de 15 ans en France, interdictions de certains traitements). Ces obligations constituent des exigences de parties intéressées au sens de l'article 4.2 d'ISO 27001 et doivent être intégrées dans le SMSI. La mesure 5.34 impose d'identifier et respecter toutes ces exigences. Pour une organisation traitant massivement des données de mineurs, l'ISO 27701 est fortement recommandée.",
+      "tags": {
+        "iso27001_clauses": [
+          "4.2"
+        ],
+        "annexA_controls": [
+          "5.34"
+        ],
+        "project_phases": [
+          "cadrage",
+          "operation"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": [
+          "ISO/IEC 27701",
+          "RGPD"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q045",
+      "scenario_id": "SC6",
+      "domain": "D7",
+      "domain_label": "Audit interne et préparation à la certification",
+      "difficulty": "hard",
+      "question": "La NC1 de PharmaCorp (SoA non mise à jour suite à l'acquisition d'une filiale) révèle quelle lacune dans la gestion du cycle de vie du SMSI, et quel article précis a été violé ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "La NC1 révèle uniquement une lacune documentaire dans la SoA : l'article 7.5 (contrôle des informations documentées) est le seul article violé"
+        },
+        {
+          "id": "B",
+          "text": "La NC1 révèle l'absence d'application de l'article 6.3 (planification des modifications) : l'acquisition d'une filiale est une modification significative du SMSI qui aurait dû déclencher une révision planifiée du périmètre (4.3), une nouvelle appréciation des risques (8.2) et une mise à jour de la SoA (6.1.3)"
+        },
+        {
+          "id": "C",
+          "text": "La NC1 révèle uniquement une violation de l'article 4.3 car le périmètre n'a pas été mis à jour pour inclure la filiale"
+        },
+        {
+          "id": "D",
+          "text": "La NC1 n'est pas une non-conformité majeure : une SoA non mise à jour après acquisition constitue tout au plus une non-conformité mineure selon les critères habituels des organismes de certification"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 6.3 (planification des modifications, introduit en 2022) exige que 'lorsque l'organisation détermine qu'il est nécessaire de modifier le SMSI, les modifications doivent être réalisées de façon planifiée'. L'acquisition d'une filiale est un changement organisationnel significatif qui entraîne : une modification potentielle du périmètre (4.3), une obligation de réapprécier les risques (8.2), et une mise à jour de la SoA. L'absence de ce processus constitue une NC majeure car la SoA non à jour ne représente plus fidèlement le SMSI réel.",
+      "tags": {
+        "iso27001_clauses": [
+          "4.3",
+          "6.1.3",
+          "6.3",
+          "7.5",
+          "8.2"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage",
+          "risques",
+          "documentation",
+          "amelioration",
+          "certification"
+        ],
+        "skill_type": "analyse",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q046",
+      "scenario_id": "SC6",
+      "domain": "D4",
+      "domain_label": "Mise en œuvre du SMSI",
+      "difficulty": "hard",
+      "question": "La NC2 de PharmaCorp (journaux conservés 15 jours vs 90 jours requis par la politique interne) crée une situation spécifique lors de l'audit. Pourquoi est-ce plus grave qu'une simple non-conformité à la norme ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "C'est moins grave qu'une NC à la norme ISO 27001 car la politique interne a une valeur juridique inférieure à la norme internationale"
+        },
+        {
+          "id": "B",
+          "text": "C'est potentiellement plus grave : si l'organisation a documenté dans son SMSI que les journaux doivent être conservés 90 jours, l'auditeur utilise cette politique comme critère d'audit et constate un écart de 75 jours — une NC à la propre politique de l'organisation est souvent perçue comme plus grave car elle révèle un SMSI non appliqué, pas seulement non conforme à ISO 27001"
+        },
+        {
+          "id": "C",
+          "text": "La gravité est identique : une NC à la politique interne et une NC à la norme ont exactement le même impact sur la certification"
+        },
+        {
+          "id": "D",
+          "text": "L'auditeur ne peut pas utiliser la politique interne comme critère d'audit car seule la norme ISO 27001 constitue le référentiel officiel de certification"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "ISO 19011 définit les critères d'audit comme 'un ensemble de politiques, procédures ou exigences utilisées comme références par rapport auxquelles les preuves d'audit sont comparées'. Les politiques internes sont donc des critères d'audit au même titre que la norme. Un écart entre une politique interne documentée et la pratique réelle révèle un SMSI qui ne fonctionne pas comme prévu — ce qui est précisément ce que l'article 9.2.1 cherche à évaluer. La mesure 8.15 (Journalisation) de l'Annexe A est également concernée.",
+      "tags": {
+        "iso27001_clauses": [
+          "9.2.1"
+        ],
+        "annexA_controls": [
+          "8.15"
+        ],
+        "project_phases": [
+          "documentation",
+          "operation",
+          "audit_revue",
+          "amelioration",
+          "certification"
+        ],
+        "skill_type": "analyse",
+        "related_standards": [
+          "ISO 19011"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q047",
+      "scenario_id": "SC6",
+      "domain": "D6",
+      "domain_label": "Amélioration continue",
+      "difficulty": "hard",
+      "question": "La proposition du directeur juridique de PharmaCorp — 'modifier les pratiques pour les aligner sur les procédures' — est-elle une bonne approche de traitement des non-conformités ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Oui, aligner les pratiques sur les procédures documentées est exactement ce que l'article 10.2 recommande : c'est la définition d'une action corrective efficace"
+        },
+        {
+          "id": "B",
+          "text": "Pas nécessairement : si les procédures ne correspondent pas aux pratiques réelles, il faut d'abord analyser les causes (pourquoi cet écart existe-t-il ?), puis décider si c'est la pratique ou la procédure qui doit évoluer, et vérifier l'impact de la modification sur les risques avant de changer les pratiques"
+        },
+        {
+          "id": "C",
+          "text": "Non, il faut toujours modifier les procédures pour les aligner sur les pratiques réelles car les pratiques reflètent la réalité opérationnelle de l'organisation"
+        },
+        {
+          "id": "D",
+          "text": "Oui, mais uniquement si la modification des pratiques est approuvée par le RSSI et documentée dans le registre des changements"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 10.2 b) exige d'abord de 'déterminer les causes de non-conformité'. L'écart entre procédures et pratiques peut avoir plusieurs causes : procédures irréalistes rédigées par des consultants sans consultation des équipes, manque de formation, ressources insuffisantes, ou complexité excessive. Sans analyse des causes, modifier arbitrairement les pratiques pourrait : introduire de nouveaux risques non évalués, violer des exigences réglementaires, ou créer de nouvelles NC. L'analyse des causes précède toujours la décision de traitement.",
+      "tags": {
+        "iso27001_clauses": [
+          "10.2"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "documentation",
+          "amelioration"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q048",
+      "scenario_id": "SC6",
+      "domain": "D7",
+      "domain_label": "Audit interne et préparation à la certification",
+      "difficulty": "hard",
+      "question": "Isabelle a traité seulement 2 des 5 points de préoccupation de l'Étape 1. Les 3 non traités risquent de devenir quoi lors de l'Étape 2, et quelle est la conséquence sur le calendrier de certification ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Les points de préoccupation non traités disparaissent automatiquement si l'Étape 1 a été validée : l'auditeur ne les reprend pas à l'Étape 2"
+        },
+        {
+          "id": "B",
+          "text": "Les points de préoccupation non traités ont une forte probabilité de devenir des non-conformités (mineures ou majeures) lors de l'Étape 2, ce qui pourrait retarder la certification si des NC majeures nécessitent un délai de régularisation avant la délivrance du certificat"
+        },
+        {
+          "id": "C",
+          "text": "L'auditeur de l'Étape 2 est différent de celui de l'Étape 1 et ne peut pas consulter le rapport de l'Étape 1 pour des raisons de confidentialité"
+        },
+        {
+          "id": "D",
+          "text": "Les points de préoccupation non traités entraînent automatiquement le refus de certification, quelle que soit leur nature"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "Les points de préoccupation de l'Étape 1 sont précisément signalés pour permettre à l'organisation de se préparer avant l'Étape 2. L'auditeur de l'Étape 2 (souvent le même) les vérifiera systématiquement. Des points non traités deviendront très probablement des NC. Des NC majeures lors de l'Étape 2 ne signifient pas un refus automatique, mais requièrent des actions correctives et une vérification avant délivrance du certificat — ce qui retarde la certification et peut nécessiter un audit de suivi.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [],
+        "project_phases": [
+          "amelioration",
+          "certification"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q049",
+      "scenario_id": "SC6",
+      "domain": "D7",
+      "domain_label": "Audit interne et préparation à la certification",
+      "difficulty": "hard",
+      "question": "Pour les actions correctives des NC majeures de PharmaCorp dont 'l'efficacité n'a pas été vérifiée', quel problème spécifique cela pose-t-il lors de l'Étape 2 ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Aucun problème : si les actions ont été mises en œuvre, l'auditeur n'exige pas de preuve de leur efficacité lors de la certification initiale"
+        },
+        {
+          "id": "B",
+          "text": "L'article 10.2 d) exige de 'passer en revue l'efficacité de toute action corrective mise en œuvre' — sans cette vérification documentée, l'auditeur de l'Étape 2 ne peut pas confirmer que les NC sont réellement résolues plutôt que simplement traitées en surface, et pourrait les requalifier en NC ouvertes"
+        },
+        {
+          "id": "C",
+          "text": "L'efficacité doit être vérifiée uniquement pour les NC majeures issues d'audits externes, pas pour celles issues d'audits internes"
+        },
+        {
+          "id": "D",
+          "text": "L'auditeur de l'Étape 2 réalisera lui-même la vérification d'efficacité des actions correctives : PharmaCorp n'a pas d'obligation de le faire avant l'audit externe"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 10.2 d) exige explicitement de 'passer en revue l'efficacité de toute action corrective mise en œuvre'. Sans cette vérification, une NC 'traitée' peut avoir été corrigée en surface (ex: restaurer les journaux pour les 15 derniers jours) sans résoudre la cause (ex: configuration incorrecte du serveur de logs qui efface automatiquement au-delà de 15 jours). L'auditeur de l'Étape 2 cherchera ces preuves d'efficacité et, sans elles, pourrait maintenir les NC ouvertes.",
+      "tags": {
+        "iso27001_clauses": [
+          "10.2"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "operation",
+          "amelioration",
+          "certification"
+        ],
+        "skill_type": "analyse",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q050",
+      "scenario_id": "SC2",
+      "domain": "D4",
+      "domain_label": "Mise en œuvre du SMSI",
+      "difficulty": "hard",
+      "question": "Hugo veut mettre en place un programme de sensibilisation à CityHôpital. Quelle approche satisfait le mieux à la fois l'article 7.3 et la mesure 6.3, compte tenu du profil très hétérogène du personnel (soignants, administratifs, techniciens) ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Organiser une session annuelle identique pour tous les agents, indépendamment de leur rôle, pour garantir un message cohérent et une traçabilité uniforme de la sensibilisation"
+        },
+        {
+          "id": "B",
+          "text": "Adapter le contenu selon les profils de risque et les rôles (soignants : focus partage de données médicales et BYOD ; IT : focus incidents et accès privilégiés) avec mises à jour régulières, et mesurer le changement de comportement réel plutôt que la seule participation"
+        },
+        {
+          "id": "C",
+          "text": "Déléguer entièrement la sensibilisation aux chefs de service en leur fournissant un support standardisé, sans suivi centralisé des résultats"
+        },
+        {
+          "id": "D",
+          "text": "Concentrer la sensibilisation uniquement sur le personnel IT qui manipule les systèmes informatiques, les soignants relevant de la responsabilité du corps médical"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 7.3 exige que les personnes soient sensibilisées à la politique, à leur contribution et aux implications des non-conformités. La mesure 6.3 exige des formations 'appropriées' et des 'mises à jour régulières'. Un CHU a des profils très différents : le risque d'un urgentiste (accès d'urgence aux dossiers, communication avec d'autres établissements) n'est pas celui d'un technicien IT. L'adaptation par profil et la mesure d'efficacité comportementale (pas seulement le taux de présence) sont les critères de conformité réelle.",
+      "tags": {
+        "iso27001_clauses": [
+          "6.3",
+          "7.3"
+        ],
+        "annexA_controls": [
+          "6.3"
+        ],
+        "project_phases": [
+          "documentation",
+          "amelioration"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q051",
+      "scenario_id": "SC2",
+      "domain": "D2",
+      "domain_label": "Exigences du SMSI (ISO/IEC 27001)",
+      "difficulty": "hard",
+      "question": "Hugo envisage d'appliquer la mesure 5.15 (Contrôle d'accès) aux soignants en imposant une authentification à double facteur pour accéder aux dossiers patients. Le syndicat médical s'y oppose car cela 'ralentit les urgences'. Comment Hugo doit-il traiter cette tension ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Hugo doit se plier aux exigences du syndicat médical car les impératifs de santé publique priment sur les exigences ISO 27001 en milieu hospitalier"
+        },
+        {
+          "id": "B",
+          "text": "Hugo doit escalader à la direction générale pour arbitrage, car la mesure 5.15 doit être mise en œuvre 'en fonction des exigences métier et de sécurité' — un contexte d'urgence peut justifier une exception documentée avec risque résiduel accepté, mais pas une suppression pure et simple de la mesure"
+        },
+        {
+          "id": "C",
+          "text": "Hugo peut exclure la mesure 5.15 de la SoA pour les soignants en ajoutant une justification 'exigences opérationnelles incompatibles', ce qui satisfait formellement l'ISO 27001"
+        },
+        {
+          "id": "D",
+          "text": "Hugo doit imposer le double facteur sans exception car toute dérogation à la mesure 5.15 invalide automatiquement la certification"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "La mesure 5.15 précise que les règles doivent être définies 'en fonction des exigences métier ET de sécurité'. Dans un CHU, les urgences créent un conflit réel entre disponibilité (accès rapide en cas d'urgence vitale) et confidentialité. La bonne pratique est de concevoir une solution proportionnée (ex: authentification simplifiée pour les urgences avec traçabilité renforcée a posteriori) et de faire accepter le risque résiduel par les propriétaires des risques concernés. L'escalade à la direction pour arbitrage est le processus correct.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [
+          "5.15"
+        ],
+        "project_phases": [
+          "cadrage",
+          "risques",
+          "operation",
+          "certification"
+        ],
+        "skill_type": "application",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q052",
+      "scenario_id": "SC2",
+      "domain": "D3",
+      "domain_label": "Planification du SMSI",
+      "difficulty": "hard",
+      "question": "Hugo doit documenter le périmètre du SMSI selon l'article 4.3. Parmi ces formulations, laquelle est la plus conforme aux exigences de la norme ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "'Le SMSI de CityHôpital couvre l'ensemble des systèmes informatiques de l'établissement' — formulation large garantissant une couverture maximale"
+        },
+        {
+          "id": "B",
+          "text": "'Le SMSI couvre le datacenter principal de CityHôpital situé à Marseille' — formulation précise mais qui exclut délibérément les interfaces avec les systèmes des soignants sans documenter la justification"
+        },
+        {
+          "id": "C",
+          "text": "'Le SMSI couvre les processus de traitement et de stockage des données médicales de CityHôpital, incluant le datacenter principal et les interfaces avec les systèmes cliniques utilisés par le personnel soignant, en excluant les équipements médicaux connectés relevant de la réglementation DM' — avec justifications documentées"
+        },
+        {
+          "id": "D",
+          "text": "'Le SMSI de CityHôpital couvre tous les processus, systèmes et personnes de l'établissement sans exception' — formulation exhaustive évitant toute ambiguïté"
+        }
+      ],
+      "answer": "C",
+      "answer_index": 2,
+      "explanation": "L'article 4.3 exige que le périmètre soit 'disponible sous forme d'information documentée' et prenne en compte les enjeux (4.1), les exigences des parties intéressées (4.2) et les interfaces/dépendances (4.3 c). La formulation C est la plus conforme : elle définit précisément les limites organisationnelles et physiques, identifie les interfaces clés (systèmes cliniques), et documente les exclusions avec leur justification (équipements médicaux régis par une autre réglementation). Les formulations trop larges ou trop étroites sans justification sont toutes non conformes.",
+      "tags": {
+        "iso27001_clauses": [
+          "4.1",
+          "4.2",
+          "4.3"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage",
+          "documentation"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q053",
+      "scenario_id": "SC2",
+      "domain": "D6",
+      "domain_label": "Amélioration continue",
+      "difficulty": "hard",
+      "question": "Après l'incident WhatsApp, Hugo veut mettre en place une action corrective. Quelle analyse des causes est la plus approfondie au sens de l'article 10.2 b) ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Cause identifiée : 'le médecin n'a pas respecté la politique de sécurité'. Action corrective : rappel de la politique par email à tous les soignants"
+        },
+        {
+          "id": "B",
+          "text": "Cause identifiée : 'absence de canal de partage sécurisé adapté aux usages des soignants'. Action corrective : déployer une messagerie sécurisée homologuée HDS et former les soignants à son utilisation, puis mesurer son adoption"
+        },
+        {
+          "id": "C",
+          "text": "Cause identifiée : 'incident isolé dû à un individu'. Action corrective : avertissement formel du médecin concerné inscrit au dossier RH"
+        },
+        {
+          "id": "D",
+          "text": "Cause identifiée : 'périmètre SMSI trop restreint'. Action corrective : élargir immédiatement le périmètre à tous les utilisateurs sans phase de transition planifiée"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 10.2 b) exige de 'déterminer les causes' et de 'rechercher si des non-conformités similaires pourraient se produire'. L'analyse superficielle ('le médecin n'a pas respecté la politique') ignore la cause profonde : pourquoi un professionnel de santé utilise WhatsApp pour partager des radios ? Parce qu'il n'existe pas d'outil simple, rapide et homologué pour le faire. L'action corrective pertinente traite cette cause profonde (fournir un outil adapté) plutôt que de sanctionner un symptôme. La réponse D est incorrecte car elle crée une nouvelle NC sans planification (art. 6.3).",
+      "tags": {
+        "iso27001_clauses": [
+          "10.2",
+          "6.3"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage",
+          "documentation",
+          "amelioration"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": [
+          "HDS"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q054",
+      "scenario_id": "SC2",
+      "domain": "D5",
+      "domain_label": "Surveillance, mesure, analyse et évaluation",
+      "difficulty": "hard",
+      "question": "Pour démontrer l'efficacité du SMSI de CityHôpital lors de l'audit de surveillance, quel ensemble de preuves constitue la chaîne d'évidence la plus solide pour le processus de gestion des accès ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Les comptes-rendus des formations à la politique de contrôle d'accès, qui prouvent que les règles ont été communiquées à l'ensemble du personnel"
+        },
+        {
+          "id": "B",
+          "text": "La politique de contrôle d'accès approuvée, les procédures de revue des droits, les journaux de revue trimestrielle des droits réalisée (avec liste des droits supprimés), et les résultats du dernier scan montrant l'absence de comptes orphelins"
+        },
+        {
+          "id": "C",
+          "text": "La déclaration d'applicabilité (SoA) indiquant les mesures 5.15 et 5.18 comme 'mises en œuvre', complétée par une attestation du RSSI"
+        },
+        {
+          "id": "D",
+          "text": "Les tickets de helpdesk de création et suppression de comptes des 6 derniers mois, comme preuve que le processus de gestion des accès est opérationnel"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "Une chaîne d'évidence solide connecte la politique (intention) → la procédure (processus défini) → les preuves d'exécution (revues réalisées avec résultats documentés) → la preuve d'efficacité (absence de comptes orphelins). La SoA seule prouve une intention, pas une mise en œuvre. Les tickets de helpdesk prouvent de l'activité mais pas l'exhaustivité ni l'efficacité de la revue. Les formations prouvent la communication mais pas l'application. Seule la combinaison B fournit une démonstration complète de conformité et d'efficacité.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [
+          "5.15"
+        ],
+        "project_phases": [
+          "risques",
+          "documentation",
+          "operation",
+          "mesure"
+        ],
+        "skill_type": "identification",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q055",
+      "scenario_id": "SC3",
+      "domain": "D3",
+      "domain_label": "Planification du SMSI",
+      "difficulty": "hard",
+      "question": "Pour les 3 ERP hétérogènes de LogiGroup, comment l'appréciation des risques doit-elle être conduite pour être conforme à l'article 6.1.2 b) (cohérence et comparabilité) ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Réaliser 3 appréciations séparées avec des méthodologies différentes adaptées à chaque ERP, pour tenir compte de leur nature spécifique"
+        },
+        {
+          "id": "B",
+          "text": "Définir une méthodologie commune avec des critères de risque identiques (même échelle de vraisemblance et d'impact), puis appliquer cette méthodologie de façon cohérente à chaque ERP — permettant ainsi de comparer et de prioriser les risques entre filiales"
+        },
+        {
+          "id": "C",
+          "text": "Réaliser une seule appréciation globale au niveau du groupe sans distinguer les ERP individuels, pour maintenir la simplicité et la cohérence du processus"
+        },
+        {
+          "id": "D",
+          "text": "Laisser chaque filiale définir sa propre méthode d'appréciation des risques, l'article 6.1.2 n'imposant pas d'approche harmonisée au sein d'un groupe"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 6.1.2 b) exige que 'la répétition de ces appréciations produise des résultats cohérents, valides et comparables'. Pour un groupe multinational, cette exigence implique une méthodologie commune : mêmes critères d'acceptation, même échelle d'évaluation, même processus. Sans cela, il est impossible de comparer les niveaux de risque entre filiales ni de prioriser les investissements au niveau du groupe. Des appréciations avec méthodologies différentes par entité constituent une non-conformité à l'article 6.1.2 b).",
+      "tags": {
+        "iso27001_clauses": [
+          "6.1.2"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "risques",
+          "amelioration"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q056",
+      "scenario_id": "SC3",
+      "domain": "D4",
+      "domain_label": "Mise en œuvre du SMSI",
+      "difficulty": "hard",
+      "question": "L'attaque ransomware sur LogiGroup a paralysé les opérations 72 heures. Quelle mesure de l'Annexe A aurait eu le plus grand impact préventif, et pourquoi ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "La mesure 8.7 (Protection contre les malwares), car un antivirus à jour aurait détecté et bloqué le ransomware avant qu'il ne chiffre les fichiers"
+        },
+        {
+          "id": "B",
+          "text": "La combinaison des mesures 8.13 (Sauvegarde testée et hors ligne), 8.22 (Cloisonnement des réseaux) et 5.24 (Plan de réponse aux incidents) : les sauvegardes permettent la restauration, le cloisonnement limite la propagation, et le plan de réponse réduit le temps de détection et de réaction"
+        },
+        {
+          "id": "C",
+          "text": "La mesure 5.31 (Conformité légale), car une couverture d'assurance cyber adéquate aurait permis de couvrir les pertes financières de 4 M€"
+        },
+        {
+          "id": "D",
+          "text": "La mesure 8.16 (Surveillance des activités) uniquement, car une détection précoce du ransomware avant l'exécution complète aurait suffi à limiter les dégâts"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "Un ransomware exploite généralement plusieurs lacunes simultanément. La réponse B traite les dimensions complémentaires : le cloisonnement réseau (8.22) limite la propagation horizontale entre les 3 ERP et les 6 filiales ; les sauvegardes testées hors ligne (8.13) permettent la restauration sans payer la rançon (72h de downtime suggère l'absence de backups opérationnels) ; le plan de réponse (5.24) réduit le temps de détection et de confinement. L'antivirus seul (8.7) ne suffit pas contre les ransomwares modernes utilisant des variantes polymorphiques ou des vecteurs non maliciels (ex: macro Office légitime).",
+      "tags": {
+        "iso27001_clauses": [
+          "8.7"
+        ],
+        "annexA_controls": [
+          "5.31",
+          "8.7",
+          "8.13",
+          "8.16"
+        ],
+        "project_phases": [
+          "operation",
+          "mesure"
+        ],
+        "skill_type": "analyse",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q057",
+      "scenario_id": "SC3",
+      "domain": "D2",
+      "domain_label": "Exigences du SMSI (ISO/IEC 27001)",
+      "difficulty": "hard",
+      "question": "LogiGroup veut mettre en place la mesure 5.22 (Surveillance des services fournisseurs) pour ses 35 prestataires logistiques. Quelle approche est la plus proportionnée et conforme à la norme ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Exiger de tous les prestataires une certification ISO 27001 dans un délai de 12 mois, comme condition de maintien du contrat"
+        },
+        {
+          "id": "B",
+          "text": "Classifier les prestataires par niveau de criticité (accès aux informations sensibles × impact potentiel) et adapter l'intensité de la surveillance : audit annuel pour les prestataires critiques, questionnaires d'auto-évaluation pour les autres, avec revue des indicateurs contractuels pour tous"
+        },
+        {
+          "id": "C",
+          "text": "Insérer une clause standard de sécurité identique dans tous les contrats et considérer que la surveillance contractuelle remplace le processus de surveillance continue"
+        },
+        {
+          "id": "D",
+          "text": "Déléguer entièrement la surveillance des prestataires au département achats, sans implication du RSSI dans la définition des critères de surveillance"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "La mesure 5.22 exige une surveillance 'régulière' des pratiques de sécurité des fournisseurs, mais la norme ne prescrit pas l'uniformité des méthodes. Le principe de proportionnalité s'applique : un prestataire ayant accès aux données clients de LogiGroup (ex: prestataire IT) nécessite une surveillance plus intensive qu'un transporteur de colis n'ayant aucun accès aux systèmes. La classification par criticité et l'adaptation de l'intensité de surveillance est la bonne pratique, cohérente avec une approche basée sur les risques.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [
+          "5.22"
+        ],
+        "project_phases": [
+          "mesure",
+          "certification"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q058",
+      "scenario_id": "SC3",
+      "domain": "D6",
+      "domain_label": "Amélioration continue",
+      "difficulty": "hard",
+      "question": "LogiGroup prépare son premier audit interne. L'auditeur interne (externe à l'équipe projet) demande à Marc quels critères d'audit utiliser. Quelle réponse de Marc est correcte ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Les critères d'audit sont uniquement les articles 4 à 10 de l'ISO 27001 : tout autre document constitue une surcharge documentaire non requise par la norme"
+        },
+        {
+          "id": "B",
+          "text": "Les critères d'audit incluent les exigences d'ISO 27001, mais aussi les politiques internes de LogiGroup, la SoA, les procédures documentées et les exigences légales applicables — car l'article 9.2.1 évalue aussi la conformité aux 'exigences propres de l'organisation'"
+        },
+        {
+          "id": "C",
+          "text": "Les critères d'audit sont définis exclusivement par l'auditeur interne de façon indépendante, sans intervention du management de LogiGroup"
+        },
+        {
+          "id": "D",
+          "text": "Les critères d'audit se limitent à la SoA, puisque c'est le document central qui liste l'ensemble des engagements de sécurité de l'organisation"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 9.2.1 a) précise que l'audit évalue la conformité '1) aux exigences propres de l'organisation concernant son SMSI ; 2) aux exigences du présent document'. ISO 19011 définit les critères d'audit comme 'politiques, procédures ou exigences utilisées comme références'. Les critères incluent donc : ISO 27001 (obligatoire), les politiques internes (mesure de l'écart entre ce qui est documenté et ce qui est pratiqué), la SoA (engagement sur les mesures), et les exigences légales (RGPD, réglementations nationales applicables dans les 6 pays).",
+      "tags": {
+        "iso27001_clauses": [
+          "9.2.1"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "risques",
+          "documentation",
+          "audit_revue"
+        ],
+        "skill_type": "application",
+        "related_standards": [
+          "ISO 19011",
+          "RGPD"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q059",
+      "scenario_id": "SC3",
+      "domain": "D5",
+      "domain_label": "Surveillance, mesure, analyse et évaluation",
+      "difficulty": "hard",
+      "question": "LogiGroup veut mettre en place un tableau de bord SMSI pour le COMEX. Selon les bonnes pratiques PECB, quels indicateurs sont les plus pertinents à ce niveau de gouvernance ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Indicateurs techniques détaillés : nombre de vulnérabilités par serveur, temps de réponse des antivirus, taux de patch par système — pour donner au COMEX une vue précise de l'état technique"
+        },
+        {
+          "id": "B",
+          "text": "Indicateurs stratégiques liés aux objectifs de l'organisation : niveau de risque résiduel global vs seuil d'acceptation, taux d'avancement du plan de traitement des risques, état de conformité aux exigences réglementaires clés, et impact des incidents sur la continuité d'activité"
+        },
+        {
+          "id": "C",
+          "text": "Uniquement le score de l'audit interne le plus récent et le statut de la certification, comme indicateurs synthétiques suffisants pour un COMEX"
+        },
+        {
+          "id": "D",
+          "text": "Copier les indicateurs du tableau de bord opérationnel RSSI pour garantir la cohérence entre les niveaux et éviter des divergences d'information"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "Les supports PECB Jour 4 distinguent les tableaux de bord selon le public : tableaux de bord stratégiques pour la direction (objectifs, risques, conformité, impact métier), tactiques pour le management intermédiaire (efficacité des mesures), opérationnels pour les équipes (surveillance en temps réel). Le COMEX de LogiGroup a besoin de savoir si les risques sont maîtrisés et si la certification est menacée — pas du nombre de vulnérabilités par serveur. Les indicateurs techniques appartiennent au tableau de bord opérationnel RSSI.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [],
+        "project_phases": [
+          "risques",
+          "mesure",
+          "audit_revue",
+          "certification"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q060",
+      "scenario_id": "SC4",
+      "domain": "D1",
+      "domain_label": "Fondamentaux et principes de la sécurité de l'information",
+      "difficulty": "hard",
+      "question": "Les recettes propriétaires d'AgroTech constituent quel type d'actif informationnel, et quelle classification minimale leur assigner selon la mesure 5.12 ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Ce sont des actifs de type 'données opérationnelles' classifiés comme 'internes', car leur valeur est essentiellement commerciale et non réglementaire"
+        },
+        {
+          "id": "B",
+          "text": "Ce sont des actifs informationnels de type 'propriété intellectuelle' dont la classification doit refléter les trois dimensions CIA : confidentialité très haute (espionnage industriel), intégrité haute (altération volontaire possible) et disponibilité selon les besoins de production — la classification résultante oriente directement les mesures de protection à mettre en œuvre"
+        },
+        {
+          "id": "C",
+          "text": "Ce sont des actifs physiques (recettes imprimées) qui sortent du périmètre de l'ISO 27001 lorsqu'ils ne sont pas sous forme numérique"
+        },
+        {
+          "id": "D",
+          "text": "La classification des recettes propriétaires relève exclusivement du service juridique (protection par le secret des affaires) et n'a pas d'incidence sur le SMSI ISO 27001"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "La mesure 5.12 exige une classification 'basée sur les exigences de confidentialité, d'intégrité et de disponibilité, et les exigences importantes des parties intéressées'. Les recettes d'AgroTech combinent : confidentialité très haute (valeur concurrentielle, espionnage industriel présumé), intégrité haute (une recette altérée peut provoquer des problèmes de qualité ou de sécurité alimentaire), et disponibilité selon les besoins de production (lignes de production dépendent de leur accès). Cette classification multi-dimensionnelle est fondamentale pour dimensionner les mesures de protection.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [
+          "5.12"
+        ],
+        "project_phases": [
+          "cadrage"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q061",
+      "scenario_id": "SC4",
+      "domain": "D4",
+      "domain_label": "Mise en œuvre du SMSI",
+      "difficulty": "hard",
+      "question": "Lucie doit mettre en place la mesure 8.31 (Séparation des environnements) pour les systèmes SCADA d'AgroTech. Quelle contrainte spécifique aux environnements OT doit-elle intégrer dans sa démarche ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Les systèmes SCADA n'ont pas d'environnement de développement ou de test : seul l'environnement de production existe, donc la mesure 8.31 ne s'applique pas aux systèmes OT"
+        },
+        {
+          "id": "B",
+          "text": "La séparation des environnements OT doit intégrer les contraintes de disponibilité opérationnelle (arrêt de production inacceptable), ce qui peut exiger des solutions alternatives comme la virtualisation, des réseaux séparés (DMZ OT/IT), et des tests sur des maquettes, tout en documentant le risque résiduel si une séparation stricte est impossible"
+        },
+        {
+          "id": "C",
+          "text": "La séparation est simple : il suffit de créer un VLAN dédié aux SCADA, ce qui satisfait pleinement la mesure 8.31 sans impact sur la production"
+        },
+        {
+          "id": "D",
+          "text": "Pour les systèmes OT, la séparation des environnements est couverte par la norme IEC 62443 et doit être gérée séparément d'ISO 27001, les deux normes étant incompatibles sur ce point"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "La mesure 8.31 s'applique aux environnements de développement, test et opérationnels, y compris dans les contextes OT. Mais les systèmes SCADA de production ont des contraintes spécifiques : disponibilité 24/7, impossibilité d'arrêt pour maintenance, protocoles industriels (Modbus, PROFIBUS) difficiles à sécuriser comme des systèmes IT. La bonne pratique est d'adapter la mesure au contexte OT en documentant les contraintes, en compensant par d'autres mesures (segmentation réseau, monitoring spécifique OT) et en faisant accepter formellement le risque résiduel aux propriétaires des risques.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [
+          "8.31"
+        ],
+        "project_phases": [
+          "cadrage"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q062",
+      "scenario_id": "SC4",
+      "domain": "D3",
+      "domain_label": "Planification du SMSI",
+      "difficulty": "hard",
+      "question": "Lucie identifie que les systèmes SCADA ne reçoivent plus de mises à jour de sécurité depuis 3 ans (fin de vie fournisseur). Comment doit-elle traiter ce risque dans le plan de traitement des risques ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Ce risque doit automatiquement être traité par l'option 'éviter' : les systèmes SCADA hors support doivent être remplacés immédiatement, sans autre option acceptable"
+        },
+        {
+          "id": "B",
+          "text": "Lucie doit évaluer les options disponibles (modification par mesures compensatoires : isolation réseau renforcée, surveillance accrue, tests réguliers ; partage via contrat de support étendu du fournisseur ; ou acceptation documentée par le propriétaire des risques) en tenant compte de la faisabilité opérationnelle et du coût"
+        },
+        {
+          "id": "C",
+          "text": "Les systèmes hors support étant un risque purement IT, Lucie peut les exclure du périmètre SMSI et les confier entièrement au DSI"
+        },
+        {
+          "id": "D",
+          "text": "La fin de support fournisseur n'est pas un risque ISO 27001 mais une décision d'obsolescence technologique relevant du plan de renouvellement des actifs du DSI"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 6.1.3 a) exige de 'choisir les options de traitement des risques appropriées'. Pour des systèmes SCADA en fin de vie, le remplacement immédiat est souvent impossible (coût, délais, risque opérationnel). Les options réalistes incluent : mesures compensatoires (isolation réseau via DMZ OT, surveillance spécifique, tests de sécurité réguliers), négociation d'un support étendu, ou acceptation formelle du risque résiduel par le propriétaire du risque (avec date de réévaluation). La norme ne prescrit pas l'option — elle exige une décision argumentée et documentée.",
+      "tags": {
+        "iso27001_clauses": [
+          "6.1.3"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage",
+          "risques",
+          "mesure"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q063",
+      "scenario_id": "SC4",
+      "domain": "D7",
+      "domain_label": "Audit interne et préparation à la certification",
+      "difficulty": "hard",
+      "question": "Lors de l'audit de certification d'AgroTech, l'auditeur externe veut visiter les locaux de production pour observer les mesures physiques (mesures 7.x). Lucie hésite à autoriser cette visite par crainte d'espionnage industriel. Comment doit-elle gérer cette situation ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Lucie peut légitimement refuser la visite des zones de production car les recettes propriétaires constituent un secret industriel protégé par la loi, ce qui prime sur les exigences d'audit"
+        },
+        {
+          "id": "B",
+          "text": "Lucie doit autoriser la visite dans le cadre de l'audit : l'auditeur est soumis à des obligations de confidentialité strictes (accord de confidentialité préalable, code de déontologie de l'organisme de certification) — refuser l'accès aux zones couvertes par le périmètre constituerait une entrave à l'audit pouvant conduire à un refus de certification"
+        },
+        {
+          "id": "C",
+          "text": "Lucie peut proposer à l'auditeur de vérifier les mesures physiques uniquement sur la base de documents photographiques et de procédures écrites, sans visite physique des zones sensibles"
+        },
+        {
+          "id": "D",
+          "text": "La visite des locaux n'est pas requise lors de l'Étape 2 car l'audit sur site se concentre exclusivement sur les systèmes informatiques et les informations documentées"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'audit de certification Étape 2 inclut des vérifications sur site des mesures de sécurité physique (mesures 7.x). L'auditeur est soumis à un code de déontologie strict et à des accords de confidentialité. Refuser l'accès aux zones dans le périmètre comprometrait l'audit et pourrait conduire au refus de certification. La solution est de formaliser un accord de confidentialité spécifique avant la visite et d'accompagner l'auditeur dans les zones sensibles, ce qui est une pratique courante lors des audits en environnements industriels sensibles.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage",
+          "documentation",
+          "certification"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q064",
+      "scenario_id": "SC4",
+      "domain": "D2",
+      "domain_label": "Exigences du SMSI (ISO/IEC 27001)",
+      "difficulty": "hard",
+      "question": "AgroTech a mis en place une mesure de chiffrement pour protéger les recettes propriétaires. Comment la mesure 8.24 (Utilisation de la cryptographie) doit-elle être documentée dans la SoA ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Il suffit d'indiquer '8.24 applicable — mise en œuvre : oui' dans la SoA, sans détail sur l'implémentation"
+        },
+        {
+          "id": "B",
+          "text": "La SoA doit indiquer que la mesure est applicable et mise en œuvre, avec la justification d'inclusion liée aux risques identifiés (protection des recettes contre l'accès non autorisé et l'exfiltration) — les détails techniques (algorithme, longueur de clé, gestion des clés) relèvent des procédures associées, pas de la SoA elle-même"
+        },
+        {
+          "id": "C",
+          "text": "La SoA doit contenir les détails techniques complets (algorithme AES-256, protocoles de gestion des clés, durée de rotation) pour démontrer la robustesse de la mise en œuvre lors de l'audit"
+        },
+        {
+          "id": "D",
+          "text": "La mesure 8.24 étant technique, elle doit être documentée uniquement dans les procédures d'exploitation (5.37) et exclue de la SoA qui est un document stratégique"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 6.1.3 d) précise le contenu de la SoA : les mesures nécessaires, la justification d'inclusion, si elles sont mises en œuvre, et la justification des exclusions. La SoA n'est pas un manuel technique — elle documente les engagements de sécurité et leur lien avec les risques. Les détails techniques (algorithmes, protocoles de gestion des clés selon la mesure 8.24) appartiennent aux procédures associées. Une SoA trop technique est difficile à maintenir, difficile à communiquer aux parties prenantes, et mélange les niveaux de documentation.",
+      "tags": {
+        "iso27001_clauses": [
+          "6.1.3"
+        ],
+        "annexA_controls": [
+          "8.24"
+        ],
+        "project_phases": [
+          "risques",
+          "documentation",
+          "operation"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q065",
+      "scenario_id": "SC5",
+      "domain": "D4",
+      "domain_label": "Mise en œuvre du SMSI",
+      "difficulty": "hard",
+      "question": "EduConnect n'a aucun processus de gestion des changements (article 8.1). Un développeur déploie une mise à jour majeure en production un vendredi soir sans notification. Quelles exigences spécifiques de l'ISO 27001 cette pratique viole-t-elle ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Uniquement l'article 8.1 (contrôle des modifications prévues) car c'est le seul article traitant de la gestion des changements"
+        },
+        {
+          "id": "B",
+          "text": "L'article 8.1 (contrôle des modifications prévues et analyse des imprévues), la mesure 8.32 (Gestion des changements), et potentiellement 6.3 si ce changement modifie des processus du SMSI — toutes trois exigent que les changements soient planifiés, évalués et contrôlés"
+        },
+        {
+          "id": "C",
+          "text": "Seule la mesure 8.25 (Cycle de vie de développement sécurisé) est violée, car le déploiement en production sans procédure relève du processus de développement"
+        },
+        {
+          "id": "D",
+          "text": "L'article 6.3 (Planification des modifications) uniquement, car tout déploiement constitue une modification du SMSI nécessitant une planification formelle"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 8.1 exige de 'contrôler les modifications prévues, analyser les conséquences des modifications imprévues et, si nécessaire, mener des actions pour limiter tout effet négatif'. La mesure 8.32 impose des 'procédures de gestion des changements'. Ces deux textes se complètent : 8.1 est l'exigence de haut niveau, 8.32 est la mesure opérationnelle. L'article 6.3 s'applique si le changement modifie le SMSI lui-même (ex: modification du périmètre, des politiques). Un déploiement technique ne déclenche pas nécessairement 6.3, mais viole bien 8.1 et 8.32.",
+      "tags": {
+        "iso27001_clauses": [
+          "6.3",
+          "8.1"
+        ],
+        "annexA_controls": [
+          "8.25",
+          "8.32"
+        ],
+        "project_phases": [
+          "cadrage",
+          "documentation",
+          "operation"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q066",
+      "scenario_id": "SC5",
+      "domain": "D1",
+      "domain_label": "Fondamentaux et principes de la sécurité de l'information",
+      "difficulty": "hard",
+      "question": "La politique de sécurité d'EduConnect a été rédigée il y a 6 mois mais n'a jamais été communiquée aux employés. Cette situation viole l'article 5.2 f). Quel est le risque opérationnel concret pour l'organisation ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Le risque est uniquement documentaire : la non-communication de la politique est une non-conformité formelle sans impact réel sur le niveau de sécurité réel de l'organisation"
+        },
+        {
+          "id": "B",
+          "text": "Sans communication de la politique, les employés ne connaissent pas leurs obligations de sécurité, ce qui rend impossible de les tenir responsables de leurs comportements, nuit à la culture de sécurité, et invalide toute sanction disciplinaire pour non-respect d'une règle que personne ne connaît"
+        },
+        {
+          "id": "C",
+          "text": "Le risque principal est légal : une politique non communiquée n'est pas juridiquement opposable aux employés, ce qui expose EduConnect aux contentieux prud'homaux"
+        },
+        {
+          "id": "D",
+          "text": "La non-communication de la politique est sans conséquence si les employés ont signé une charte informatique lors de leur embauche, la charte couvrant les mêmes obligations"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 5.2 f) exige que la politique soit 'communiquée au sein de l'organisation', et l'article 7.3 a) exige que les personnes soient 'sensibilisées à la politique de sécurité de l'information'. Une politique non communiquée crée plusieurs problèmes : impossibilité d'appliquer la mesure 6.4 (processus disciplinaire — on ne peut sanctionner que ce qui est connu), absence de base pour la sensibilisation (7.3), et culture de sécurité inexistante. C'est une non-conformité avec des conséquences opérationnelles réelles, pas seulement documentaires.",
+      "tags": {
+        "iso27001_clauses": [
+          "5.2",
+          "6.4",
+          "7.3"
+        ],
+        "annexA_controls": [
+          "6.4"
+        ],
+        "project_phases": [
+          "documentation",
+          "amelioration"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q067",
+      "scenario_id": "SC5",
+      "domain": "D3",
+      "domain_label": "Planification du SMSI",
+      "difficulty": "hard",
+      "question": "EduConnect doit définir ses critères d'acceptation des risques (art. 6.1.2 a). Le PDG propose d'accepter tous les risques dont le coût de traitement dépasse 50 000 €. Cette approche est-elle compatible avec l'ISO 27001 ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Oui, définir un critère d'acceptation basé sur le coût de traitement est une approche pragmatique reconnue par la norme ISO 27001 et ISO 27005"
+        },
+        {
+          "id": "B",
+          "text": "Partiellement : un critère uniquement financier sans considérer le niveau de risque résiduel est insuffisant — un risque à traitement coûteux mais au niveau résiduel très élevé (ex: fuite de données de mineurs) ne peut pas être accepté sur ce seul critère sans violer les obligations réglementaires d'EduConnect"
+        },
+        {
+          "id": "C",
+          "text": "Non, car l'ISO 27001 interdit les critères d'acceptation basés sur des considérations financières qui doivent être exclusivement techniques"
+        },
+        {
+          "id": "D",
+          "text": "Oui à condition que tous les risques acceptés soient documentés et approuvés par les propriétaires des risques, ce qui satisfait pleinement l'article 6.1.3 f)"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 6.1.2 a) exige d'établir des critères d'acceptation des risques sans en prescrire la nature. Un critère purement financier présente un problème structurel : il peut conduire à accepter des risques résiduels très élevés que des exigences légales obligent à traiter (RGPD sur les données de mineurs, article 32 exige des mesures 'appropriées'). EduConnect ne peut pas 'accepter' un risque élevé sur les données d'enfants sur le seul critère du coût de traitement si ce risque viole ses obligations légales. Les critères doivent intégrer à la fois le niveau de risque résiduel ET les exigences légales.",
+      "tags": {
+        "iso27001_clauses": [
+          "6.1.2",
+          "6.1.3"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "risques"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": [
+          "ISO/IEC 27005",
+          "RGPD"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q068",
+      "scenario_id": "SC5",
+      "domain": "D7",
+      "domain_label": "Audit interne et préparation à la certification",
+      "difficulty": "hard",
+      "question": "EduConnect prépare son premier audit interne avant la certification. Quelle séquence d'activités est correcte selon ISO 19011 pour la réalisation d'un audit ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Réunion d'ouverture → collecte de preuves → réunion de clôture → rapport d'audit → plan d'action"
+        },
+        {
+          "id": "B",
+          "text": "Préparation (objectifs, périmètre, critères, programme) → réunion d'ouverture → collecte et vérification des preuves d'audit → constatations d'audit → réunion de clôture → rapport d'audit → suivi (plan d'action et vérification d'efficacité)"
+        },
+        {
+          "id": "C",
+          "text": "Collecte documentaire → entretiens → rapport préliminaire → validation par le RSSI → rapport final"
+        },
+        {
+          "id": "D",
+          "text": "Questionnaire d'auto-évaluation → revue documentaire → rapport d'audit → validation par la direction"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "ISO 19011 section 6 décrit la réalisation d'un audit en plusieurs phases : 1) préparation (définir objectifs, périmètre, critères, méthodes, constituer l'équipe) ; 2) réunion d'ouverture (présenter l'équipe, confirmer le programme) ; 3) collecte et vérification des preuves (entretiens, observations, revue documentaire) ; 4) formuler les constatations (NC, points positifs, opportunités) ; 5) réunion de clôture (présenter les résultats) ; 6) rapport d'audit ; 7) suivi (vérifier la mise en œuvre et l'efficacité des actions correctives). L'oubli de la préparation formelle et du suivi post-audit sont les lacunes les plus fréquentes.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage",
+          "operation",
+          "audit_revue",
+          "certification"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": [
+          "ISO 19011"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q069",
+      "scenario_id": "SC5",
+      "domain": "D6",
+      "domain_label": "Amélioration continue",
+      "difficulty": "hard",
+      "question": "EduConnect remporte finalement le marché public européen grâce à sa certification ISO 27001. 6 mois plus tard, l'organisation triple d'effectif suite à ce succès. Quel processus ISO 27001 cette croissance déclenche-t-elle obligatoirement ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Aucun : une fois certifiée, l'organisation n'est pas tenue de modifier son SMSI tant que l'auditeur de surveillance ne le demande pas lors de sa prochaine visite annuelle"
+        },
+        {
+          "id": "B",
+          "text": "L'article 6.3 (Planification des modifications) et l'article 8.2 (Appréciation des risques lors de changements significatifs) s'appliquent : un triplement d'effectif modifie le contexte (nouveaux employés à intégrer), les risques (nouveaux accès, nouveaux comportements) et potentiellement le périmètre — une révision planifiée du SMSI est obligatoire"
+        },
+        {
+          "id": "C",
+          "text": "Seul l'article 7.2 (Compétences) s'applique : il faut s'assurer que les nouveaux employés reçoivent une formation de sensibilisation ISO 27001"
+        },
+        {
+          "id": "D",
+          "text": "L'article 4.1 s'applique uniquement si la croissance change la nature de l'activité d'EduConnect, ce qui n'est pas le cas ici puisqu'elle reste une EdTech"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "Un triplement d'effectif est un changement organisationnel significatif au sens de l'article 8.2 (qui exige une appréciation des risques lors de changements significatifs) et de l'article 6.3 (planification des modifications du SMSI). Les impacts sont multiples : nouveaux employés sans culture de sécurité établie (7.3), multiplication des accès à gérer (5.18), possibles nouvelles fonctions et rôles (5.3, 5.2), tensions sur les processus existants. Ignorer cette croissance crée un SMSI obsolète par rapport à la réalité de l'organisation, détectable lors de l'audit de surveillance.",
+      "tags": {
+        "iso27001_clauses": [
+          "4.1",
+          "5.2",
+          "5.3",
+          "6.3",
+          "7.2",
+          "7.3",
+          "8.2"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage",
+          "risques",
+          "documentation",
+          "mesure",
+          "certification"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q070",
+      "scenario_id": "SC6",
+      "domain": "D7",
+      "domain_label": "Audit interne et préparation à la certification",
+      "difficulty": "hard",
+      "question": "L'auditeur externe de PharmaCorp constate lors de l'Étape 2 que les 3 procédures rédigées par des prestataires ne correspondent pas aux pratiques réelles. Comment doit-il classifier cette constatation ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Comme une observation (point à améliorer) car l'écart entre procédures et pratiques est fréquent et normal en phase de mise en œuvre initiale"
+        },
+        {
+          "id": "B",
+          "text": "Comme une non-conformité (mineure ou majeure selon l'importance des processus concernés) car l'article 9.2.1 évalue si le SMSI 'est efficacement mis en œuvre et maintenu' — des procédures non suivies démontrent que le SMSI documenté ne correspond pas au SMSI réel"
+        },
+        {
+          "id": "C",
+          "text": "L'auditeur ne peut pas classifier cet écart comme NC car les procédures ont été rédigées par des prestataires extérieurs, la responsabilité n'incombant pas à PharmaCorp"
+        },
+        {
+          "id": "D",
+          "text": "Comme une opportunité d'amélioration car la résolution est simple : il suffit de mettre à jour les procédures pour les aligner sur les pratiques"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 9.2.1 b) évalue si le SMSI 'est efficacement mis en œuvre et maintenu'. Des procédures non suivies constituent un écart entre le SMSI documenté et le SMSI réel — c'est exactement ce que l'audit cherche à détecter. La classification (mineure/majeure) dépend de l'importance des processus : si ces procédures couvrent des mesures critiques (ex: gestion des accès, gestion des incidents), la NC sera probablement majeure. L'origine externe des procédures ne dégage pas PharmaCorp de sa responsabilité — c'est son SMSI.",
+      "tags": {
+        "iso27001_clauses": [
+          "9.2.1"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "documentation",
+          "operation",
+          "audit_revue",
+          "amelioration",
+          "certification"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q071",
+      "scenario_id": "SC6",
+      "domain": "D7",
+      "domain_label": "Audit interne et préparation à la certification",
+      "difficulty": "hard",
+      "question": "PharmaCorp veut préparer ses équipes aux entretiens avec l'auditeur externe lors de l'Étape 2. Quelle préparation est appropriée selon les principes d'audit ISO 19011 ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Préparer des réponses standardisées pour chaque question potentielle et demander aux employés de s'y tenir strictement pour éviter toute déclaration qui pourrait conduire à une NC"
+        },
+        {
+          "id": "B",
+          "text": "Former les employés concernés à expliquer clairement leurs processus réels, à montrer les preuves disponibles (journaux, comptes-rendus, outils), et à dire 'je ne sais pas' si la question dépasse leur périmètre — l'auditeur attend de la transparence, pas une présentation commerciale"
+        },
+        {
+          "id": "C",
+          "text": "Limiter les interlocuteurs de l'auditeur au RSSI et au Lead Implementer pour minimiser le risque de déclarations incontrôlées par des employés non formés à l'audit"
+        },
+        {
+          "id": "D",
+          "text": "Demander aux équipes de montrer uniquement les documents approuvés dans la SoA, sans aborder les pratiques qui s'en écartent potentiellement"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "ISO 19011 §4 liste la transparence comme un principe fondamental d'audit. Un auditeur expérimenté détecte rapidement les réponses trop calibrées et peut y voir un signal d'alerte. La meilleure préparation consiste à s'assurer que les employés comprennent leurs processus, connaissent où trouver les preuves, et sont à l'aise pour répondre honnêtement. Cacher des écarts ou préparer des scripts uniformisés crée de la méfiance et peut transformer une NC mineure en NC majeure si l'auditeur perçoit un manque de transparence.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage",
+          "risques",
+          "audit_revue",
+          "certification"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": [
+          "ISO 19011"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q072",
+      "scenario_id": "SC6",
+      "domain": "D4",
+      "domain_label": "Mise en œuvre du SMSI",
+      "difficulty": "hard",
+      "question": "La NC2 de PharmaCorp (journaux R&D conservés 15j vs 90j) révèle un écart entre la politique interne et la configuration technique. Quel processus aurait dû détecter cette situation avant l'audit interne ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "La revue de direction annuelle : c'est le seul mécanisme prévu par ISO 27001 pour détecter les écarts entre politiques et pratiques"
+        },
+        {
+          "id": "B",
+          "text": "La surveillance et le mesurage (art. 9.1) et les audits internes (art. 9.2) auraient dû détecter cet écart : la surveillance via des indicateurs sur la durée de conservation effective des journaux, et l'audit interne via la vérification des configurations système par rapport aux exigences de la politique"
+        },
+        {
+          "id": "C",
+          "text": "Ce type d'écart ne peut être détecté que par un audit externe car les équipes internes n'ont pas l'objectivité nécessaire pour identifier leurs propres non-conformités"
+        },
+        {
+          "id": "D",
+          "text": "La gestion des changements (art. 8.1 et mesure 8.32) aurait dû détecter cet écart si le changement de configuration des journaux avait été soumis à un processus formel de validation"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "Deux mécanismes complémentaires auraient dû détecter cet écart : (1) l'article 9.1 demande de définir ce qu'il faut surveiller et mesurer — un indicateur 'durée de conservation effective des journaux vs exigence de la politique' aurait détecté l'écart entre 15j et 90j dès sa mise en place ; (2) l'article 9.2 (audit interne) prévoit une vérification périodique de la conformité aux politiques internes, qui aurait inclus la vérification des configurations de journalisation. L'absence de ces mécanismes de détection précoce est une défaillance du cycle PDCA.",
+      "tags": {
+        "iso27001_clauses": [
+          "8.1",
+          "9.1",
+          "9.2"
+        ],
+        "annexA_controls": [
+          "8.32"
+        ],
+        "project_phases": [
+          "documentation",
+          "operation",
+          "mesure",
+          "audit_revue",
+          "amelioration"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q073",
+      "scenario_id": "SC6",
+      "domain": "D3",
+      "domain_label": "Planification du SMSI",
+      "difficulty": "hard",
+      "question": "PharmaCorp doit mettre à jour sa SoA suite à l'acquisition de la filiale (NC1). Quelle procédure complète doit-elle suivre pour cette mise à jour ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Ajouter simplement la filiale dans le champ 'périmètre' de la SoA et mettre à jour les statuts de mise en œuvre des mesures concernées"
+        },
+        {
+          "id": "B",
+          "text": "Réaliser une appréciation des risques couvrant les actifs et processus de la filiale, identifier les mesures nécessaires supplémentaires, mettre à jour la SoA en incluant les nouvelles mesures avec leurs justifications, faire approuver le plan de traitement mis à jour par les propriétaires des risques de la filiale, et documenter les modifications selon l'article 6.3"
+        },
+        {
+          "id": "C",
+          "text": "Déléguer à la filiale la création de sa propre SoA indépendante et la soumettre comme annexe à la SoA principale de PharmaCorp"
+        },
+        {
+          "id": "D",
+          "text": "Reporter la mise à jour de la SoA jusqu'à l'audit de renouvellement dans 18 mois, car la filiale est encore en phase d'intégration et ses processus ne sont pas stabilisés"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'intégration d'une filiale nécessite un processus complet : d'abord une appréciation des risques spécifique (les risques d'un laboratoire pharmaceutique peuvent être différents de la maison mère), puis la détermination des mesures supplémentaires nécessaires, leur intégration dans la SoA avec justifications (art. 6.1.3 d), et l'approbation du plan de traitement mis à jour par les propriétaires des risques (art. 6.1.3 f). L'article 6.3 (planification des modifications) encadre l'ensemble de ce processus. Reporter la mise à jour maintient une SoA ne reflétant pas le SMSI réel — une NC majeure détectable à tout moment.",
+      "tags": {
+        "iso27001_clauses": [
+          "6.1.3",
+          "6.3"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage",
+          "risques",
+          "documentation",
+          "operation"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q074",
+      "scenario_id": "SC6",
+      "domain": "D6",
+      "domain_label": "Amélioration continue",
+      "difficulty": "hard",
+      "question": "PharmaCorp obtient finalement sa certification malgré les difficultés. Quelle activité doit-elle absolument réaliser dans les 12 mois suivant la certification pour maintenir sa conformité selon ISO/IEC 17021-1 ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Uniquement la revue de direction annuelle : c'est la seule activité obligatoire entre la certification initiale et le premier audit de surveillance"
+        },
+        {
+          "id": "B",
+          "text": "Un audit interne couvrant le périmètre certifié ET une revue de direction (tous deux exigés par 9.2 et 9.3), dont les résultats seront examinés lors de l'audit de surveillance annuel — ISO/IEC 17021-1 §9.6.2.2 précise que l'audit de surveillance vérifie notamment 'les audits internes et la revue de direction'"
+        },
+        {
+          "id": "C",
+          "text": "Un audit de surveillance peut être réalisé sans audit interne préalable si PharmaCorp démontre que son SMSI n'a subi aucun changement significatif depuis la certification"
+        },
+        {
+          "id": "D",
+          "text": "PharmaCorp doit réaliser une nouvelle appréciation des risques complète dans les 6 mois suivant la certification, car ISO/IEC 27001 exige une fréquence semestrielle pour les organisations certifiées"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "ISO/IEC 17021-1 §9.6.2.2 définit ce que l'audit de surveillance vérifie, incluant explicitement 'les audits internes et la revue de direction'. Ces deux activités sont donc des prérequis à l'audit de surveillance pour que celui-ci puisse être concluant. Sans audit interne ni revue de direction dans l'intervalle, PharmaCorp ne pourrait pas fournir les preuves requises lors de l'audit de surveillance, ce qui constituerait une non-conformité supplémentaire.",
+      "tags": {
+        "iso27001_clauses": [
+          "9.2",
+          "9.3",
+          "9.6.2"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage",
+          "risques",
+          "mesure",
+          "audit_revue",
+          "amelioration",
+          "certification"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q075",
+      "scenario_id": "SC6",
+      "domain": "D5",
+      "domain_label": "Surveillance, mesure, analyse et évaluation",
+      "difficulty": "hard",
+      "question": "Pour les journaux R&D de PharmaCorp (mesure 8.15), quelle politique de journalisation constitue une mise en œuvre conforme à la mesure, en tenant compte du contexte pharmaceutique spécifique ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Conserver tous les journaux de tous les systèmes pendant une durée uniforme de 12 mois, par simplicité de gestion et pour satisfaire l'exigence générale de journalisation"
+        },
+        {
+          "id": "B",
+          "text": "Définir une politique différenciée selon la criticité des systèmes : journaux des serveurs R&D (contenant les recettes et formules propriétaires) conservés selon les exigences réglementaires (ex: FDA 21 CFR Part 11 impose 10 ans pour certains logs en pharma), journaux systèmes standard selon la politique interne, avec protection contre l'altération et revue régulière"
+        },
+        {
+          "id": "C",
+          "text": "Déléguer la politique de journalisation au fournisseur des serveurs de R&D, qui définira la durée de conservation optimale selon ses bonnes pratiques techniques"
+        },
+        {
+          "id": "D",
+          "text": "La durée de conservation des journaux est uniquement définie par la politique interne de l'organisation : les exigences réglementaires sectorielles ne s'appliquent pas aux systèmes couverts par ISO 27001"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "La mesure 8.15 exige que les journaux soient 'générés, conservés, protégés et analysés'. Pour PharmaCorp, le contexte pharmaceutique est déterminant : la réglementation FDA 21 CFR Part 11 et les BPF (Bonnes Pratiques de Fabrication) imposent des durées de conservation spécifiques pour les données informatisées liées aux essais cliniques et à la production. Ces exigences réglementaires constituent des exigences de parties intéressées (art. 4.2) qui doivent être intégrées dans la politique de journalisation. Une approche uniforme de 12 mois peut être insuffisante pour les logs R&D critiques.",
+      "tags": {
+        "iso27001_clauses": [
+          "4.2"
+        ],
+        "annexA_controls": [
+          "8.15"
+        ],
+        "project_phases": [
+          "cadrage",
+          "documentation",
+          "operation"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q076",
+      "scenario_id": "SC6",
+      "domain": "D2",
+      "domain_label": "Exigences du SMSI (ISO/IEC 27001)",
+      "difficulty": "hard",
+      "question": "PharmaCorp envisage d'implémenter ISO/IEC 27701 en parallèle d'ISO 27001 pour renforcer la gouvernance des données personnelles dans ses essais cliniques. Quelle affirmation décrit correctement la relation entre ces deux normes ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "ISO/IEC 27701 est une alternative à ISO 27001 pour les organisations traitant des données personnelles : PharmaCorp peut choisir l'une ou l'autre selon ses priorités"
+        },
+        {
+          "id": "B",
+          "text": "ISO/IEC 27701 est une extension d'ISO/IEC 27001 et 27002 qui ne peut être mise en œuvre que si ISO 27001 est déjà en place : elle ajoute des exigences et lignes directrices spécifiques à la protection de la vie privée (PIMS) au SMSI existant"
+        },
+        {
+          "id": "C",
+          "text": "ISO/IEC 27701 remplace la conformité RGPD : une organisation certifiée 27701 est automatiquement conforme au RGPD sans audit CNIL supplémentaire"
+        },
+        {
+          "id": "D",
+          "text": "Les deux normes sont totalement indépendantes et doivent être gérées comme deux systèmes de management séparés avec des périmètres distincts"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 1 d'ISO/IEC 27701 précise explicitement qu'il 'spécifie les exigences et fournit des recommandations pour la création, la mise en œuvre, le maintien et l'amélioration continue d'un PIMS sous la forme d'une extension des normes ISO/IEC 27001 et ISO/IEC 27002 pour le management de la protection de la vie privée'. Sans ISO 27001 comme base, ISO 27701 ne peut pas être mise en œuvre. Pour PharmaCorp, la certification ISO 27001 est donc un prérequis à l'ajout de 27701.",
+      "tags": {
+        "iso27001_clauses": [],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage",
+          "operation",
+          "amelioration",
+          "certification"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": [
+          "ISO/IEC 27002",
+          "ISO/IEC 27701",
+          "RGPD"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q077",
+      "scenario_id": "SC6",
+      "domain": "D1",
+      "domain_label": "Fondamentaux et principes de la sécurité de l'information",
+      "difficulty": "hard",
+      "question": "PharmaCorp gère des données d'essais cliniques soumises à la fois au RGPD, à FDA 21 CFR Part 11, et aux BPF. Selon l'article 4.2, comment ces exigences multiples doivent-elles être hiérarchisées dans le SMSI ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Les exigences les plus strictes (FDA 21 CFR Part 11 pour les essais cliniques destinés au marché américain) prévalent et remplacent les autres : l'organisation applique le référentiel le plus exigeant et tous les autres sont automatiquement couverts"
+        },
+        {
+          "id": "B",
+          "text": "L'article 4.2 demande d'identifier toutes les exigences pertinentes des parties intéressées sans hiérarchie automatique — chaque cadre réglementaire s'applique dans son domaine et ses exigences spécifiques doivent être intégrées dans le SMSI, les contradictions éventuelles étant résolues au cas par cas avec les experts juridiques"
+        },
+        {
+          "id": "C",
+          "text": "Le RGPD prime sur toutes les réglementations car il s'applique au sein de l'UE et son respect couvre implicitement FDA et BPF pour les aspects de protection des données"
+        },
+        {
+          "id": "D",
+          "text": "Les BPF (Bonnes Pratiques de Fabrication) sont les seules exigences réglementaires à intégrer dans le SMSI ISO 27001 car elles sont directement liées à la sécurité de l'information pharmaceutique"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 4.2 demande d'identifier les exigences des parties intéressées 'pertinentes' sans imposer de hiérarchie entre elles. Chaque référentiel s'applique dans son domaine : RGPD pour les données personnelles des participants aux essais, FDA 21 CFR Part 11 pour les dossiers électroniques des essais destinés aux autorités américaines, BPF pour la traçabilité de la production. Ces référentiels peuvent avoir des exigences complémentaires ou parfois divergentes (ex: durées de conservation différentes). L'organisation doit les identifier toutes (5.31) et gérer les éventuelles contradictions avec expertise juridique.",
+      "tags": {
+        "iso27001_clauses": [
+          "4.2"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "cadrage"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": [
+          "RGPD"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q078",
+      "scenario_id": "SC6",
+      "domain": "D3",
+      "domain_label": "Planification du SMSI",
+      "difficulty": "hard",
+      "question": "L'auditeur externe constate que PharmaCorp n'a pas documenté l'acceptation formelle des risques résiduels par les propriétaires des risques (art. 6.1.3 f). Peut-il accepter une attestation verbale du RSSI affirmant que 'les risques ont été discutés en réunion et acceptés' ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Oui, une attestation verbale d'un responsable de niveau RSSI constitue une preuve suffisante d'acceptation des risques selon les standards d'audit"
+        },
+        {
+          "id": "B",
+          "text": "Non, l'article 6.1.3 f) exige une acceptation documentée et l'article 8.3 impose de 'conserver des informations documentées sur les résultats du traitement des risques' — une attestation verbale ne constitue pas une information documentée au sens de l'article 7.5"
+        },
+        {
+          "id": "C",
+          "text": "Oui, à condition que l'attestation soit confirmée par deux témoins présents lors de la réunion en question, ce qui crée une preuve de type témoignage reconnu"
+        },
+        {
+          "id": "D",
+          "text": "L'auditeur peut accepter une attestation verbale uniquement si les procès-verbaux de réunion mentionnent que des risques ont été discutés, même sans détail sur les risques spécifiques acceptés"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 6.1.3 f) exige que les propriétaires des risques approuvent le plan de traitement — cette approbation doit être tracée. L'article 8.3 exige de 'conserver des informations documentées sur les résultats du traitement des risques de sécurité de l'information'. L'article 7.5 définit le cadre des informations documentées (identification, format, revue). Une attestation verbale n'est pas une information documentée au sens de la norme. L'auditeur ne peut pas s'en satisfaire car elle ne constitue pas une preuve d'audit vérifiable et reproductible selon ISO 19011.",
+      "tags": {
+        "iso27001_clauses": [
+          "6.1.3",
+          "7.5",
+          "8.3"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "risques",
+          "documentation",
+          "audit_revue"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": [
+          "ISO 19011"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q079",
+      "scenario_id": "SC6",
+      "domain": "D7",
+      "domain_label": "Audit interne et préparation à la certification",
+      "difficulty": "hard",
+      "question": "Après la certification de PharmaCorp, l'organisme de certification envoie une équipe pour l'audit de surveillance un an plus tard. L'auditeur demande à voir les preuves de traitement des points de préoccupation de l'Étape 1. PharmaCorp ne conserve plus les documents de l'Étape 1. Quelle conséquence cela a-t-il ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Aucune : les documents de l'Étape 1 appartiennent à la phase de certification et n'ont pas besoin d'être conservés après l'obtention du certificat"
+        },
+        {
+          "id": "B",
+          "text": "L'impossibilité de tracer le traitement des points de préoccupation de l'Étape 1 constitue une lacune dans la gestion des informations documentées (art. 7.5) et peut empêcher de démontrer la continuité de la conformité — l'auditeur peut considérer que les points non traités lors de l'Étape 1 restent ouverts"
+        },
+        {
+          "id": "C",
+          "text": "L'organisme de certification dispose d'une copie complète de tous les documents de l'Étape 1 et peut les fournir à PharmaCorp sur simple demande pour les besoins de l'audit de surveillance"
+        },
+        {
+          "id": "D",
+          "text": "La perte des documents de l'Étape 1 est couverte par l'audit interne annuel : si les points de préoccupation n'y figurent pas comme NC, c'est qu'ils ont été traités"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'article 7.5 impose la maîtrise des informations documentées, y compris leur conservation. Les points de préoccupation de l'Étape 1 et leur traitement font partie du dossier de certification — leur disparition crée une rupture dans la traçabilité. Selon ISO/IEC 17021-1 §9.6.2.2, l'audit de surveillance vérifie 'la revue des actions entreprises vis-à-vis des non-conformités identifiées au cours de l'audit précédent'. Sans trace du traitement des points de l'Étape 1, l'auditeur de surveillance ne peut pas vérifier leur résolution et peut les considérer comme ouverts.",
+      "tags": {
+        "iso27001_clauses": [
+          "7.5",
+          "9.6.2"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "documentation",
+          "mesure",
+          "audit_revue",
+          "amelioration",
+          "certification"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": []
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    },
+    {
+      "id": "Q080",
+      "scenario_id": "SC6",
+      "domain": "D6",
+      "domain_label": "Amélioration continue",
+      "difficulty": "hard",
+      "question": "PharmaCorp veut mettre en place un indicateur pour mesurer l'efficacité de son processus d'amélioration continue (art. 10). Parmi ces propositions, laquelle est la plus pertinente selon ISO/IEC 27004 ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Nombre d'actions correctives ouvertes à la fin de chaque trimestre, comme indicateur du volume de non-conformités non encore résolues"
+        },
+        {
+          "id": "B",
+          "text": "Taux de non-conformités récurrentes (même cause racine apparaissant dans deux cycles d'audit consécutifs), qui mesure directement si les actions correctives éliminent réellement les causes et pas seulement les effets visibles"
+        },
+        {
+          "id": "C",
+          "text": "Nombre total de non-conformités identifiées par l'audit interne annuel, comme indicateur du niveau d'activité du processus d'amélioration"
+        },
+        {
+          "id": "D",
+          "text": "Délai moyen de traitement des actions correctives, pour s'assurer que les NC sont résolues dans les délais fixés par le plan d'action"
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "ISO/IEC 27004 distingue mesurages de performance (activités réalisées : nombre d'actions ouvertes, délais, nombre de NC) et mesurages d'efficacité (effets produits sur les objectifs). Le taux de récurrence des non-conformités mesure directement l'efficacité de l'article 10.2 : si les mêmes causes réapparaissent d'un cycle à l'autre, les actions correctives traitent les symptômes sans éliminer les causes. C'est le mesurage d'efficacité le plus direct du processus d'amélioration continue — une organisation mature voit ce taux diminuer au fil des cycles.",
+      "tags": {
+        "iso27001_clauses": [
+          "10.2"
+        ],
+        "annexA_controls": [],
+        "project_phases": [
+          "mesure",
+          "audit_revue",
+          "amelioration"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": [
+          "ISO/IEC 27004"
+        ]
+      },
+      "status": "published",
+      "source": "examen_blanc_v1"
+    }
+  ]
+}
