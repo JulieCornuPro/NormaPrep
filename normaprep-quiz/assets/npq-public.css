@@ -1,0 +1,61 @@
+/**
+ * Styles des formulaires publics NormaPrep (inscription, connexion).
+ * Couleurs alignées sur le thème : teal #2DD4BF, fond sombre #0A1628.
+ */
+
+.npq-form {
+    max-width: 420px;
+}
+
+.npq-form p {
+    margin-bottom: 18px;
+}
+
+.npq-form label {
+    display: inline-block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+.npq-form input[type="email"],
+.npq-form input[type="password"],
+.npq-form input[type="text"] {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    font-size: 15px;
+    box-sizing: border-box;
+}
+
+.npq-form input:focus {
+    outline: none;
+    border-color: #2DD4BF;
+    box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.2);
+}
+
+/* Bouton principal — même style que les boutons du site */
+.npq-btn {
+    display: inline-block;
+    background: #2DD4BF;
+    color: #0A1628;
+    font-weight: 700;
+    text-decoration: none;
+    padding: 16px 32px;
+    border: none;
+    border-radius: 4px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.npq-btn:hover {
+    background: #25b8a6;
+}
+
+.npq-btn:active {
+    transform: translateY(1px);
+}

@@ -37,11 +37,26 @@ class NPQ_Auth {
         add_shortcode( 'npq_inscription', [ __CLASS__, 'rendu_inscription' ] );
         add_shortcode( 'npq_connexion',   [ __CLASS__, 'rendu_connexion' ] );
 
+        // Feuille de style des formulaires publics.
+        add_action( 'wp_enqueue_scripts', [ __CLASS__, 'charger_styles' ] );
+
         // Traitement des formulaires (avant tout affichage, pour pouvoir rediriger).
         add_action( 'template_redirect', [ __CLASS__, 'traiter_formulaires' ] );
 
         // Validation du compte via le lien reçu par email (?npq_valider=JETON&uid=ID).
         add_action( 'template_redirect', [ __CLASS__, 'traiter_validation_email' ] );
+    }
+
+    /**
+     * Charge la feuille de style des formulaires publics.
+     */
+    public static function charger_styles() {
+        wp_enqueue_style(
+            'npq-public',
+            NPQ_URL . 'assets/npq-public.css',
+            [],
+            NPQ_VERSION
+        );
     }
 
     /* =====================================================================
