@@ -136,7 +136,6 @@ class NPQ_Espace {
         $user     = wp_get_current_user();
         $prenom   = $user->display_name ? $user->display_name : $user->user_email;
         $abonne   = NPQ_Comptes::est_abonne_actif();
-        $deco_url = wp_logout_url( home_url( '/' ) );
 
         // Statut d'abonnement affiché.
         $statut_html = $abonne
@@ -170,10 +169,6 @@ class NPQ_Espace {
 
             <h3>Mes examens passés</h3>
             <?php echo $historique_html; ?>
-
-            <p style="margin-top:32px">
-                <a href="<?php echo esc_url( $deco_url ); ?>">Se déconnecter</a>
-            </p>
         </div>
         <?php
         return ob_get_clean();
