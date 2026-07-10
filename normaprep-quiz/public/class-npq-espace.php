@@ -31,6 +31,36 @@ class NPQ_Espace {
     }
 
     /**
+     * Génère le bloc « compte » à afficher dans l'en-tête du site.
+     * - Visiteur non connecté : lien « Connexion ».
+     * - Abonné connecté : liens « Mon espace » et « Se déconnecter ».
+     *
+     * Le thème n'a qu'à appeler NPQ_Espace::bloc_compte() dans son header.
+     * Toute la logique reste ici, dans le plugin.
+     *
+     * @return string HTML du bloc.
+     */
+    public static function bloc_compte() {
+        if ( is_user_logged_in() ) {
+            $page_id    = get_option( self::OPT_PAGE_ESPACE );
+            $url_espace = $page_id ? get_permalink( $page_id ) : home_url( '/' );
+            $url_deco   = wp_logout_url( home_url( '/' ) );
+
+            return '<div class="npq-compte npq-compte--connecte">'
+                 . '<a href="' . esc_url( $url_espace ) . '" class="npq-compte-lien">Mon espace</a>'
+                 . '<a href="' . esc_url( $url_deco ) . '" class="npq-compte-lien npq-compte-deco">Se déconnecter</a>'
+                 . '</div>';
+        }
+
+        $page_connexion = get_option( NPQ_Auth::OPT_PAGE_CONNEXION );
+        $url_connexion  = $page_connexion ? get_permalink( $page_connexion ) : home_url( '/' );
+
+        return '<div class="npq-compte npq-compte--visiteur">'
+             . '<a href="' . esc_url( $url_connexion ) . '" class="npq-compte-lien">Connexion</a>'
+             . '</div>';
+    }
+
+    /**
      * Crée la page « Mon espace » à l'activation, si absente.
      */
     public static function creer_page() {

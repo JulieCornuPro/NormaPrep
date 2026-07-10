@@ -36,12 +36,14 @@
 }
 
 /* Bouton principal — même style que les boutons du site */
-.npq-btn {
+.npq-btn,
+a.npq-btn,
+.npq-form .npq-btn {
     display: inline-block;
     background: #2DD4BF;
-    color: #0A1628;
+    color: #0A1628 !important;
     font-weight: 700;
-    text-decoration: none;
+    text-decoration: none !important;
     padding: 16px 32px;
     border: none;
     border-radius: 4px;
@@ -52,8 +54,10 @@
     transition: background 0.2s, transform 0.1s;
 }
 
-.npq-btn:hover {
+.npq-btn:hover,
+a.npq-btn:hover {
     background: #25b8a6;
+    color: #0A1628 !important;
 }
 
 .npq-btn:active {
