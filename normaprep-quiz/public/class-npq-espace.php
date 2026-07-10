@@ -24,8 +24,12 @@ class NPQ_Espace {
     public static function init() {
         add_shortcode( 'npq_espace', [ __CLASS__, 'rendu_espace' ] );
 
-        // Feuille de style de l'espace membre (barre latérale + tableau de bord).
+        // Feuille de style de l'espace membre.
         add_action( 'wp_enqueue_scripts', [ __CLASS__, 'charger_styles' ] );
+
+        // Enregistre le template de page dédié fourni par le plugin.
+        add_filter( 'theme_page_templates', [ __CLASS__, 'declarer_template' ] );
+        add_filter( 'template_include', [ __CLASS__, 'charger_template' ] );
 
         // Cloisonnement : ces réglages ne concernent QUE les abonnés NormaPrep,
         // jamais les administrateurs.
@@ -33,8 +37,29 @@ class NPQ_Espace {
         add_action( 'admin_init', [ __CLASS__, 'bloquer_acces_admin' ] );
     }
 
+    /** Déclare le template dans la liste des modèles de page disponibles. */
+    public static function declarer_template( $templates ) {
+        $templates['npq-espace'] = 'Espace membre NormaPrep';
+        return $templates;
+    }
+
+    /** Charge notre template pour la page « Mon espace » (ou si le modèle est choisi). */
+    public static function charger_template( $template ) {
+        $page_id = get_option( self::OPT_PAGE_ESPACE );
+        $est_espace = ( $page_id && is_page( $page_id ) );
+        $modele_choisi = is_page() && get_page_template_slug() === 'npq-espace';
+
+        if ( $est_espace || $modele_choisi ) {
+            $fichier = NPQ_PATH . 'public/page-espace-normaprep.php';
+            if ( file_exists( $fichier ) ) {
+                return $fichier;
+            }
+        }
+        return $template;
+    }
+
     /**
-     * Charge la feuille de style de l'espace, uniquement sur la page « Mon espace ».
+     * Charge la feuille de style de l'espace, sur la page « Mon espace ».
      */
     public static function charger_styles() {
         $page_id = get_option( self::OPT_PAGE_ESPACE );
