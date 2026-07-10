@@ -59,3 +59,30 @@
 .npq-btn:active {
     transform: translateY(1px);
 }
+
+/* ---- Bloc compte dans l'en-tête (Connexion / Mon espace / Déconnexion) ---- */
+.npq-compte {
+    display: inline-flex;
+    align-items: center;
+    gap: 18px;
+    margin-left: 24px;
+    font-family: var(--carto-font-mono, monospace);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.npq-compte-lien {
+    color: #00CFCF;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: opacity 0.2s;
+}
+
+.npq-compte-lien:hover {
+    opacity: 0.7;
+}
+
+.npq-compte-deco {
+    color: #94A3B8;
+}

@@ -124,7 +124,11 @@ class NPQ_Espace {
 
             <div class="npq-espace-actions" style="margin:24px 0">
                 <?php if ( $abonne ) : ?>
-                    <a href="#" class="npq-btn">Lancer un examen</a>
+                    <?php
+                    $page_examen = get_option( 'npq_page_examen_id' );
+                    $url_examen = $page_examen ? get_permalink( $page_examen ) : '#';
+                    ?>
+                    <a href="<?php echo esc_url( $url_examen ); ?>" class="npq-btn">Lancer un examen</a>
                 <?php else : ?>
                     <?php
                     $page_offres = get_page_by_path( 'offres' );
