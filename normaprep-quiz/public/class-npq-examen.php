@@ -26,6 +26,99 @@ class NPQ_Examen {
     public static function init() {
         add_shortcode( 'npq_examen', [ __CLASS__, 'rendu' ] );
         add_action( 'template_redirect', [ __CLASS__, 'traiter_actions' ] );
+
+        // Point d'entrée AJAX (navigation fluide sans rechargement).
+        // Réservé aux utilisateurs connectés (préfixe wp_ajax_, pas nopriv).
+        add_action( 'wp_ajax_npq_examen_etape', [ __CLASS__, 'ajax_etape' ] );
+
+        // Chargement du script d'examen sur la page dédiée.
+        add_action( 'wp_enqueue_scripts', [ __CLASS__, 'charger_script' ] );
+    }
+
+    /**
+     * Charge le JavaScript d'examen, uniquement sur la page « Passer un examen ».
+     */
+    public static function charger_script() {
+        $page_id = get_option( self::OPT_PAGE_EXAMEN );
+        if ( ! $page_id || ! is_page( $page_id ) ) {
+            return;
+        }
+        wp_enqueue_script(
+            'npq-examen',
+            NPQ_URL . 'assets/npq-examen.js',
+            [],
+            NPQ_VERSION,
+            true // dans le pied de page
+        );
+        // Transmet au script l'URL AJAX et un jeton de sécurité.
+        wp_localize_script( 'npq-examen', 'NPQ_EXAMEN', [
+            'ajax_url' => admin_url( 'admin-ajax.php' ),
+            'nonce'    => wp_create_nonce( 'npq_examen_ajax' ),
+        ] );
+    }
+
+    /**
+     * Point d'entrée AJAX : enregistre la réponse reçue et renvoie l'étape suivante.
+     * Renvoie du JSON. Ne divulgue JAMAIS les bonnes réponses.
+     */
+    public static function ajax_etape() {
+        // Sécurité : connexion, abonnement, nonce.
+        if ( ! NPQ_Comptes::peut_passer_examen_complet() ) {
+            wp_send_json_error( [ 'message' => 'Accès refusé.' ], 403 );
+        }
+        if ( ! check_ajax_referer( 'npq_examen_ajax', 'nonce', false ) ) {
+            wp_send_json_error( [ 'message' => 'Session expirée.' ], 403 );
+        }
+
+        $tentative_id = isset( $_POST['tentative'] ) ? (int) $_POST['tentative'] : 0;
+        $position     = isset( $_POST['position'] ) ? (int) $_POST['position'] : 0;
+        $options      = isset( $_POST['options'] ) ? array_map( 'intval', (array) $_POST['options'] ) : [];
+
+        if ( ! $tentative_id || ! self::tentative_appartient( $tentative_id ) ) {
+            wp_send_json_error( [ 'message' => 'Examen introuvable.' ], 404 );
+        }
+
+        // Enregistre la réponse à la position courante (dans le brouillon).
+        $question_courante = self::question_a_position( $tentative_id, $position );
+        if ( $question_courante ) {
+            $brouillon = get_option( 'npq_brouillon_' . $tentative_id, [] );
+            $brouillon[ $question_courante['id'] ] = $options;
+            update_option( 'npq_brouillon_' . $tentative_id, $brouillon, false );
+        }
+
+        $total    = self::nombre_questions( $tentative_id );
+        $suivante = $position + 1;
+
+        // Fin de l'examen : on corrige et on renvoie l'URL du résultat.
+        if ( $suivante >= $total ) {
+            NPQ_Correcteur::corriger_tentative( $tentative_id, get_option( 'npq_brouillon_' . $tentative_id, [] ) );
+            delete_option( 'npq_brouillon_' . $tentative_id );
+            $page_id = get_option( self::OPT_PAGE_EXAMEN );
+            $url = $page_id ? get_permalink( $page_id ) : home_url( '/' );
+            wp_send_json_success( [
+                'termine'      => true,
+                'url_resultat' => add_query_arg( [ 't' => $tentative_id, 'resultat' => 1 ], $url ),
+            ] );
+        }
+
+        // Sinon : renvoie les données de la question suivante (sans les bonnes réponses).
+        $q = self::question_a_position( $tentative_id, $suivante );
+        $brouillon = get_option( 'npq_brouillon_' . $tentative_id, [] );
+        $deja = isset( $brouillon[ $q['id'] ] ) ? array_map( 'intval', (array) $brouillon[ $q['id'] ] ) : [];
+
+        wp_send_json_success( [
+            'termine'  => false,
+            'position' => $suivante,
+            'total'    => $total,
+            'question' => [
+                'enonce'         => $q['enonce'],
+                'multi_reponses' => (int) $q['multi_reponses'],
+                'options'        => array_map( function ( $o ) {
+                    return [ 'id' => (int) $o['id'], 'texte' => $o['texte'] ];
+                }, $q['options'] ),
+                'deja' => $deja,
+            ],
+        ] );
     }
 
     /**
@@ -268,7 +361,7 @@ class NPQ_Examen {
 
         ob_start();
         ?>
-        <div class="npq-examen">
+        <div class="npq-examen" id="npq-examen-zone">
             <?php if ( $scenario ) : ?>
                 <div class="npq-scenario-contexte" style="background:#0F1E33;border-left:3px solid #00CFCF;padding:14px 18px;margin-bottom:20px">
                     <strong><?php echo esc_html( $scenario['nom'] ); ?></strong>
@@ -276,34 +369,36 @@ class NPQ_Examen {
                 </div>
             <?php endif; ?>
 
-            <p style="color:#94A3B8;font-size:13px">Question <?php echo ( $position + 1 ); ?> / <?php echo $total; ?></p>
+            <div id="npq-question-contenu">
+                <p class="npq-progression">Question <?php echo ( $position + 1 ); ?> / <?php echo $total; ?></p>
 
-            <div class="npq-enonce" style="font-size:17px;margin-bottom:20px">
-                <?php echo esc_html( $question['enonce'] ); ?>
+                <div class="npq-enonce">
+                    <?php echo esc_html( $question['enonce'] ); ?>
+                </div>
+
+                <form id="npq-examen-form" method="post">
+                    <input type="hidden" name="npq_examen_action" value="repondre">
+                    <input type="hidden" name="npq_tentative" value="<?php echo (int) $tentative_id; ?>">
+                    <input type="hidden" name="npq_position" value="<?php echo (int) $position; ?>">
+                    <?php wp_nonce_field( 'npq_examen', 'npq_nonce' ); ?>
+
+                    <?php foreach ( $question['options'] as $opt ) :
+                        $checked = in_array( (int) $opt['id'], array_map( 'intval', $deja ), true ) ? 'checked' : '';
+                    ?>
+                        <label class="npq-option">
+                            <input type="<?php echo $type_input; ?>" name="npq_options[]"
+                                   value="<?php echo (int) $opt['id']; ?>" <?php echo $checked; ?>>
+                            <?php echo esc_html( $opt['texte'] ); ?>
+                        </label>
+                    <?php endforeach; ?>
+
+                    <p style="margin-top:20px">
+                        <button type="submit" class="npq-btn">
+                            <?php echo ( $position + 1 >= $total ) ? 'Terminer l\'examen' : 'Question suivante'; ?>
+                        </button>
+                    </p>
+                </form>
             </div>
-
-            <form method="post">
-                <input type="hidden" name="npq_examen_action" value="repondre">
-                <input type="hidden" name="npq_tentative" value="<?php echo (int) $tentative_id; ?>">
-                <input type="hidden" name="npq_position" value="<?php echo (int) $position; ?>">
-                <?php wp_nonce_field( 'npq_examen', 'npq_nonce' ); ?>
-
-                <?php foreach ( $question['options'] as $opt ) :
-                    $checked = in_array( (int) $opt['id'], array_map( 'intval', $deja ), true ) ? 'checked' : '';
-                ?>
-                    <label style="display:block;padding:12px;border:1px solid #1E3A52;border-radius:6px;margin-bottom:10px;cursor:pointer">
-                        <input type="<?php echo $type_input; ?>" name="npq_options[]"
-                               value="<?php echo (int) $opt['id']; ?>" <?php echo $checked; ?>>
-                        <?php echo esc_html( $opt['texte'] ); ?>
-                    </label>
-                <?php endforeach; ?>
-
-                <p style="margin-top:20px">
-                    <button type="submit" class="npq-btn">
-                        <?php echo ( $position + 1 >= $total ) ? 'Terminer l\'examen' : 'Question suivante'; ?>
-                    </button>
-                </p>
-            </form>
         </div>
         <?php
         return ob_get_clean();

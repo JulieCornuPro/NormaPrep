@@ -90,3 +90,36 @@ a.npq-btn:hover {
 .npq-compte-deco {
     color: #94A3B8;
 }
+
+/* ---- Options de réponse dans l'examen (PHP et JS partagent ce style) ---- */
+.npq-examen .npq-option {
+    display: block;
+    padding: 12px 14px;
+    border: 1px solid #1E3A52;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    line-height: 1.5;
+}
+
+.npq-examen .npq-option:hover {
+    border-color: #00CFCF;
+    background: rgba(0, 207, 207, 0.05);
+}
+
+.npq-examen .npq-option input {
+    margin-right: 10px;
+}
+
+.npq-examen .npq-progression {
+    color: #94A3B8;
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+
+.npq-examen .npq-enonce {
+    font-size: 17px;
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
