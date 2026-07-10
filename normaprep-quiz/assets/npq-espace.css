@@ -1,0 +1,233 @@
+/**
+ * Espace membre NormaPrep — barre latérale + tableau de bord.
+ * Adapté de la maquette, aux couleurs du thème CARTO.
+ *
+ * Note : ce style ne s'applique qu'à l'intérieur de .npq-espace-shell pour ne
+ * pas déborder sur le reste du site.
+ */
+
+.npq-espace-shell {
+    --npq-teal: #00CFCF;
+    --npq-teal-dim: rgba(0, 207, 207, 0.12);
+    --npq-surface: #0F1E33;
+    --npq-surface-2: #132743;
+    --npq-border: #1E3A52;
+    --npq-text: #E7ECF5;
+    --npq-text-lo: #8B98B3;
+    --npq-muted: #4B5875;
+    --npq-green: #4ADE80;
+    --npq-orange: #FF7A50;
+
+    display: flex;
+    gap: 0;
+    align-items: flex-start;
+    margin: 0 auto;
+}
+
+/* ---- Barre latérale ---- */
+.npq-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    background: var(--npq-surface);
+    border: 1px solid var(--npq-border);
+    border-radius: 10px;
+    padding: 20px 14px;
+    margin-right: 28px;
+}
+
+.npq-side-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 8px 18px;
+    border-bottom: 1px solid var(--npq-border);
+    margin-bottom: 14px;
+}
+
+.npq-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, var(--npq-teal), #1a8f7c);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--carto-font-display, sans-serif);
+    font-weight: 700;
+    font-size: 14px;
+    color: #06251f;
+}
+
+.npq-su-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--npq-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 150px;
+}
+
+.npq-su-status {
+    font-family: var(--carto-font-mono, monospace);
+    font-size: 11px;
+    color: var(--npq-green);
+    margin-top: 2px;
+}
+
+.npq-su-status.inactif {
+    color: var(--npq-orange);
+}
+
+.npq-side-group {
+    font-family: var(--carto-font-mono, monospace);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--npq-muted);
+    padding: 14px 10px 6px;
+}
+
+.npq-side-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    color: var(--npq-text-lo);
+    font-size: 15px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background 0.2s, color 0.2s;
+}
+
+.npq-side-link:hover {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--npq-text);
+}
+
+.npq-side-link.active {
+    color: var(--npq-teal);
+    background: var(--npq-teal-dim);
+}
+
+/* ---- Contenu principal ---- */
+.npq-espace-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.npq-greet {
+    font-family: var(--carto-font-display, sans-serif);
+    font-weight: 700;
+    font-size: 28px;
+    text-transform: uppercase;
+    color: #fff;
+    margin-bottom: 12px;
+}
+
+.npq-status-line {
+    font-size: 16px;
+    color: var(--npq-text-lo);
+    margin-bottom: 28px;
+}
+
+.npq-status-line .val {
+    color: var(--npq-green);
+    font-weight: 600;
+}
+
+.npq-status-line .val.inactif {
+    color: var(--npq-orange);
+}
+
+.npq-cta-row {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+}
+
+/* ---- Tableau des examens ---- */
+.npq-sec-title {
+    font-family: var(--carto-font-display, sans-serif);
+    font-weight: 700;
+    font-size: 22px;
+    text-transform: uppercase;
+    color: #fff;
+    margin-bottom: 18px;
+}
+
+.npq-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 40px;
+}
+
+.npq-table thead th {
+    background: var(--npq-surface-2);
+    text-align: left;
+    padding: 12px 18px;
+    font-family: var(--carto-font-mono, monospace);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--npq-text-lo);
+    border-bottom: 1px solid var(--npq-border);
+}
+
+.npq-table tbody td {
+    padding: 15px 18px;
+    border-bottom: 1px solid var(--npq-border);
+    font-size: 15px;
+    color: var(--npq-text);
+}
+
+.npq-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.npq-result-ok {
+    color: var(--npq-green);
+}
+
+.npq-result-ko {
+    color: var(--npq-orange);
+}
+
+/* ---- Liens rapides bas de page ---- */
+.npq-quick-links {
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+    padding-top: 18px;
+    border-top: 1px solid var(--npq-border);
+}
+
+.npq-quick-links a {
+    font-size: 15px;
+    color: var(--npq-text-lo);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    text-decoration-color: var(--npq-border);
+}
+
+.npq-quick-links a:hover {
+    color: var(--npq-teal);
+    text-decoration-color: var(--npq-teal);
+}
+
+/* ---- Responsive : la barre latérale passe au-dessus sur petit écran ---- */
+@media (max-width: 768px) {
+    .npq-espace-shell {
+        flex-direction: column;
+    }
+    .npq-sidebar {
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 24px;
+    }
+}

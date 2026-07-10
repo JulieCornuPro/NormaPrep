@@ -24,10 +24,29 @@ class NPQ_Espace {
     public static function init() {
         add_shortcode( 'npq_espace', [ __CLASS__, 'rendu_espace' ] );
 
+        // Feuille de style de l'espace membre (barre latérale + tableau de bord).
+        add_action( 'wp_enqueue_scripts', [ __CLASS__, 'charger_styles' ] );
+
         // Cloisonnement : ces réglages ne concernent QUE les abonnés NormaPrep,
         // jamais les administrateurs.
         add_action( 'after_setup_theme', [ __CLASS__, 'masquer_barre_admin' ] );
         add_action( 'admin_init', [ __CLASS__, 'bloquer_acces_admin' ] );
+    }
+
+    /**
+     * Charge la feuille de style de l'espace, uniquement sur la page « Mon espace ».
+     */
+    public static function charger_styles() {
+        $page_id = get_option( self::OPT_PAGE_ESPACE );
+        if ( ! $page_id || ! is_page( $page_id ) ) {
+            return;
+        }
+        wp_enqueue_style(
+            'npq-espace',
+            NPQ_URL . 'assets/npq-espace.css',
+            [],
+            NPQ_VERSION
+        );
     }
 
     /**
@@ -133,42 +152,79 @@ class NPQ_Espace {
                  . '<a href="' . esc_url( $url ) . '">Se connecter</a></p>';
         }
 
-        $user     = wp_get_current_user();
-        $prenom   = $user->display_name ? $user->display_name : $user->user_email;
-        $abonne   = NPQ_Comptes::est_abonne_actif();
+        $user   = wp_get_current_user();
+        $nom    = $user->display_name ? $user->display_name : $user->user_email;
+        $abonne = NPQ_Comptes::est_abonne_actif();
 
-        // Statut d'abonnement affiché.
-        $statut_html = $abonne
-            ? '<span style="color:#1e8449;font-weight:600">Abonnement actif</span>'
-            : '<span style="color:#b9770e;font-weight:600">Compte gratuit</span>';
+        // Initiales pour l'avatar (2 premières lettres significatives).
+        $initiales = strtoupper( mb_substr( preg_replace( '/[^A-Za-z0-9]/', '', $nom ), 0, 2 ) );
+        if ( $initiales === '' ) {
+            $initiales = 'NP';
+        }
 
-        // Historique des tentatives (vide au départ).
+        // URLs des pages (seulement celles qui existent).
+        $url_examen = ( $id = get_option( 'npq_page_examen_id' ) ) ? get_permalink( $id ) : '#';
+        $url_profil = ( $id = get_option( 'npq_page_profil_id' ) ) ? get_permalink( $id ) : '';
+        $page_offres = get_page_by_path( 'offres' );
+        $url_offres  = $page_offres ? get_permalink( $page_offres ) : '#';
+
         $historique_html = self::rendu_historique();
 
         ob_start();
         ?>
-        <div class="npq-espace">
-            <h2>Bonjour <?php echo esc_html( $prenom ); ?></h2>
-            <p>Statut : <?php echo $statut_html; ?></p>
+        <div class="npq-espace-shell">
 
-            <div class="npq-espace-actions" style="margin:24px 0">
+            <!-- Barre latérale -->
+            <aside class="npq-sidebar">
+                <div class="npq-side-user">
+                    <div class="npq-avatar"><?php echo esc_html( $initiales ); ?></div>
+                    <div>
+                        <div class="npq-su-name"><?php echo esc_html( $nom ); ?></div>
+                        <div class="npq-su-status<?php echo $abonne ? '' : ' inactif'; ?>">
+                            ● <?php echo $abonne ? 'Abonnement actif' : 'Compte gratuit'; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="npq-side-group">Navigation</div>
+                <a class="npq-side-link active" href="#">Tableau de bord</a>
                 <?php if ( $abonne ) : ?>
-                    <?php
-                    $page_examen = get_option( 'npq_page_examen_id' );
-                    $url_examen = $page_examen ? get_permalink( $page_examen ) : '#';
-                    ?>
-                    <a href="<?php echo esc_url( $url_examen ); ?>" class="npq-btn">Lancer un examen</a>
-                <?php else : ?>
-                    <?php
-                    $page_offres = get_page_by_path( 'offres' );
-                    $url_offres = $page_offres ? get_permalink( $page_offres ) : '#';
-                    ?>
-                    <a href="<?php echo esc_url( $url_offres ); ?>" class="npq-btn">Découvrir les offres</a>
+                    <a class="npq-side-link" href="<?php echo esc_url( $url_examen ); ?>">Passer un examen</a>
                 <?php endif; ?>
-            </div>
 
-            <h3>Mes examens passés</h3>
-            <?php echo $historique_html; ?>
+                <div class="npq-side-group">Compte</div>
+                <?php if ( $url_profil ) : ?>
+                    <a class="npq-side-link" href="<?php echo esc_url( $url_profil ); ?>">Mon profil</a>
+                <?php endif; ?>
+            </aside>
+
+            <!-- Contenu principal -->
+            <main class="npq-espace-main">
+                <div class="npq-greet">Bonjour <?php echo esc_html( $nom ); ?></div>
+                <div class="npq-status-line">
+                    Statut :
+                    <span class="val<?php echo $abonne ? '' : ' inactif'; ?>">
+                        <?php echo $abonne ? 'Abonnement actif' : 'Compte gratuit'; ?>
+                    </span>
+                </div>
+
+                <div class="npq-cta-row">
+                    <?php if ( $abonne ) : ?>
+                        <a href="<?php echo esc_url( $url_examen ); ?>" class="npq-btn">Lancer un examen</a>
+                    <?php else : ?>
+                        <a href="<?php echo esc_url( $url_offres ); ?>" class="npq-btn">Découvrir les offres</a>
+                    <?php endif; ?>
+                </div>
+
+                <div class="npq-sec-title">Mes examens</div>
+                <?php echo $historique_html; ?>
+
+                <?php if ( $url_profil ) : ?>
+                    <div class="npq-quick-links">
+                        <a href="<?php echo esc_url( $url_profil ); ?>">Gérer mon profil</a>
+                    </div>
+                <?php endif; ?>
+            </main>
         </div>
         <?php
         return ob_get_clean();
@@ -196,24 +252,22 @@ class NPQ_Espace {
         ), ARRAY_A );
 
         if ( empty( $tentatives ) ) {
-            return '<p>Aucun examen passé pour le moment.</p>';
+            return '<p style="color:#8B98B3">Aucun examen passé pour le moment.</p>';
         }
 
-        $html = '<table class="npq-historique" style="width:100%;border-collapse:collapse">';
-        $html .= '<tr style="text-align:left;border-bottom:1px solid #ccc">'
-               . '<th style="padding:8px">Date</th><th style="padding:8px">Score</th>'
-               . '<th style="padding:8px">Résultat</th></tr>';
+        $html  = '<table class="npq-table">';
+        $html .= '<thead><tr><th>Date</th><th>Score</th><th>Résultat</th></tr></thead><tbody>';
         foreach ( $tentatives as $t ) {
-            $date = esc_html( mysql2date( 'd/m/Y', $t['date_debut'] ) );
+            $date  = esc_html( mysql2date( 'd/m/Y', $t['date_debut'] ) );
             $score = ( $t['score'] !== null ) ? intval( $t['score'] ) . ' %' : '—';
-            $res = $t['reussi'] ? 'Réussi' : 'Échoué';
-            $couleur = $t['reussi'] ? '#1e8449' : '#c0392b';
-            $html .= '<tr style="border-bottom:1px solid #eee">'
-                   . '<td style="padding:8px">' . $date . '</td>'
-                   . '<td style="padding:8px">' . $score . '</td>'
-                   . '<td style="padding:8px;color:' . $couleur . '">' . $res . '</td></tr>';
+            $res   = $t['reussi'] ? 'Réussi' : 'Échoué';
+            $classe = $t['reussi'] ? 'npq-result-ok' : 'npq-result-ko';
+            $html .= '<tr>'
+                   . '<td>' . $date . '</td>'
+                   . '<td>' . $score . '</td>'
+                   . '<td class="' . $classe . '">' . $res . '</td></tr>';
         }
-        $html .= '</table>';
+        $html .= '</tbody></table>';
         return $html;
     }
 }
