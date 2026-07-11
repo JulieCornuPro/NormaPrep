@@ -58,68 +58,7 @@ get_header();
 <div class="npq-app">
   <div class="shell" id="npqShell">
 
-    <aside class="sidebar">
-      <div class="side-user">
-        <div class="avatar"><?php echo esc_html( $initiales ); ?></div>
-        <div class="su-meta">
-          <div class="su-name"><?php echo esc_html( $nom ); ?></div>
-          <div class="su-status mono<?php echo $abonne ? '' : ' inactif'; ?>">&#9679; <?php echo $abonne ? 'Abonnement actif' : 'Compte gratuit'; ?></div>
-        </div>
-      </div>
-
-      <nav class="side-nav">
-        <div class="side-group-label">Navigation</div>
-
-        <a class="side-link active" href="<?php echo esc_url( $url_espace ); ?>">
-          <span class="icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8"/><rect x="13" y="3" width="8" height="8"/><rect x="3" y="13" width="8" height="8"/><rect x="13" y="13" width="8" height="8"/></svg></span>
-          <span class="lbl">Tableau de bord</span>
-        </a>
-
-        <a class="side-link" href="<?php echo esc_url( $url_examen ); ?>">
-          <span class="icon"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18"/><path d="M9 9h6M9 13h6M9 17h3"/></svg></span>
-          <span class="lbl">Examens</span>
-          <?php if ( $nb_examens ) : ?><span class="badge"><?php echo (int) $nb_examens; ?></span><?php endif; ?>
-        </a>
-
-        <a class="side-link soon" href="#" title="Bientot disponible">
-          <span class="icon"><svg viewBox="0 0 24 24"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></span>
-          <span class="lbl">Activité</span>
-          <span class="badge">à venir</span>
-        </a>
-
-        <a class="side-link soon" href="#" title="Bientot disponible">
-          <span class="icon"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="12" height="15"/><rect x="8" y="2" width="12" height="15"/></svg></span>
-          <span class="lbl">Révisions</span>
-          <span class="badge">à venir</span>
-        </a>
-
-        <a class="side-link soon" href="#" title="Bientot disponible">
-          <span class="icon"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16"/><path d="M3 10h18M8 2v6M16 2v6"/></svg></span>
-          <span class="lbl">Calendrier</span>
-          <span class="badge">à venir</span>
-        </a>
-
-        <div class="side-divider"></div>
-        <div class="side-group-label">Compte</div>
-
-        <a class="side-link" href="<?php echo esc_url( $url_profil ); ?>">
-          <span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></span>
-          <span class="lbl">Mon profil</span>
-        </a>
-
-        <a class="side-link soon" href="#" title="Bientot disponible">
-          <span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v3M12 18v3M4.2 6.2l2.1 2.1M17.7 15.7l2.1 2.1M3 12h3M18 12h3M4.2 17.8l2.1-2.1M17.7 8.3l2.1-2.1"/></svg></span>
-          <span class="lbl">Configuration</span>
-          <span class="badge">à venir</span>
-        </a>
-
-        <a class="side-link soon" href="#" title="Bientot disponible">
-          <span class="icon"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13"/><path d="M3 10h18"/></svg></span>
-          <span class="lbl">Facturation</span>
-          <span class="badge">à venir</span>
-        </a>
-      </nav>
-    </aside>
+    <?php echo NPQ_Espace::barre_laterale( 'dashboard' ); ?>
 
     <main class="main">
       <div class="greet">Bonjour <?php echo esc_html( $nom ); ?></div>

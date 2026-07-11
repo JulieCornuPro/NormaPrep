@@ -88,6 +88,17 @@ class NPQ_Installer {
         ) $charset;";
 
         // --- Questions : rattachées à un scénario, avec explication de la correction ---
+        // Domaines d'examen (D1, D2...) avec leur libellé lisible.
+        // Rattachés à une certification : chaque référentiel a ses propres domaines.
+        $sql[] = "CREATE TABLE {$p}domaine (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            certification_id BIGINT UNSIGNED NULL,
+            code VARCHAR(20) NOT NULL,
+            libelle VARCHAR(255) NOT NULL,
+            PRIMARY KEY  (id),
+            UNIQUE KEY cert_code (certification_id, code)
+        ) $charset;";
+
         $sql[] = "CREATE TABLE {$p}question (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             certification_id BIGINT UNSIGNED NULL,

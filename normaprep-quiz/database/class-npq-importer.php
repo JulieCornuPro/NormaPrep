@@ -156,6 +156,12 @@ class NPQ_Importer {
             }
             $multi = ( $nb_correctes > 1 ) ? 1 : 0;
 
+            // Enregistre le domaine (code + libellé) s'il n'existe pas encore.
+            // Le libellé vient du champ domain_label de la banque de questions.
+            if ( ! empty( $q['domain'] ) && ! empty( $q['domain_label'] ) ) {
+                self::assurer_domaine( $certification_id, $q['domain'], $q['domain_label'] );
+            }
+
             $donnees = [
                 'certification_id' => $certification_id,
                 'ref_externe'      => $ref,
@@ -264,6 +270,31 @@ class NPQ_Importer {
         }
 
         return $tag_id;
+    }
+
+    /**
+     * Crée le domaine s'il n'existe pas, ou met à jour son libellé.
+     * Rejouable sans doublon (clé unique certification + code).
+     */
+    private static function assurer_domaine( $certification_id, $code, $libelle ) {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $existant = $wpdb->get_var( $wpdb->prepare(
+            "SELECT id FROM {$p}domaine WHERE certification_id = %d AND code = %s",
+            $certification_id,
+            $code
+        ) );
+
+        if ( $existant ) {
+            $wpdb->update( "{$p}domaine", [ 'libelle' => $libelle ], [ 'id' => $existant ] );
+        } else {
+            $wpdb->insert( "{$p}domaine", [
+                'certification_id' => $certification_id,
+                'code'             => $code,
+                'libelle'          => $libelle,
+            ] );
+        }
     }
 
     /**

@@ -43,27 +43,167 @@ class NPQ_Espace {
         return $templates;
     }
 
-    /** Charge notre template pour la page « Mon espace » (ou si le modèle est choisi). */
-    public static function charger_template( $template ) {
-        $page_id = get_option( self::OPT_PAGE_ESPACE );
-        $est_espace = ( $page_id && is_page( $page_id ) );
-        $modele_choisi = is_page() && get_page_template_slug() === 'npq-espace';
+    /**
+     * Génère la barre latérale de l'espace membre.
+     * Source unique : utilisée par toutes les pages de l'espace (tableau de bord,
+     * profil, et futures sections). Évite de dupliquer le code.
+     *
+     * @param string $active Clé de l'entrée à surligner : 'dashboard', 'examens', 'profil'.
+     * @return string HTML de la barre latérale.
+     */
+    public static function barre_laterale( $active = '' ) {
+        if ( ! is_user_logged_in() ) {
+            return '';
+        }
 
-        if ( $est_espace || $modele_choisi ) {
+        $user   = wp_get_current_user();
+        $nom    = $user->display_name ? $user->display_name : $user->user_email;
+        $abonne = NPQ_Comptes::est_abonne_actif();
+
+        $initiales = strtoupper( mb_substr( preg_replace( '/[^A-Za-z0-9]/', '', $nom ), 0, 2 ) );
+        if ( $initiales === '' ) { $initiales = 'NP'; }
+
+        $url_espace = ( $id = get_option( self::OPT_PAGE_ESPACE ) ) ? get_permalink( $id ) : home_url( '/' );
+        $url_examen = ( $id = get_option( 'npq_page_examen_id' ) ) ? get_permalink( $id ) : '#';
+        $url_profil = ( $id = get_option( 'npq_page_profil_id' ) ) ? get_permalink( $id ) : '#';
+
+        // Nombre d'examens passés (badge).
+        $nb_examens = 0;
+        $fiche = NPQ_Comptes::fiche_courante();
+        if ( $fiche ) {
+            global $wpdb;
+            $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+            $nb_examens = (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$p}tentative WHERE utilisateur_id = %d AND date_fin IS NOT NULL",
+                $fiche['id']
+            ) );
+        }
+
+        $cls = function ( $cle ) use ( $active ) {
+            return ( $active === $cle ) ? ' active' : '';
+        };
+
+        ob_start();
+        ?>
+        <aside class="sidebar">
+          <div class="side-user">
+            <div class="avatar"><?php echo esc_html( $initiales ); ?></div>
+            <div class="su-meta">
+              <div class="su-name"><?php echo esc_html( $nom ); ?></div>
+              <div class="su-status mono<?php echo $abonne ? '' : ' inactif'; ?>">&#9679; <?php echo $abonne ? 'Abonnement actif' : 'Compte gratuit'; ?></div>
+            </div>
+          </div>
+
+          <nav class="side-nav">
+            <div class="side-group-label">Navigation</div>
+
+            <a class="side-link<?php echo $cls( 'dashboard' ); ?>" href="<?php echo esc_url( $url_espace ); ?>">
+              <span class="icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8"/><rect x="13" y="3" width="8" height="8"/><rect x="3" y="13" width="8" height="8"/><rect x="13" y="13" width="8" height="8"/></svg></span>
+              <span class="lbl">Tableau de bord</span>
+            </a>
+
+            <a class="side-link<?php echo $cls( 'examens' ); ?>" href="<?php echo esc_url( $url_examen ); ?>">
+              <span class="icon"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18"/><path d="M9 9h6M9 13h6M9 17h3"/></svg></span>
+              <span class="lbl">Examens</span>
+              <?php if ( $nb_examens ) : ?><span class="badge"><?php echo $nb_examens; ?></span><?php endif; ?>
+            </a>
+
+            <a class="side-link soon" href="#" title="Bientot disponible">
+              <span class="icon"><svg viewBox="0 0 24 24"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></span>
+              <span class="lbl">Activité</span>
+              <span class="badge">à venir</span>
+            </a>
+
+            <a class="side-link soon" href="#" title="Bientot disponible">
+              <span class="icon"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="12" height="15"/><rect x="8" y="2" width="12" height="15"/></svg></span>
+              <span class="lbl">Révisions</span>
+              <span class="badge">à venir</span>
+            </a>
+
+            <a class="side-link soon" href="#" title="Bientot disponible">
+              <span class="icon"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16"/><path d="M3 10h18M8 2v6M16 2v6"/></svg></span>
+              <span class="lbl">Calendrier</span>
+              <span class="badge">à venir</span>
+            </a>
+
+            <div class="side-divider"></div>
+            <div class="side-group-label">Compte</div>
+
+            <a class="side-link<?php echo $cls( 'profil' ); ?>" href="<?php echo esc_url( $url_profil ); ?>">
+              <span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></span>
+              <span class="lbl">Mon profil</span>
+            </a>
+
+            <a class="side-link soon" href="#" title="Bientot disponible">
+              <span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v3M12 18v3M4.2 6.2l2.1 2.1M17.7 15.7l2.1 2.1M3 12h3M18 12h3M4.2 17.8l2.1-2.1M17.7 8.3l2.1-2.1"/></svg></span>
+              <span class="lbl">Configuration</span>
+              <span class="badge">à venir</span>
+            </a>
+
+            <a class="side-link soon" href="#" title="Bientot disponible">
+              <span class="icon"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13"/><path d="M3 10h18"/></svg></span>
+              <span class="lbl">Facturation</span>
+              <span class="badge">à venir</span>
+            </a>
+          </nav>
+
+          <div class="side-bottom">
+            <button class="collapse-btn" id="npqCollapseToggle" type="button">
+              <span class="icon"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></span>
+              <span class="lbl">Réduire le menu</span>
+            </button>
+          </div>
+        </aside>
+        <?php
+        return ob_get_clean();
+    }
+
+    /** Charge nos templates pour les pages de l'espace membre. */
+    public static function charger_template( $template ) {
+        // Page « Mon espace » (tableau de bord).
+        $page_espace = get_option( self::OPT_PAGE_ESPACE );
+        if ( ( $page_espace && is_page( $page_espace ) )
+             || ( is_page() && get_page_template_slug() === 'npq-espace' ) ) {
             $fichier = NPQ_PATH . 'public/page-espace-normaprep.php';
             if ( file_exists( $fichier ) ) {
                 return $fichier;
             }
         }
+
+        // Page « Mon profil » (même coquille, barre latérale partagée).
+        $page_profil = get_option( 'npq_page_profil_id' );
+        if ( $page_profil && is_page( $page_profil ) ) {
+            $fichier = NPQ_PATH . 'public/page-profil-normaprep.php';
+            if ( file_exists( $fichier ) ) {
+                return $fichier;
+            }
+        }
+
+        // Page « Passer un examen » (même coquille).
+        $page_examen = get_option( 'npq_page_examen_id' );
+        if ( $page_examen && is_page( $page_examen ) ) {
+            $fichier = NPQ_PATH . 'public/page-examen-normaprep.php';
+            if ( file_exists( $fichier ) ) {
+                return $fichier;
+            }
+        }
+
         return $template;
     }
 
     /**
-     * Charge la feuille de style de l'espace, sur la page « Mon espace ».
+     * Charge les ressources de l'espace (style + script), sur ses pages.
      */
     public static function charger_styles() {
-        $page_id = get_option( self::OPT_PAGE_ESPACE );
-        if ( ! $page_id || ! is_page( $page_id ) ) {
+        $page_espace = get_option( self::OPT_PAGE_ESPACE );
+        $page_profil = get_option( 'npq_page_profil_id' );
+        $page_examen = get_option( 'npq_page_examen_id' );
+
+        $sur_espace = ( $page_espace && is_page( $page_espace ) )
+                   || ( $page_profil && is_page( $page_profil ) )
+                   || ( $page_examen && is_page( $page_examen ) );
+
+        if ( ! $sur_espace ) {
             return;
         }
         wp_enqueue_style(
@@ -71,6 +211,14 @@ class NPQ_Espace {
             NPQ_URL . 'assets/npq-espace.css',
             [],
             NPQ_VERSION
+        );
+        // Script de repli de la barre latérale.
+        wp_enqueue_script(
+            'npq-espace',
+            NPQ_URL . 'assets/npq-espace.js',
+            [],
+            NPQ_VERSION,
+            true
         );
     }
 

@@ -58,8 +58,15 @@ class NPQ_Examen {
     }
 
     /**
-     * Point d'entrée AJAX : enregistre la réponse reçue et renvoie l'étape suivante.
-     * Renvoie du JSON. Ne divulgue JAMAIS les bonnes réponses.
+     * Point d'entrée AJAX : enregistre la réponse courante, puis va où on lui demande.
+     *
+     * Le navigateur envoie :
+     *   - position   : la question qu'on quitte (pour enregistrer sa réponse)
+     *   - options    : les options cochées à cette position
+     *   - marquee    : 1 si la question courante est marquée « à revoir »
+     *   - destination: la position cible, ou 'terminer' pour finir l'examen
+     *
+     * Ne divulgue JAMAIS les bonnes réponses.
      */
     public static function ajax_etape() {
         // Sécurité : connexion, abonnement, nonce.
@@ -73,26 +80,27 @@ class NPQ_Examen {
         $tentative_id = isset( $_POST['tentative'] ) ? (int) $_POST['tentative'] : 0;
         $position     = isset( $_POST['position'] ) ? (int) $_POST['position'] : 0;
         $options      = isset( $_POST['options'] ) ? array_map( 'intval', (array) $_POST['options'] ) : [];
+        $marquee      = ! empty( $_POST['marquee'] );
+        $destination  = isset( $_POST['destination'] ) ? sanitize_text_field( wp_unslash( $_POST['destination'] ) ) : '';
 
         if ( ! $tentative_id || ! self::tentative_appartient( $tentative_id ) ) {
             wp_send_json_error( [ 'message' => 'Examen introuvable.' ], 404 );
         }
 
-        // Enregistre la réponse à la position courante (dans le brouillon).
+        $total = self::nombre_questions( $tentative_id );
+
+        // Enregistre la réponse et le marquage de la question qu'on quitte.
         $question_courante = self::question_a_position( $tentative_id, $position );
         if ( $question_courante ) {
-            $brouillon = get_option( 'npq_brouillon_' . $tentative_id, [] );
-            $brouillon[ $question_courante['id'] ] = $options;
-            update_option( 'npq_brouillon_' . $tentative_id, $brouillon, false );
+            self::enregistrer_brouillon( $tentative_id, (int) $question_courante['id'], $options, $marquee );
         }
 
-        $total    = self::nombre_questions( $tentative_id );
-        $suivante = $position + 1;
+        // Fin de l'examen demandée : on corrige et on renvoie l'URL du résultat.
+        if ( $destination === 'terminer' ) {
+            $brouillon = self::lire_brouillon( $tentative_id );
+            NPQ_Correcteur::corriger_tentative( $tentative_id, $brouillon['reponses'] );
+            self::effacer_brouillon( $tentative_id );
 
-        // Fin de l'examen : on corrige et on renvoie l'URL du résultat.
-        if ( $suivante >= $total ) {
-            NPQ_Correcteur::corriger_tentative( $tentative_id, get_option( 'npq_brouillon_' . $tentative_id, [] ) );
-            delete_option( 'npq_brouillon_' . $tentative_id );
             $page_id = get_option( self::OPT_PAGE_EXAMEN );
             $url = $page_id ? get_permalink( $page_id ) : home_url( '/' );
             wp_send_json_success( [
@@ -101,14 +109,37 @@ class NPQ_Examen {
             ] );
         }
 
-        // Sinon : renvoie les données de la question suivante (sans les bonnes réponses).
-        $q = self::question_a_position( $tentative_id, $suivante );
-        $brouillon = get_option( 'npq_brouillon_' . $tentative_id, [] );
-        $deja = isset( $brouillon[ $q['id'] ] ) ? array_map( 'intval', (array) $brouillon[ $q['id'] ] ) : [];
+        // Sinon : on va à la position demandée (par défaut, la suivante).
+        $cible = ( $destination !== '' && is_numeric( $destination ) )
+               ? (int) $destination
+               : $position + 1;
 
-        wp_send_json_success( [
+        // Garde-fous : on reste dans les bornes.
+        if ( $cible < 0 ) { $cible = 0; }
+        if ( $cible >= $total ) { $cible = $total - 1; }
+
+        wp_send_json_success( self::donnees_etape( $tentative_id, $cible, $total ) );
+    }
+
+    /**
+     * Prépare les données d'une étape pour le navigateur.
+     * Contient la question, son état, et la vue d'ensemble de l'examen.
+     * Ne contient JAMAIS les bonnes réponses.
+     */
+    private static function donnees_etape( $tentative_id, $position, $total ) {
+        $q = self::question_a_position( $tentative_id, $position );
+        if ( ! $q ) {
+            return [ 'termine' => false, 'position' => $position, 'total' => $total, 'question' => null ];
+        }
+
+        $brouillon = self::lire_brouillon( $tentative_id );
+        $qid  = (int) $q['id'];
+        $deja = isset( $brouillon['reponses'][ $qid ] ) ? array_map( 'intval', (array) $brouillon['reponses'][ $qid ] ) : [];
+        $marquee = ! empty( $brouillon['marquees'][ $qid ] );
+
+        return [
             'termine'  => false,
-            'position' => $suivante,
+            'position' => $position,
             'total'    => $total,
             'question' => [
                 'enonce'         => $q['enonce'],
@@ -116,9 +147,74 @@ class NPQ_Examen {
                 'options'        => array_map( function ( $o ) {
                     return [ 'id' => (int) $o['id'], 'texte' => $o['texte'] ];
                 }, $q['options'] ),
-                'deja' => $deja,
+                'deja'    => $deja,
+                'marquee' => $marquee,
             ],
-        ] );
+            // Vue d'ensemble : état de chaque question (répondue / marquée).
+            'apercu'   => self::apercu_questions( $tentative_id ),
+        ];
+    }
+
+    /**
+     * Construit l'état de toutes les questions de la tentative, pour la vue d'ensemble.
+     * Renvoie un tableau indexé par position : ['repondue' => bool, 'marquee' => bool].
+     */
+    private static function apercu_questions( $tentative_id ) {
+        $ids = self::ids_questions( $tentative_id );
+        $brouillon = self::lire_brouillon( $tentative_id );
+
+        $apercu = [];
+        foreach ( $ids as $pos => $qid ) {
+            $qid = (int) $qid;
+            $rep = isset( $brouillon['reponses'][ $qid ] ) ? (array) $brouillon['reponses'][ $qid ] : [];
+            $apercu[] = [
+                'repondue' => ! empty( $rep ),
+                'marquee'  => ! empty( $brouillon['marquees'][ $qid ] ),
+            ];
+        }
+        return $apercu;
+    }
+
+    /* ---- Brouillon : réponses + questions marquées « à revoir » ---- */
+
+    /**
+     * Lit le brouillon de la tentative.
+     * Structure : [ 'reponses' => [question_id => [option_ids]], 'marquees' => [question_id => true] ]
+     * Gère aussi l'ancien format (tableau simple de réponses) pour ne rien casser.
+     */
+    private static function lire_brouillon( $tentative_id ) {
+        $brut = get_option( 'npq_brouillon_' . $tentative_id, [] );
+
+        // Nouveau format.
+        if ( isset( $brut['reponses'] ) || isset( $brut['marquees'] ) ) {
+            return [
+                'reponses' => isset( $brut['reponses'] ) ? (array) $brut['reponses'] : [],
+                'marquees' => isset( $brut['marquees'] ) ? (array) $brut['marquees'] : [],
+            ];
+        }
+
+        // Ancien format (tableau de réponses seules) : on le convertit à la volée.
+        return [
+            'reponses' => (array) $brut,
+            'marquees' => [],
+        ];
+    }
+
+    private static function enregistrer_brouillon( $tentative_id, $question_id, $options, $marquee ) {
+        $brouillon = self::lire_brouillon( $tentative_id );
+        $brouillon['reponses'][ $question_id ] = $options;
+
+        if ( $marquee ) {
+            $brouillon['marquees'][ $question_id ] = true;
+        } else {
+            unset( $brouillon['marquees'][ $question_id ] );
+        }
+
+        update_option( 'npq_brouillon_' . $tentative_id, $brouillon, false );
+    }
+
+    private static function effacer_brouillon( $tentative_id ) {
+        delete_option( 'npq_brouillon_' . $tentative_id );
     }
 
     /**
@@ -229,25 +325,37 @@ class NPQ_Examen {
             return;
         }
 
-        // Stocke la réponse en cours dans une métadonnée de la tentative.
-        // On utilise une option dédiée « brouillon » indexée par tentative.
-        $brouillon = get_option( 'npq_brouillon_' . $tentative_id, [] );
-        $question  = self::question_a_position( $tentative_id, $position );
+        // Enregistre la réponse et le marquage de la question quittée.
+        $marquee  = ! empty( $_POST['npq_marquee'] );
+        $question = self::question_a_position( $tentative_id, $position );
         if ( $question ) {
-            $brouillon[ $question['id'] ] = $options;
-            update_option( 'npq_brouillon_' . $tentative_id, $brouillon, false );
+            self::enregistrer_brouillon( $tentative_id, (int) $question['id'], $options, $marquee );
         }
 
-        // Position suivante.
         $total = self::nombre_questions( $tentative_id );
-        $suivante = $position + 1;
 
-        if ( $suivante >= $total ) {
-            // Dernière question répondue : on corrige et on finalise la tentative.
-            self::finaliser( $tentative_id );
-        } else {
-            self::rediriger_vers( $tentative_id, $suivante );
+        // Destination demandée (navigation libre : avant, arrière, saut, ou terminer).
+        // Sans JS, elle vient du bouton cliqué ; avec JS, du champ caché.
+        $destination = '';
+        if ( isset( $_POST['npq_destination'] ) && $_POST['npq_destination'] !== '' ) {
+            $destination = sanitize_text_field( wp_unslash( $_POST['npq_destination'] ) );
+        } elseif ( isset( $_POST['npq_destination_btn'] ) ) {
+            $destination = sanitize_text_field( wp_unslash( $_POST['npq_destination_btn'] ) );
         }
+
+        if ( $destination === 'terminer' ) {
+            self::finaliser( $tentative_id );
+            return;
+        }
+
+        $cible = ( $destination !== '' && is_numeric( $destination ) )
+               ? (int) $destination
+               : $position + 1;
+
+        if ( $cible < 0 ) { $cible = 0; }
+        if ( $cible >= $total ) { $cible = $total - 1; }
+
+        self::rediriger_vers( $tentative_id, $cible );
     }
 
     /**
@@ -255,13 +363,13 @@ class NPQ_Examen {
      * résultat via le correcteur, nettoie le brouillon, et redirige vers le résultat.
      */
     private static function finaliser( $tentative_id ) {
-        $brouillon = get_option( 'npq_brouillon_' . $tentative_id, [] );
+        $brouillon = self::lire_brouillon( $tentative_id );
 
         // Le correcteur enregistre les réponses, calcule le score et la réussite.
-        NPQ_Correcteur::corriger_tentative( $tentative_id, $brouillon );
+        NPQ_Correcteur::corriger_tentative( $tentative_id, $brouillon['reponses'] );
 
         // Le brouillon n'est plus utile.
-        delete_option( 'npq_brouillon_' . $tentative_id );
+        self::effacer_brouillon( $tentative_id );
 
         // Redirige vers l'écran de résultat.
         $page_id = get_option( self::OPT_PAGE_EXAMEN );
@@ -322,12 +430,12 @@ class NPQ_Examen {
             <?php foreach ( $scenarios as $s ) :
                 $nb = NPQ_Composeur::compter( 'scenario', [ 'scenario_id' => $s['id'] ] );
             ?>
-                <div class="npq-scenario-carte" style="border:1px solid #1E3A52;border-radius:8px;padding:16px;margin-bottom:12px">
-                    <h3 style="margin:0 0 6px"><?php echo esc_html( $s['nom'] ); ?></h3>
+                <div class="npq-scenario-carte">
+                    <h3><?php echo esc_html( $s['nom'] ); ?></h3>
                     <?php if ( $s['resume'] ) : ?>
-                        <p style="margin:0 0 12px;color:#94A3B8"><?php echo esc_html( $s['resume'] ); ?></p>
+                        <p class="npq-sc-resume"><?php echo esc_html( $s['resume'] ); ?></p>
                     <?php endif; ?>
-                    <p style="margin:0 0 12px;font-size:13px"><?php echo (int) $nb; ?> question(s)</p>
+                    <p class="npq-sc-nb"><?php echo (int) $nb; ?> question(s)</p>
                     <form method="post">
                         <input type="hidden" name="npq_examen_action" value="demarrer">
                         <input type="hidden" name="npq_scenario" value="<?php echo (int) $s['id']; ?>">
@@ -350,36 +458,59 @@ class NPQ_Examen {
             return '<p>Question introuvable.</p>';
         }
 
-        $total = self::nombre_questions( $tentative_id );
+        $total    = self::nombre_questions( $tentative_id );
         $scenario = self::scenario_de_tentative( $tentative_id );
 
-        // Réponse déjà donnée (si le candidat revient en arrière).
-        $brouillon = get_option( 'npq_brouillon_' . $tentative_id, [] );
-        $deja = isset( $brouillon[ $question['id'] ] ) ? (array) $brouillon[ $question['id'] ] : [];
+        // État de la question courante (réponse déjà donnée, marquage).
+        $brouillon = self::lire_brouillon( $tentative_id );
+        $qid     = (int) $question['id'];
+        $deja    = isset( $brouillon['reponses'][ $qid ] ) ? (array) $brouillon['reponses'][ $qid ] : [];
+        $marquee = ! empty( $brouillon['marquees'][ $qid ] );
+
+        // Vue d'ensemble : état de toutes les questions.
+        $apercu = self::apercu_questions( $tentative_id );
 
         $type_input = $question['multi_reponses'] ? 'checkbox' : 'radio';
+        $est_derniere = ( $position + 1 >= $total );
 
         ob_start();
         ?>
         <div class="npq-examen" id="npq-examen-zone">
+
             <?php if ( $scenario ) : ?>
-                <div class="npq-scenario-contexte" style="background:#0F1E33;border-left:3px solid #00CFCF;padding:14px 18px;margin-bottom:20px">
+                <div class="npq-scenario-contexte">
                     <strong><?php echo esc_html( $scenario['nom'] ); ?></strong>
-                    <p style="margin:8px 0 0;color:#CBD5E1;font-size:14px"><?php echo esc_html( $scenario['contexte'] ); ?></p>
+                    <p><?php echo esc_html( $scenario['contexte'] ); ?></p>
                 </div>
             <?php endif; ?>
+
+            <!-- Vue d'ensemble : pastilles cliquables (répondue / marquée / courante) -->
+            <div class="npq-apercu" id="npq-apercu">
+                <?php foreach ( $apercu as $i => $etat ) :
+                    $classes = 'npq-pastille';
+                    if ( $i === (int) $position )  { $classes .= ' courante'; }
+                    if ( ! empty( $etat['repondue'] ) ) { $classes .= ' repondue'; }
+                    if ( ! empty( $etat['marquee'] ) )  { $classes .= ' marquee'; }
+                ?>
+                    <button type="button" class="<?php echo esc_attr( $classes ); ?>"
+                            data-pos="<?php echo (int) $i; ?>"
+                            title="Question <?php echo ( $i + 1 ); ?><?php echo ! empty( $etat['marquee'] ) ? ' (à revoir)' : ''; ?>">
+                        <?php echo ( $i + 1 ); ?>
+                    </button>
+                <?php endforeach; ?>
+            </div>
 
             <div id="npq-question-contenu">
                 <p class="npq-progression">Question <?php echo ( $position + 1 ); ?> / <?php echo $total; ?></p>
 
-                <div class="npq-enonce">
-                    <?php echo esc_html( $question['enonce'] ); ?>
-                </div>
+                <div class="npq-enonce"><?php echo esc_html( $question['enonce'] ); ?></div>
 
                 <form id="npq-examen-form" method="post">
                     <input type="hidden" name="npq_examen_action" value="repondre">
                     <input type="hidden" name="npq_tentative" value="<?php echo (int) $tentative_id; ?>">
                     <input type="hidden" name="npq_position" value="<?php echo (int) $position; ?>">
+                    <!-- Destination : rempli par le JS (ou par les boutons en repli sans JS) -->
+                    <input type="hidden" name="npq_destination" id="npq-destination" value="">
                     <?php wp_nonce_field( 'npq_examen', 'npq_nonce' ); ?>
 
                     <?php foreach ( $question['options'] as $opt ) :
@@ -392,11 +523,35 @@ class NPQ_Examen {
                         </label>
                     <?php endforeach; ?>
 
-                    <p style="margin-top:20px">
-                        <button type="submit" class="npq-btn">
-                            <?php echo ( $position + 1 >= $total ) ? 'Terminer l\'examen' : 'Question suivante'; ?>
+                    <!-- Marquer « à revoir » -->
+                    <label class="npq-marquer">
+                        <input type="checkbox" name="npq_marquee" id="npq-marquee" value="1" <?php checked( $marquee ); ?>>
+                        Marquer cette question pour y revenir
+                    </label>
+
+                    <!-- Navigation : précédent / suivant / terminer -->
+                    <div class="npq-nav">
+                        <?php if ( $position > 0 ) : ?>
+                            <button type="submit" class="npq-btn npq-btn-ghost"
+                                    name="npq_destination_btn" value="<?php echo (int) ( $position - 1 ); ?>"
+                                    data-dest="<?php echo (int) ( $position - 1 ); ?>">
+                                Question précédente
+                            </button>
+                        <?php endif; ?>
+
+                        <?php if ( ! $est_derniere ) : ?>
+                            <button type="submit" class="npq-btn"
+                                    name="npq_destination_btn" value="<?php echo (int) ( $position + 1 ); ?>"
+                                    data-dest="<?php echo (int) ( $position + 1 ); ?>">
+                                Question suivante
+                            </button>
+                        <?php endif; ?>
+
+                        <button type="submit" class="npq-btn npq-btn-terminer"
+                                name="npq_destination_btn" value="terminer" data-dest="terminer">
+                            Terminer l'examen
                         </button>
-                    </p>
+                    </div>
                 </form>
             </div>
         </div>
@@ -440,6 +595,9 @@ class NPQ_Examen {
             }
         }
 
+        // Libellés lisibles des domaines (D1 -> « Planification du SMSI »).
+        $libelles = self::libelles_domaines( array_keys( $par_domaine ) );
+
         $url_espace = self::url_espace();
 
         ob_start();
@@ -461,10 +619,11 @@ class NPQ_Examen {
             <div style="margin-bottom:28px">
                 <?php foreach ( $par_domaine as $dom => $stats ) :
                     $pct = $stats['total'] > 0 ? (int) round( $stats['ok'] * 100 / $stats['total'] ) : 0;
+                    $nom_dom = isset( $libelles[ $dom ] ) ? $libelles[ $dom ] : $dom;
                 ?>
                     <div style="margin-bottom:10px">
                         <div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:4px">
-                            <span><?php echo esc_html( $dom ); ?></span>
+                            <span><?php echo esc_html( $nom_dom ); ?></span>
                             <span><?php echo $pct; ?> % (<?php echo (int) $stats['ok']; ?>/<?php echo (int) $stats['total']; ?>)</span>
                         </div>
                         <div style="height:8px;background:#1E3A52;border-radius:4px;overflow:hidden">
@@ -604,6 +763,31 @@ class NPQ_Examen {
             "SELECT id, nom, contexte FROM {$p}scenario WHERE id = %d",
             (int) $data['scenario']
         ), ARRAY_A );
+    }
+
+    /**
+     * Récupère les libellés lisibles des domaines depuis la base.
+     * Renvoie un tableau code => libellé (ex : 'D3' => 'Planification du SMSI').
+     * Si un domaine n'a pas de libellé, il n'est pas dans le tableau (on affichera le code).
+     */
+    private static function libelles_domaines( $codes ) {
+        if ( empty( $codes ) ) {
+            return [];
+        }
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $placeholders = implode( ',', array_fill( 0, count( $codes ), '%s' ) );
+        $lignes = $wpdb->get_results( $wpdb->prepare(
+            "SELECT code, libelle FROM {$p}domaine WHERE code IN ( $placeholders )",
+            $codes
+        ), ARRAY_A );
+
+        $map = [];
+        foreach ( (array) $lignes as $l ) {
+            $map[ $l['code'] ] = $l['libelle'];
+        }
+        return $map;
     }
 
     private static function url_offres() {
