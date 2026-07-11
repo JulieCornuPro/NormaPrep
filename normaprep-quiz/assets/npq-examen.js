@@ -21,6 +21,18 @@
         return;
     }
 
+    // On mémorise l'identifiant de la tentative une fois pour toutes.
+    // En mode révision, l'écran de correction remplace le formulaire : il ne faut
+    // donc pas dépendre de sa présence pour retrouver cette valeur.
+    var tentativeId = '';
+    var formInitial = document.getElementById('npq-examen-form');
+    if (formInitial) {
+        var champ = formInitial.querySelector('[name="npq_tentative"]');
+        if (champ) {
+            tentativeId = champ.value;
+        }
+    }
+
     brancher();
 
     /** (Re)branche les écouteurs sur le contenu courant. */
@@ -49,9 +61,9 @@
         var form = document.getElementById('npq-examen-form');
         if (!form) { return; }
 
-        var tentative = form.querySelector('[name="npq_tentative"]').value;
-        var position  = form.querySelector('[name="npq_position"]').value;
-        var marquee   = form.querySelector('#npq-marquee');
+        var champPos = form.querySelector('[name="npq_position"]');
+        var position = champPos ? champPos.value : '0';
+        var marquee  = form.querySelector('#npq-marquee');
 
         var cochees = [];
         form.querySelectorAll('[name="npq_options[]"]:checked').forEach(function (input) {
@@ -61,7 +73,7 @@
         var data = new FormData();
         data.append('action', 'npq_examen_etape');
         data.append('nonce', NPQ_EXAMEN.nonce);
-        data.append('tentative', tentative);
+        data.append('tentative', tentativeId);
         data.append('position', position);
         data.append('destination', destination);
         if (marquee && marquee.checked) {
@@ -85,11 +97,76 @@
                     window.location.href = rep.data.url_resultat;
                     return;
                 }
+                // Mode révision : on montre d'abord la correction de la question
+                // qu'on vient de quitter, puis on passe à la suivante.
+                if (rep.data.correction) {
+                    montrerCorrection(rep.data.correction, function () {
+                        afficher(rep.data);
+                    });
+                    return;
+                }
                 afficher(rep.data);
             })
             .catch(function () {
                 form.submit();
             });
+    }
+
+    /**
+     * Mode révision : affiche la correction de la question qu'on vient de quitter,
+     * avec un bouton pour continuer. Le retour immédiat aide à mémoriser.
+     */
+    function montrerCorrection(c, continuer) {
+        var optionsHtml = '';
+        c.options.forEach(function (o) {
+            var classes = 'npq-corr-option';
+            if (o.correcte) { classes += ' bonne'; }
+            if (o.choisie && !o.correcte) { classes += ' erreur'; }
+            if (o.choisie) { classes += ' choisie'; }
+
+            var marque = '';
+            if (o.correcte && o.choisie)  { marque = ' ✓ (votre réponse)'; }
+            else if (o.correcte)          { marque = ' ✓'; }
+            else if (o.choisie)           { marque = ' ✗ (votre réponse)'; }
+
+            optionsHtml += '<div class="' + classes + '">' + echapper(o.texte) + marque + '</div>';
+        });
+
+        var verdict = c.correcte
+            ? '<div class="npq-corr-verdict ok">Correct</div>'
+            : '<div class="npq-corr-verdict ko">Incorrect</div>';
+
+        var explication = c.explication
+            ? '<div class="npq-corr-explication"><strong>Explication</strong>' + echapper(c.explication) + '</div>'
+            : '';
+
+        var html =
+            '<div class="npq-correction">' +
+                verdict +
+                optionsHtml +
+                explication +
+                '<div class="npq-corr-suite">' +
+                    '<button type="button" class="npq-btn" id="npq-continuer">Continuer</button>' +
+                '</div>' +
+            '</div>';
+
+        var conteneur = document.getElementById('npq-question-contenu');
+        if (!conteneur) { continuer(); return; }
+        conteneur.innerHTML = html;
+
+        zone.style.opacity = '1';
+        zone.style.pointerEvents = 'auto';
+        zone.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        var btn = document.getElementById('npq-continuer');
+        if (btn) {
+            btn.addEventListener('click', function () {
+                zone.style.opacity = '0.4';
+                continuer();
+            });
+        } else {
+            continuer();
+        }
     }
 
     /** Affiche la question reçue et met à jour la vue d'ensemble. */
@@ -99,8 +176,6 @@
 
         var type = q.multi_reponses ? 'checkbox' : 'radio';
         var dernier = (d.position + 1 >= d.total);
-        var tentative = document.getElementById('npq-examen-form')
-            .querySelector('[name="npq_tentative"]').value;
 
         // Options.
         var optionsHtml = '';
@@ -121,14 +196,14 @@
         if (!dernier) {
             navHtml += '<button type="submit" class="npq-btn" data-dest="' + (d.position + 1) + '">Question suivante</button>';
         }
-        navHtml += '<button type="submit" class="npq-btn npq-btn-terminer" data-dest="terminer">Terminer l\'examen</button>';
+        navHtml += '<button type="submit" class="npq-btn npq-btn-terminer" data-dest="terminer">Terminer</button>';
 
         var html =
             '<p class="npq-progression">Question ' + (d.position + 1) + ' / ' + d.total + '</p>' +
             '<div class="npq-enonce">' + echapper(q.enonce) + '</div>' +
             '<form id="npq-examen-form" method="post">' +
                 '<input type="hidden" name="npq_examen_action" value="repondre">' +
-                '<input type="hidden" name="npq_tentative" value="' + tentative + '">' +
+                '<input type="hidden" name="npq_tentative" value="' + tentativeId + '">' +
                 '<input type="hidden" name="npq_position" value="' + d.position + '">' +
                 '<input type="hidden" name="npq_destination" id="npq-destination" value="">' +
                 optionsHtml +

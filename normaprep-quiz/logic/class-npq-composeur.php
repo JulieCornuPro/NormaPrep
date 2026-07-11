@@ -74,6 +74,83 @@ class NPQ_Composeur {
      * @param bool   $melanger
      * @return array
      */
+    /**
+     * Compose une session de révision : plusieurs domaines à la fois, nombre limité.
+     *
+     * Les questions sont tirées au hasard parmi les domaines choisis, ce qui évite
+     * de toujours réviser les mêmes. Si le nombre demandé dépasse ce qui existe,
+     * on renvoie tout ce qui existe.
+     *
+     * @param int   $certification_id
+     * @param array $domaines Codes des domaines (ex : ['D1','D3']). Vide = tous.
+     * @param int   $nombre   Nombre de questions souhaité (0 = toutes).
+     * @return array Questions assemblées.
+     */
+    public static function par_domaines( $certification_id, $domaines = [], $nombre = 0 ) {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $domaines = array_filter( array_map( 'strval', (array) $domaines ) );
+
+        if ( ! empty( $domaines ) ) {
+            $placeholders = implode( ',', array_fill( 0, count( $domaines ), '%s' ) );
+            $args = array_merge( [ $certification_id ], $domaines );
+            $ids = $wpdb->get_col( $wpdb->prepare(
+                "SELECT id FROM {$p}question
+                 WHERE certification_id = %d
+                   AND domaine IN ( $placeholders )
+                   AND statut = 'publie'
+                 ORDER BY RAND()",
+                $args
+            ) );
+        } else {
+            // Aucun domaine choisi : on pioche dans toute la certification.
+            $ids = $wpdb->get_col( $wpdb->prepare(
+                "SELECT id FROM {$p}question
+                 WHERE certification_id = %d AND statut = 'publie'
+                 ORDER BY RAND()",
+                $certification_id
+            ) );
+        }
+
+        // Limite au nombre demandé.
+        if ( $nombre > 0 && count( $ids ) > $nombre ) {
+            $ids = array_slice( $ids, 0, $nombre );
+        }
+
+        return self::assembler( $ids, false );
+    }
+
+    /**
+     * Compte les questions disponibles pour un ensemble de domaines.
+     * Sert à informer le candidat avant qu'il compose sa révision.
+     */
+    public static function compter_domaines( $certification_id, $domaines = [] ) {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $domaines = array_filter( array_map( 'strval', (array) $domaines ) );
+
+        if ( empty( $domaines ) ) {
+            return (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$p}question
+                 WHERE certification_id = %d AND statut = 'publie'",
+                $certification_id
+            ) );
+        }
+
+        $placeholders = implode( ',', array_fill( 0, count( $domaines ), '%s' ) );
+        $args = array_merge( [ $certification_id ], $domaines );
+
+        return (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$p}question
+             WHERE certification_id = %d
+               AND domaine IN ( $placeholders )
+               AND statut = 'publie'",
+            $args
+        ) );
+    }
+
     public static function par_tag( $type_nom, $valeur, $limite = 0, $melanger = false ) {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;

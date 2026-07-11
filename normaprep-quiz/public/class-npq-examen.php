@@ -36,11 +36,17 @@ class NPQ_Examen {
     }
 
     /**
-     * Charge le JavaScript d'examen, uniquement sur la page « Passer un examen ».
+     * Charge le JavaScript d'examen, sur la page « Passer un examen » ET sur la
+     * page « Révisions » (le déroulé y est le même, en mode révision).
      */
     public static function charger_script() {
-        $page_id = get_option( self::OPT_PAGE_EXAMEN );
-        if ( ! $page_id || ! is_page( $page_id ) ) {
+        $page_examen   = get_option( self::OPT_PAGE_EXAMEN );
+        $page_revision = get_option( 'npq_page_revision_id' );
+
+        $sur_deroule = ( $page_examen && is_page( $page_examen ) )
+                    || ( $page_revision && is_page( $page_revision ) );
+
+        if ( ! $sur_deroule ) {
             return;
         }
         wp_enqueue_script(
@@ -88,6 +94,7 @@ class NPQ_Examen {
         }
 
         $total = self::nombre_questions( $tentative_id );
+        $mode  = self::mode_tentative( $tentative_id );
 
         // Enregistre la réponse et le marquage de la question qu'on quitte.
         $question_courante = self::question_a_position( $tentative_id, $position );
@@ -101,8 +108,7 @@ class NPQ_Examen {
             NPQ_Correcteur::corriger_tentative( $tentative_id, $brouillon['reponses'] );
             self::effacer_brouillon( $tentative_id );
 
-            $page_id = get_option( self::OPT_PAGE_EXAMEN );
-            $url = $page_id ? get_permalink( $page_id ) : home_url( '/' );
+            $url = self::url_deroule( $tentative_id );
             wp_send_json_success( [
                 'termine'      => true,
                 'url_resultat' => add_query_arg( [ 't' => $tentative_id, 'resultat' => 1 ], $url ),
@@ -118,7 +124,74 @@ class NPQ_Examen {
         if ( $cible < 0 ) { $cible = 0; }
         if ( $cible >= $total ) { $cible = $total - 1; }
 
-        wp_send_json_success( self::donnees_etape( $tentative_id, $cible, $total ) );
+        $donnees = self::donnees_etape( $tentative_id, $cible, $total );
+        $donnees['mode'] = $mode;
+
+        // En RÉVISION seulement : on renvoie la correction de la question QU'ON VIENT
+        // DE QUITTER (le candidat y a déjà répondu, donc plus rien à protéger).
+        // Jamais celle de la question à venir : les bonnes réponses ne doivent jamais
+        // partir avant que le candidat ait répondu.
+        if ( $mode === 'revision' && $question_courante && ! empty( $options ) ) {
+            $donnees['correction'] = self::correction_question(
+                (int) $question_courante['id'],
+                $options
+            );
+        }
+
+        wp_send_json_success( $donnees );
+    }
+
+    /**
+     * Correction d'une seule question, pour le retour immédiat en mode révision.
+     * N'est appelée QU'APRÈS que le candidat a répondu à cette question.
+     *
+     * @param int   $question_id
+     * @param array $choisies Ids des options cochées par le candidat.
+     * @return array Correction (bonne réponse, choix, explication, verdict).
+     */
+    private static function correction_question( $question_id, $choisies ) {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $options = $wpdb->get_results( $wpdb->prepare(
+            "SELECT id, texte, correcte FROM {$p}option_reponse
+             WHERE question_id = %d ORDER BY position ASC",
+            $question_id
+        ), ARRAY_A );
+
+        $explication = $wpdb->get_var( $wpdb->prepare(
+            "SELECT explication FROM {$p}question WHERE id = %d",
+            $question_id
+        ) );
+
+        $choisies = array_map( 'intval', (array) $choisies );
+
+        // Verdict : tout ou rien (règle du produit).
+        $attendues = [];
+        foreach ( $options as $o ) {
+            if ( (int) $o['correcte'] === 1 ) {
+                $attendues[] = (int) $o['id'];
+            }
+        }
+        sort( $attendues );
+        $donnees_triees = $choisies;
+        sort( $donnees_triees );
+        $correcte = ( $attendues === $donnees_triees );
+
+        $liste = [];
+        foreach ( $options as $o ) {
+            $liste[] = [
+                'texte'    => $o['texte'],
+                'correcte' => ( (int) $o['correcte'] === 1 ),
+                'choisie'  => in_array( (int) $o['id'], $choisies, true ),
+            ];
+        }
+
+        return [
+            'correcte'    => $correcte,
+            'options'     => $liste,
+            'explication' => (string) $explication,
+        ];
     }
 
     /**
@@ -371,9 +444,8 @@ class NPQ_Examen {
         // Le brouillon n'est plus utile.
         self::effacer_brouillon( $tentative_id );
 
-        // Redirige vers l'écran de résultat.
-        $page_id = get_option( self::OPT_PAGE_EXAMEN );
-        $url = $page_id ? get_permalink( $page_id ) : home_url( '/' );
+        // Redirige vers l'écran de résultat (page examen ou révision selon le mode).
+        $url = self::url_deroule( $tentative_id );
         wp_safe_redirect( add_query_arg( [ 't' => $tentative_id, 'resultat' => 1 ], $url ) );
         exit;
     }
@@ -408,42 +480,90 @@ class NPQ_Examen {
     }
 
     /**
-     * Écran de choix : liste des scénarios disponibles.
+     * Écran de choix : liste des scénarios disponibles, en grille paginée.
      */
     private static function ecran_choix() {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
-        $scenarios = $wpdb->get_results(
-            "SELECT id, nom, resume FROM {$p}scenario WHERE statut = 'publie' ORDER BY nom ASC",
-            ARRAY_A
+        // Pagination : 10 scénarios par page.
+        $par_page = 10;
+        $page = isset( $_GET['sp'] ) ? max( 1, (int) $_GET['sp'] ) : 1;
+        $offset = ( $page - 1 ) * $par_page;
+
+        $total_scenarios = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$p}scenario WHERE statut = 'publie'"
         );
+        $total_pages = max( 1, (int) ceil( $total_scenarios / $par_page ) );
+
+        // Si la page demandée dépasse, on revient à la dernière.
+        if ( $page > $total_pages ) {
+            $page = $total_pages;
+            $offset = ( $page - 1 ) * $par_page;
+        }
+
+        $scenarios = $wpdb->get_results( $wpdb->prepare(
+            "SELECT id, nom, resume FROM {$p}scenario
+             WHERE statut = 'publie'
+             ORDER BY nom ASC
+             LIMIT %d OFFSET %d",
+            $par_page,
+            $offset
+        ), ARRAY_A );
 
         if ( empty( $scenarios ) ) {
-            return '<p>Aucun scénario disponible pour le moment.</p>';
+            return '<p class="empty">Aucun scénario disponible pour le moment.</p>';
         }
+
+        $url_base = get_permalink( get_option( self::OPT_PAGE_EXAMEN ) );
 
         ob_start();
         ?>
         <div class="npq-examen-choix">
             <h2>Choisissez un scénario</h2>
-            <?php foreach ( $scenarios as $s ) :
-                $nb = NPQ_Composeur::compter( 'scenario', [ 'scenario_id' => $s['id'] ] );
-            ?>
-                <div class="npq-scenario-carte">
-                    <h3><?php echo esc_html( $s['nom'] ); ?></h3>
-                    <?php if ( $s['resume'] ) : ?>
-                        <p class="npq-sc-resume"><?php echo esc_html( $s['resume'] ); ?></p>
+
+            <div class="npq-scenario-grille">
+                <?php foreach ( $scenarios as $s ) :
+                    $nb = NPQ_Composeur::compter( 'scenario', [ 'scenario_id' => $s['id'] ] );
+                ?>
+                    <div class="npq-scenario-carte">
+                        <h3><?php echo esc_html( $s['nom'] ); ?></h3>
+                        <?php if ( $s['resume'] ) : ?>
+                            <p class="npq-sc-resume"><?php echo esc_html( $s['resume'] ); ?></p>
+                        <?php endif; ?>
+                        <p class="npq-sc-nb"><?php echo (int) $nb; ?> question(s)</p>
+                        <form method="post">
+                            <input type="hidden" name="npq_examen_action" value="demarrer">
+                            <input type="hidden" name="npq_scenario" value="<?php echo (int) $s['id']; ?>">
+                            <?php wp_nonce_field( 'npq_examen', 'npq_nonce' ); ?>
+                            <button type="submit" class="npq-btn">Commencer</button>
+                        </form>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+
+            <?php if ( $total_pages > 1 ) : ?>
+                <nav class="npq-pagination">
+                    <?php if ( $page > 1 ) : ?>
+                        <a class="npq-page-lien" href="<?php echo esc_url( add_query_arg( 'sp', $page - 1, $url_base ) ); ?>">Précédent</a>
                     <?php endif; ?>
-                    <p class="npq-sc-nb"><?php echo (int) $nb; ?> question(s)</p>
-                    <form method="post">
-                        <input type="hidden" name="npq_examen_action" value="demarrer">
-                        <input type="hidden" name="npq_scenario" value="<?php echo (int) $s['id']; ?>">
-                        <?php wp_nonce_field( 'npq_examen', 'npq_nonce' ); ?>
-                        <button type="submit" class="npq-btn">Commencer</button>
-                    </form>
-                </div>
-            <?php endforeach; ?>
+
+                    <?php for ( $i = 1; $i <= $total_pages; $i++ ) : ?>
+                        <?php if ( $i === $page ) : ?>
+                            <span class="npq-page-lien courante"><?php echo $i; ?></span>
+                        <?php else : ?>
+                            <a class="npq-page-lien" href="<?php echo esc_url( add_query_arg( 'sp', $i, $url_base ) ); ?>"><?php echo $i; ?></a>
+                        <?php endif; ?>
+                    <?php endfor; ?>
+
+                    <?php if ( $page < $total_pages ) : ?>
+                        <a class="npq-page-lien" href="<?php echo esc_url( add_query_arg( 'sp', $page + 1, $url_base ) ); ?>">Suivant</a>
+                    <?php endif; ?>
+                </nav>
+                <p class="npq-pagination-info">
+                    <?php echo (int) $total_scenarios; ?> scénario(s) — page <?php echo (int) $page; ?> sur <?php echo (int) $total_pages; ?>
+                </p>
+            <?php endif; ?>
         </div>
         <?php
         return ob_get_clean();
@@ -682,11 +802,38 @@ class NPQ_Examen {
      * ===================================================================== */
 
     private static function rediriger_vers( $tentative_id, $position ) {
-        $page_id = get_option( self::OPT_PAGE_EXAMEN );
-        $url = $page_id ? get_permalink( $page_id ) : home_url( '/' );
+        $url = self::url_deroule( $tentative_id );
         $args = [ 't' => $tentative_id, 'q' => $position ];
         wp_safe_redirect( add_query_arg( $args, $url ) );
         exit;
+    }
+
+    /**
+     * Page où se déroule la tentative, selon son mode.
+     * Une révision se déroule sur la page Révisions, un examen sur la page Examen :
+     * le candidat reste dans son contexte (barre latérale, URL cohérentes).
+     */
+    private static function url_deroule( $tentative_id ) {
+        $mode = self::mode_tentative( $tentative_id );
+
+        if ( $mode === 'revision' ) {
+            $page_id = get_option( 'npq_page_revision_id' );
+        } else {
+            $page_id = get_option( self::OPT_PAGE_EXAMEN );
+        }
+
+        return $page_id ? get_permalink( $page_id ) : home_url( '/' );
+    }
+
+    /** Mode de la tentative : 'examen' (simulation) ou 'revision' (entraînement). */
+    private static function mode_tentative( $tentative_id ) {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+        $mode = $wpdb->get_var( $wpdb->prepare(
+            "SELECT mode FROM {$p}tentative WHERE id = %d",
+            $tentative_id
+        ) );
+        return ( $mode === 'revision' ) ? 'revision' : 'examen';
     }
 
     /** La tentative appartient-elle à l'utilisateur connecté ? */

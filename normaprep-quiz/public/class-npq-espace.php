@@ -66,15 +66,21 @@ class NPQ_Espace {
         $url_espace = ( $id = get_option( self::OPT_PAGE_ESPACE ) ) ? get_permalink( $id ) : home_url( '/' );
         $url_examen = ( $id = get_option( 'npq_page_examen_id' ) ) ? get_permalink( $id ) : '#';
         $url_profil = ( $id = get_option( 'npq_page_profil_id' ) ) ? get_permalink( $id ) : '#';
+        $url_revision = ( $id = get_option( 'npq_page_revision_id' ) ) ? get_permalink( $id ) : '#';
+        $url_activite = ( $id = get_option( 'npq_page_activite_id' ) ) ? get_permalink( $id ) : '#';
 
-        // Nombre d'examens passés (badge).
+        // Nombre d'EXAMENS passés (badge). Les révisions ne comptent pas :
+        // ce sont des entraînements, pas des épreuves.
         $nb_examens = 0;
         $fiche = NPQ_Comptes::fiche_courante();
         if ( $fiche ) {
             global $wpdb;
             $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
             $nb_examens = (int) $wpdb->get_var( $wpdb->prepare(
-                "SELECT COUNT(*) FROM {$p}tentative WHERE utilisateur_id = %d AND date_fin IS NOT NULL",
+                "SELECT COUNT(*) FROM {$p}tentative
+                 WHERE utilisateur_id = %d
+                   AND date_fin IS NOT NULL
+                   AND mode <> 'revision'",
                 $fiche['id']
             ) );
         }
@@ -108,16 +114,14 @@ class NPQ_Espace {
               <?php if ( $nb_examens ) : ?><span class="badge"><?php echo $nb_examens; ?></span><?php endif; ?>
             </a>
 
-            <a class="side-link soon" href="#" title="Bientot disponible">
+            <a class="side-link<?php echo $cls( 'activite' ); ?>" href="<?php echo esc_url( $url_activite ); ?>">
               <span class="icon"><svg viewBox="0 0 24 24"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></span>
               <span class="lbl">Activité</span>
-              <span class="badge">à venir</span>
             </a>
 
-            <a class="side-link soon" href="#" title="Bientot disponible">
+            <a class="side-link<?php echo $cls( 'revisions' ); ?>" href="<?php echo esc_url( $url_revision ); ?>">
               <span class="icon"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="12" height="15"/><rect x="8" y="2" width="12" height="15"/></svg></span>
               <span class="lbl">Révisions</span>
-              <span class="badge">à venir</span>
             </a>
 
             <a class="side-link soon" href="#" title="Bientot disponible">
@@ -188,6 +192,24 @@ class NPQ_Espace {
             }
         }
 
+        // Page « Révisions » (même coquille).
+        $page_revision = get_option( 'npq_page_revision_id' );
+        if ( $page_revision && is_page( $page_revision ) ) {
+            $fichier = NPQ_PATH . 'public/page-revision-normaprep.php';
+            if ( file_exists( $fichier ) ) {
+                return $fichier;
+            }
+        }
+
+        // Page « Activité » (même coquille).
+        $page_activite = get_option( 'npq_page_activite_id' );
+        if ( $page_activite && is_page( $page_activite ) ) {
+            $fichier = NPQ_PATH . 'public/page-activite-normaprep.php';
+            if ( file_exists( $fichier ) ) {
+                return $fichier;
+            }
+        }
+
         return $template;
     }
 
@@ -199,9 +221,14 @@ class NPQ_Espace {
         $page_profil = get_option( 'npq_page_profil_id' );
         $page_examen = get_option( 'npq_page_examen_id' );
 
+        $page_revision = get_option( 'npq_page_revision_id' );
+        $page_activite = get_option( 'npq_page_activite_id' );
+
         $sur_espace = ( $page_espace && is_page( $page_espace ) )
                    || ( $page_profil && is_page( $page_profil ) )
-                   || ( $page_examen && is_page( $page_examen ) );
+                   || ( $page_examen && is_page( $page_examen ) )
+                   || ( $page_revision && is_page( $page_revision ) )
+                   || ( $page_activite && is_page( $page_activite ) );
 
         if ( ! $sur_espace ) {
             return;
@@ -418,7 +445,9 @@ class NPQ_Espace {
         $tentatives = $wpdb->get_results( $wpdb->prepare(
             "SELECT id, mode, score, reussi, date_debut, date_fin
              FROM {$p}tentative
-             WHERE utilisateur_id = %d AND date_fin IS NOT NULL
+             WHERE utilisateur_id = %d
+               AND date_fin IS NOT NULL
+               AND mode <> 'revision'
              ORDER BY date_debut DESC
              LIMIT 20",
             $fiche['id']

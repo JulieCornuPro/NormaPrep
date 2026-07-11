@@ -28,8 +28,11 @@ $url_espace  = ( $id = get_option( 'npq_page_espace_id' ) ) ? get_permalink( $id
 $page_offres = get_page_by_path( 'offres' );
 $url_offres  = $page_offres ? get_permalink( $page_offres ) : '#';
 
+// Vraies données : EXAMENS passés (les révisions sont exclues — ce sont des
+// entraînements, elles ne comptent ni dans l'historique ni dans les statistiques).
 $examens = [];
 $nb_examens = 0;
+$nb_revisions = 0;
 if ( class_exists( 'NPQ_Comptes' ) ) {
     $fiche = NPQ_Comptes::fiche_courante();
     if ( $fiche ) {
@@ -37,11 +40,22 @@ if ( class_exists( 'NPQ_Comptes' ) ) {
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
         $examens = $wpdb->get_results( $wpdb->prepare(
             "SELECT score, reussi, date_debut FROM {$p}tentative
-             WHERE utilisateur_id = %d AND date_fin IS NOT NULL
+             WHERE utilisateur_id = %d
+               AND date_fin IS NOT NULL
+               AND mode <> 'revision'
              ORDER BY date_debut DESC LIMIT 20",
             $fiche['id']
         ), ARRAY_A );
         $nb_examens = count( $examens );
+
+        // Sessions de révision terminées (élément d'engagement).
+        $nb_revisions = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$p}tentative
+             WHERE utilisateur_id = %d
+               AND date_fin IS NOT NULL
+               AND mode = 'revision'",
+            $fiche['id']
+        ) );
     }
 }
 
@@ -73,7 +87,7 @@ get_header();
       </div>
 
       <div class="stat-grid">
-        <div class="stat-card soon"><div class="sc-label">Taux de complétion</div><div class="sc-val">à venir</div></div>
+        <div class="stat-card"><div class="sc-label">Révisions complétées</div><div class="sc-val"><?php echo (int) $nb_revisions; ?></div></div>
         <div class="stat-card"><div class="sc-label">Score de réussite moyen</div><div class="sc-val"><?php echo ( $score_moyen !== null ) ? $score_moyen . '<span>%</span>' : '&mdash;'; ?></div></div>
         <div class="stat-card soon"><div class="sc-label">Temps de révision</div><div class="sc-val">à venir</div></div>
         <div class="stat-card soon"><div class="sc-label">Régularité</div><div class="sc-val">à venir</div></div>
