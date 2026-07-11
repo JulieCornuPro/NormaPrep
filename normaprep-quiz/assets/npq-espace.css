@@ -412,3 +412,177 @@
   border-color:var(--green) !important; color:var(--green) !important;
   box-shadow:none !important;
 }
+
+/* ---- Grille des scénarios : 2 colonnes sur desktop, 1 sur mobile ---- */
+.npq-app .npq-scenario-grille{
+  display:grid;
+  grid-template-columns:repeat(2, 1fr);
+  gap:18px;
+  margin-bottom:36px;
+}
+@media (max-width:900px){
+  .npq-app .npq-scenario-grille{ grid-template-columns:1fr; }
+}
+
+/* La carte remplit sa cellule et pousse le bouton en bas :
+   les cartes d'une même rangée restent alignées même si les résumés
+   n'ont pas la même longueur. */
+.npq-app .npq-scenario-grille .npq-scenario-carte{
+  display:flex; flex-direction:column;
+  max-width:none; margin-bottom:0; height:100%;
+}
+.npq-app .npq-scenario-grille .npq-sc-resume{ flex:1; }
+
+/* ---- Pagination des scénarios ---- */
+.npq-app .npq-pagination{
+  display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+  margin-bottom:12px;
+}
+.npq-app .npq-page-lien{
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:38px; height:38px; padding:0 12px;
+  font-family:'Inconsolata',monospace; font-size:13px; font-weight:700;
+  letter-spacing:0.06em; text-transform:uppercase;
+  border:1px solid var(--border); color:var(--text-lo);
+  transition:border-color .15s var(--ease), color .15s var(--ease);
+}
+.npq-app .npq-page-lien:hover{ border-color:var(--teal); color:var(--teal); }
+.npq-app .npq-page-lien.courante{
+  background:var(--teal-dim); border-color:var(--teal); color:var(--teal);
+}
+.npq-app .npq-pagination-info{
+  font-family:'Inconsolata',monospace; font-size:12px;
+  color:var(--muted); letter-spacing:0.06em;
+}
+
+/* ============ PAGE RÉVISIONS ============ */
+.npq-app .npq-revision h2{
+  font-family:'Rajdhani',sans-serif; font-weight:700; font-size:30px;
+  text-transform:uppercase; color:#fff; margin-bottom:10px;
+}
+.npq-app .npq-rev-intro{
+  color:var(--text-lo); font-size:16px; line-height:1.55;
+  max-width:620px; margin-bottom:38px;
+}
+
+/* Parcours proposés */
+.npq-app .npq-parcours-grille{
+  display:grid; grid-template-columns:repeat(2,1fr); gap:18px; margin-bottom:46px;
+}
+@media (max-width:900px){ .npq-app .npq-parcours-grille{ grid-template-columns:1fr; } }
+.npq-app .npq-parcours-carte{
+  display:flex; flex-direction:column;
+  background:var(--surface); border:1px solid var(--border);
+  border-left:3px solid var(--teal); padding:22px 26px;
+}
+.npq-app .npq-parcours-carte h3{
+  font-family:'Rajdhani',sans-serif; font-weight:700; font-size:20px;
+  color:#fff; margin:0 0 8px;
+}
+.npq-app .npq-parcours-resume{
+  flex:1; color:var(--text-lo); font-size:15px; line-height:1.5; margin:0 0 12px;
+}
+.npq-app .npq-parcours-nb{
+  font-family:'Inconsolata',monospace; font-size:12px; font-weight:700;
+  letter-spacing:0.08em; text-transform:uppercase; color:var(--teal); margin:0 0 18px;
+}
+.npq-app .npq-parcours-carte .npq-btn,
+.npq-app .npq-composer .npq-btn{
+  font-family:'Inconsolata',monospace; font-size:14px; font-weight:700;
+  letter-spacing:0.08em; text-transform:uppercase;
+  padding:14px 28px; border:none; border-radius:0; cursor:pointer;
+  background:var(--teal); color:#06251f !important;
+  transition:transform .2s var(--ease), box-shadow .2s var(--ease);
+}
+.npq-app .npq-parcours-carte .npq-btn:hover,
+.npq-app .npq-composer .npq-btn:hover{
+  transform:translateY(-2px); box-shadow:0 10px 24px rgba(0,207,207,0.25);
+}
+.npq-app .npq-btn:disabled{
+  opacity:0.4; cursor:not-allowed; transform:none !important; box-shadow:none !important;
+}
+
+/* Composition libre */
+.npq-app .npq-composer{
+  background:var(--surface); border:1px solid var(--border);
+  border-left:3px solid var(--teal); padding:26px 28px; max-width:720px;
+}
+.npq-app .npq-champ-label{
+  font-family:'Inconsolata',monospace; font-size:12px; font-weight:700;
+  letter-spacing:0.1em; text-transform:uppercase; color:var(--text-lo);
+  margin:0 0 6px;
+}
+.npq-app .npq-champ-aide{
+  font-size:14px; color:var(--muted); margin:0 0 14px;
+}
+.npq-app .npq-domaines-liste{ display:flex; flex-direction:column; gap:8px; margin-bottom:28px; }
+.npq-app .npq-domaine-case{
+  display:flex; align-items:center; gap:12px;
+  padding:12px 16px; border:1px solid var(--border);
+  color:var(--text); font-size:15px; cursor:pointer;
+  transition:border-color .15s var(--ease), background .15s var(--ease);
+}
+.npq-app .npq-domaine-case:hover{ border-color:var(--teal); background:var(--teal-dim); }
+.npq-app .npq-domaine-case input{ accent-color:var(--teal); margin:0; }
+.npq-app .npq-dom-nom{ flex:1; }
+.npq-app .npq-dom-nb{
+  font-family:'Inconsolata',monospace; font-size:12px; font-weight:700;
+  color:var(--muted); padding:2px 8px; border:1px solid var(--border);
+}
+.npq-app .npq-nombre-choix{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:28px; }
+.npq-app .npq-nombre-case{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:10px 18px; border:1px solid var(--border);
+  font-family:'Inconsolata',monospace; font-size:14px; font-weight:700;
+  color:var(--text-lo); cursor:pointer;
+  transition:border-color .15s var(--ease), color .15s var(--ease);
+}
+.npq-app .npq-nombre-case:hover{ border-color:var(--teal); color:var(--teal); }
+.npq-app .npq-nombre-case input{ accent-color:var(--teal); margin:0; }
+
+/* ============ CORRECTION IMMÉDIATE (mode révision) ============ */
+.npq-app .npq-correction{ max-width:820px; }
+.npq-app .npq-corr-verdict{
+  font-family:'Rajdhani',sans-serif; font-weight:700; font-size:24px;
+  text-transform:uppercase; margin-bottom:20px;
+  padding:14px 20px; border-left:3px solid;
+}
+.npq-app .npq-corr-verdict.ok{
+  color:var(--green); border-color:var(--green); background:rgba(74,222,128,0.08);
+}
+.npq-app .npq-corr-verdict.ko{
+  color:var(--orange); border-color:var(--orange); background:rgba(255,122,80,0.08);
+}
+.npq-app .npq-corr-option{
+  padding:14px 18px; margin-bottom:10px; font-size:16px; line-height:1.5;
+  border:1px solid var(--border); color:var(--text-lo);
+}
+.npq-app .npq-corr-option.bonne{
+  border-color:var(--green); color:var(--text);
+  background:rgba(74,222,128,0.08);
+}
+.npq-app .npq-corr-option.erreur{
+  border-color:var(--orange); color:var(--text);
+  background:rgba(255,122,80,0.08);
+}
+.npq-app .npq-corr-explication{
+  margin-top:20px; padding:20px 22px;
+  background:var(--surface); border-left:3px solid var(--teal);
+  color:var(--text-lo); font-size:15px; line-height:1.65;
+}
+.npq-app .npq-corr-explication strong{
+  display:block; color:var(--teal); font-family:'Inconsolata',monospace;
+  font-size:12px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
+  margin-bottom:10px;
+}
+.npq-app .npq-corr-suite{ margin-top:26px; }
+.npq-app .npq-corr-suite .npq-btn{
+  font-family:'Inconsolata',monospace; font-size:14px; font-weight:700;
+  letter-spacing:0.08em; text-transform:uppercase;
+  padding:15px 34px; border:none; border-radius:0; cursor:pointer;
+  background:var(--teal); color:#06251f !important;
+  transition:transform .2s var(--ease), box-shadow .2s var(--ease);
+}
+.npq-app .npq-corr-suite .npq-btn:hover{
+  transform:translateY(-2px); box-shadow:0 10px 24px rgba(0,207,207,0.25);
+}
