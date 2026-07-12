@@ -48,3 +48,52 @@
         bouton.setAttribute('aria-expanded', replie ? 'false' : 'true');
     }
 })();
+
+/**
+ * Filtre des examens sur le tableau de bord.
+ *
+ * Le filtrage se fait côté navigateur, sur les examens déjà affichés (les 20
+ * derniers). Instantané, sans rechargement.
+ */
+(function () {
+    'use strict';
+
+    var barre = document.getElementById('npq-filtres-examens');
+    var table = document.getElementById('npq-table-examens');
+    if (!barre || !table) {
+        return;
+    }
+
+    var vide = document.getElementById('npq-table-vide');
+
+    barre.addEventListener('click', function (e) {
+        var bouton = e.target.closest('.npq-filtre');
+        if (!bouton) {
+            return;
+        }
+
+        var filtre = bouton.getAttribute('data-filtre');
+
+        // Onglet actif.
+        barre.querySelectorAll('.npq-filtre').forEach(function (b) {
+            b.classList.toggle('actif', b === bouton);
+        });
+
+        // Lignes visibles.
+        var visibles = 0;
+        table.querySelectorAll('tbody tr').forEach(function (tr) {
+            var statut = tr.getAttribute('data-statut');
+            var montrer = (filtre === 'tous') || (statut === filtre);
+            tr.style.display = montrer ? '' : 'none';
+            if (montrer) {
+                visibles++;
+            }
+        });
+
+        // Message si la catégorie est vide.
+        if (vide) {
+            vide.style.display = (visibles === 0) ? '' : 'none';
+        }
+        table.style.display = (visibles === 0) ? 'none' : '';
+    });
+})();

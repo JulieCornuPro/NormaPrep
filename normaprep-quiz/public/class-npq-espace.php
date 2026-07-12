@@ -80,6 +80,7 @@ class NPQ_Espace {
                 "SELECT COUNT(*) FROM {$p}tentative
                  WHERE utilisateur_id = %d
                    AND date_fin IS NOT NULL
+                   AND score IS NOT NULL
                    AND mode <> 'revision'",
                 $fiche['id']
             ) );

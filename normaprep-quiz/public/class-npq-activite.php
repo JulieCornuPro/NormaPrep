@@ -375,6 +375,7 @@ class NPQ_Activite {
              INNER JOIN {$p}question  q ON q.id = r.question_id
              WHERE t.utilisateur_id = %d
                AND t.date_fin IS NOT NULL
+               AND t.score IS NOT NULL
                AND t.mode <> 'revision'
              GROUP BY q.domaine
              ORDER BY q.domaine ASC",

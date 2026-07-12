@@ -23,7 +23,6 @@ $initiales = strtoupper( mb_substr( preg_replace( '/[^A-Za-z0-9]/', '', $nom ), 
 if ( $initiales === '' ) { $initiales = 'NP'; }
 
 $url_examen  = ( $id = get_option( 'npq_page_examen_id' ) ) ? get_permalink( $id ) : '#';
-$url_profil  = ( $id = get_option( 'npq_page_profil_id' ) ) ? get_permalink( $id ) : '#';
 $url_espace  = ( $id = get_option( 'npq_page_espace_id' ) ) ? get_permalink( $id ) : home_url( '/' );
 $page_offres = get_page_by_path( 'offres' );
 $url_offres  = $page_offres ? get_permalink( $page_offres ) : '#';
@@ -38,6 +37,7 @@ if ( class_exists( 'NPQ_Comptes' ) ) {
     if ( $fiche ) {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+        // L'historique montre TOUT (y compris les abandons, affichés comme tels).
         $examens = $wpdb->get_results( $wpdb->prepare(
             "SELECT score, reussi, date_debut FROM {$p}tentative
              WHERE utilisateur_id = %d
@@ -46,7 +46,13 @@ if ( class_exists( 'NPQ_Comptes' ) ) {
              ORDER BY date_debut DESC LIMIT 20",
             $fiche['id']
         ), ARRAY_A );
-        $nb_examens = count( $examens );
+
+        // Mais les STATISTIQUES ne comptent que les examens vraiment passés
+        // (un abandon a score NULL : il ne doit pas peser sur la moyenne).
+        $examens_notes = array_filter( $examens, function ( $e ) {
+            return $e['score'] !== null;
+        } );
+        $nb_examens = count( $examens_notes );
 
         // Sessions de révision terminées (élément d'engagement).
         $nb_revisions = (int) $wpdb->get_var( $wpdb->prepare(
@@ -62,7 +68,7 @@ if ( class_exists( 'NPQ_Comptes' ) ) {
 $score_moyen = null;
 if ( $nb_examens > 0 ) {
     $somme = 0;
-    foreach ( $examens as $e ) { $somme += (int) $e['score']; }
+    foreach ( $examens_notes as $e ) { $somme += (int) $e['score']; }
     $score_moyen = (int) round( $somme / $nb_examens );
 }
 
@@ -95,27 +101,79 @@ get_header();
 
       <div class="sec-title">Mes examens</div>
 
-      <?php if ( $nb_examens > 0 ) : ?>
-        <table>
+      <?php if ( ! empty( $examens ) ) : ?>
+
+        <?php
+        // Comptage par statut, pour les compteurs des onglets.
+        $nb_reussis = 0;
+        $nb_echoues = 0;
+        $nb_abandon = 0;
+        foreach ( $examens as $e ) {
+            if ( $e['score'] === null ) { $nb_abandon++; }
+            elseif ( $e['reussi'] )     { $nb_reussis++; }
+            else                        { $nb_echoues++; }
+        }
+        ?>
+
+        <!-- Filtres : le filtrage se fait côté navigateur, sur les examens affichés -->
+        <div class="npq-filtres" id="npq-filtres-examens">
+          <button type="button" class="npq-filtre actif" data-filtre="tous">
+            Tous <span class="npq-filtre-nb"><?php echo count( $examens ); ?></span>
+          </button>
+          <button type="button" class="npq-filtre" data-filtre="reussi">
+            Réussis <span class="npq-filtre-nb"><?php echo $nb_reussis; ?></span>
+          </button>
+          <button type="button" class="npq-filtre" data-filtre="echoue">
+            Échoués <span class="npq-filtre-nb"><?php echo $nb_echoues; ?></span>
+          </button>
+          <button type="button" class="npq-filtre" data-filtre="abandon">
+            Abandonnés <span class="npq-filtre-nb"><?php echo $nb_abandon; ?></span>
+          </button>
+        </div>
+
+        <table id="npq-table-examens">
           <thead><tr><th>Date</th><th>Score</th><th>Résultat</th></tr></thead>
           <tbody>
             <?php foreach ( $examens as $e ) :
               $date = esc_html( mysql2date( 'd/m/Y', $e['date_debut'] ) );
-              $score = ( $e['score'] !== null ) ? intval( $e['score'] ) . ' %' : '&mdash;';
-              $res = $e['reussi'] ? 'Réussi' : 'Échoué';
-              $cls = $e['reussi'] ? 'result-ok' : 'result-ko';
+              $abandonne = ( $e['score'] === null );
+
+              if ( $abandonne ) {
+                  // Un abandon n'a pas de score : ce n'est pas un échec.
+                  $score  = '&mdash;';
+                  $res    = 'Abandonné';
+                  $cls    = 'result-abandon';
+                  $statut = 'abandon';
+              } else {
+                  $score  = intval( $e['score'] ) . ' %';
+                  $res    = $e['reussi'] ? 'Réussi' : 'Échoué';
+                  $cls    = $e['reussi'] ? 'result-ok' : 'result-ko';
+                  $statut = $e['reussi'] ? 'reussi' : 'echoue';
+              }
             ?>
-              <tr><td><?php echo $date; ?></td><td><?php echo $score; ?></td><td class="<?php echo $cls; ?>"><?php echo $res; ?></td></tr>
+              <tr data-statut="<?php echo esc_attr( $statut ); ?>">
+                <td><?php echo $date; ?></td>
+                <td><?php echo $score; ?></td>
+                <td class="<?php echo $cls; ?>"><?php echo $res; ?></td>
+              </tr>
             <?php endforeach; ?>
           </tbody>
         </table>
+
+        <p class="npq-table-vide" id="npq-table-vide" style="display:none">
+          Aucun examen dans cette catégorie.
+        </p>
+
+        <?php if ( count( $examens ) >= 20 ) : ?>
+          <p class="npq-table-note">
+            Les 20 derniers examens. Les filtres portent sur cette liste.
+          </p>
+        <?php endif; ?>
+
       <?php else : ?>
         <p class="empty">Vous n'avez pas encore passé d'examen. Lancez votre premier examen pour suivre votre progression ici.</p>
       <?php endif; ?>
 
-      <div class="quick-links">
-        <a href="<?php echo esc_url( $url_profil ); ?>">Gérer mon profil</a>
-      </div>
     </main>
   </div>
 </div>

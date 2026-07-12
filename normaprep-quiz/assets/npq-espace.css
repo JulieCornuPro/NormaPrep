@@ -993,3 +993,56 @@
   transform:translateY(-2px);
   box-shadow:0 10px 24px rgba(74,222,128,0.25) !important;
 }
+
+/* Statut « abandonné » dans l'historique : ni réussi, ni échoué */
+.npq-app .result-abandon,
+.result-abandon{ color:var(--muted, #4B5875); font-style:italic; }
+
+/* Bouton Quitter l'examen (colonne de suivi) */
+.npq-app .npq-col-suivi .npq-btn-quitter{
+  width:100%; margin:0;
+  font-family:'Inconsolata',monospace; font-size:12px; font-weight:700;
+  letter-spacing:0.08em; text-transform:uppercase;
+  padding:12px 20px; cursor:pointer;
+  background:transparent !important; color:var(--muted) !important;
+  border:1px solid var(--border) !important; border-radius:0;
+  transition:border-color .2s var(--ease), color .2s var(--ease);
+}
+.npq-app .npq-col-suivi .npq-btn-quitter:hover{
+  border-color:#c0392b !important; color:#e5484d !important;
+}
+
+/* ---- Filtres du tableau des examens ---- */
+.npq-app .npq-filtres{
+  display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px;
+}
+.npq-app .npq-filtre{
+  display:inline-flex; align-items:center; gap:8px;
+  font-family:'Inconsolata',monospace; font-size:13px; font-weight:700;
+  letter-spacing:0.06em; text-transform:uppercase;
+  padding:9px 16px; cursor:pointer;
+  background:transparent; color:var(--text-lo);
+  border:1px solid var(--border);
+  transition:border-color .15s var(--ease), color .15s var(--ease), background .15s var(--ease);
+}
+.npq-app .npq-filtre:hover{ border-color:var(--teal); color:var(--teal); }
+.npq-app .npq-filtre.actif{
+  border-color:var(--teal); color:var(--teal); background:var(--teal-dim);
+}
+.npq-app .npq-filtre-nb{
+  font-size:11px; padding:1px 7px;
+  background:var(--surface-2); color:var(--muted); border-radius:20px;
+}
+.npq-app .npq-filtre.actif .npq-filtre-nb{
+  background:rgba(0,207,207,0.2); color:var(--teal);
+}
+
+/* Message quand un filtre ne renvoie rien */
+.npq-app .npq-table-vide{
+  color:var(--muted); font-size:15px; font-style:italic;
+  padding:24px 0; margin-bottom:40px;
+}
+.npq-app .npq-table-note{
+  font-family:'Inconsolata',monospace; font-size:12px;
+  color:var(--muted); letter-spacing:0.04em; margin-top:-32px; margin-bottom:40px;
+}

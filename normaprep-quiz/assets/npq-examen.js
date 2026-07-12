@@ -127,6 +127,7 @@
                     return;
                 }
                 if (rep.data.termine) {
+                    window.__npqChronoFini = true; // plus d'avertissement de fermeture
                     if (window.__npqChronoTimer) {
                         clearInterval(window.__npqChronoTimer);
                         window.__npqChronoTimer = null;
@@ -487,6 +488,101 @@
 
     function deuxChiffres(n) {
         return (n < 10 ? '0' : '') + n;
+    }
+
+
+    /* ================= ABANDON ================= */
+
+    /**
+     * Un examen qu'on quitte est ABANDONNÉ : pas de score, pas d'échec.
+     * (Une révision qu'on quitte n'a aucune conséquence : c'est un entraînement.)
+     */
+
+    var estExamen = document.getElementById('npq-chrono-box') !== null;
+
+    brancherAbandon();
+
+    function brancherAbandon() {
+        // Bouton « Quitter », avec confirmation : on ne quitte pas par accident.
+        var btn = document.getElementById('npq-quitter');
+        if (btn) {
+            btn.addEventListener('click', function () {
+                var ok = confirm(
+                    "Quitter l'examen ?\n\n" +
+                    "Votre tentative sera ABANDONNÉE : elle n'aura pas de score et " +
+                    "apparaîtra comme abandonnée dans votre historique.\n\n" +
+                    "Cette action est définitive."
+                );
+                if (ok) {
+                    quitter();
+                }
+            });
+        }
+
+        // Avertissement du navigateur avant fermeture de l'onglet.
+        // (Le navigateur impose son propre message : on ne peut pas le choisir.)
+        if (estExamen && !window.__npqAbandonEnCours) {
+            window.addEventListener('beforeunload', avertirFermeture);
+        }
+
+        // Signal d'abandon quand la page est réellement fermée.
+        window.addEventListener('pagehide', signalerAbandon);
+    }
+
+    function avertirFermeture(e) {
+        // Ne pas avertir si l'examen vient d'être terminé ou quitté volontairement.
+        if (window.__npqChronoFini || window.__npqQuitte) {
+            return;
+        }
+        e.preventDefault();
+        e.returnValue = ''; // requis par les navigateurs
+        return '';
+    }
+
+    /** Quitter volontairement : on abandonne puis on part. */
+    function quitter() {
+        window.__npqQuitte = true;
+        window.removeEventListener('beforeunload', avertirFermeture);
+
+        envoyerAbandon(function () {
+            // Retour à l'espace membre.
+            window.location.href = NPQ_EXAMEN.url_espace || '/';
+        });
+    }
+
+    /**
+     * Signal envoyé quand la page se ferme réellement.
+     *
+     * On utilise sendBeacon : conçu pour ça, il part même pendant la fermeture,
+     * là où une requête classique serait annulée par le navigateur.
+     *
+     * Ce signal est imparfait par nature (un plantage ou une coupure réseau ne
+     * l'enverra pas) — d'où le filet côté serveur, qui ferme les examens dont le
+     * chronomètre a expiré sans soumission.
+     */
+    function signalerAbandon() {
+        if (!estExamen) { return; }
+        if (window.__npqChronoFini || window.__npqQuitte) { return; } // déjà clos
+
+        if (navigator.sendBeacon) {
+            var data = new FormData();
+            data.append('action', 'npq_examen_abandon');
+            data.append('nonce', NPQ_EXAMEN.nonce);
+            data.append('tentative', tentativeId);
+            navigator.sendBeacon(NPQ_EXAMEN.ajax_url, data);
+        }
+    }
+
+    /** Envoi de l'abandon (bouton Quitter : on peut attendre la réponse). */
+    function envoyerAbandon(apres) {
+        var data = new FormData();
+        data.append('action', 'npq_examen_abandon');
+        data.append('nonce', NPQ_EXAMEN.nonce);
+        data.append('tentative', tentativeId);
+
+        fetch(NPQ_EXAMEN.ajax_url, { method: 'POST', body: data, credentials: 'same-origin' })
+            .then(function () { apres(); })
+            .catch(function () { apres(); });
     }
 
     function echapper(texte) {

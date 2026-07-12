@@ -50,6 +50,13 @@ class NPQ_Examen {
         // Réservé aux utilisateurs connectés (préfixe wp_ajax_, pas nopriv).
         add_action( 'wp_ajax_npq_examen_etape', [ __CLASS__, 'ajax_etape' ] );
 
+        // Abandon d'un examen (bouton « Quitter » ou fermeture de l'onglet).
+        add_action( 'wp_ajax_npq_examen_abandon', [ __CLASS__, 'ajax_abandon' ] );
+
+        // Filet : ferme les examens laissés en plan (chrono expiré, jamais soumis).
+        // On le passe à chaque chargement de page publique : le ménage se fait seul.
+        add_action( 'template_redirect', [ __CLASS__, 'fermer_examens_expires' ] );
+
         // Chargement du script d'examen sur la page dédiée.
         add_action( 'wp_enqueue_scripts', [ __CLASS__, 'charger_script' ] );
     }
@@ -76,9 +83,11 @@ class NPQ_Examen {
             true // dans le pied de page
         );
         // Transmet au script l'URL AJAX et un jeton de sécurité.
+        $page_espace = get_option( 'npq_page_espace_id' );
         wp_localize_script( 'npq-examen', 'NPQ_EXAMEN', [
-            'ajax_url' => admin_url( 'admin-ajax.php' ),
-            'nonce'    => wp_create_nonce( 'npq_examen_ajax' ),
+            'ajax_url'   => admin_url( 'admin-ajax.php' ),
+            'nonce'      => wp_create_nonce( 'npq_examen_ajax' ),
+            'url_espace' => $page_espace ? get_permalink( $page_espace ) : home_url( '/' ),
         ] );
     }
 
@@ -824,6 +833,13 @@ class NPQ_Examen {
                 <button type="button" class="npq-btn npq-btn-terminer" data-dest="terminer">
                     <?php echo ( $mode === 'revision' ) ? 'Terminer la révision' : "Terminer l'examen"; ?>
                 </button>
+
+                <?php if ( $mode === 'examen' ) : ?>
+                    <!-- Quitter : abandonne l'examen (pas de score, pas d'échec) -->
+                    <button type="button" class="npq-btn npq-btn-quitter" id="npq-quitter">
+                        Quitter l'examen
+                    </button>
+                <?php endif; ?>
             </aside>
         </div>
         <?php
@@ -1054,6 +1070,110 @@ class NPQ_Examen {
         ) );
 
         return ! empty( $fin );
+    }
+
+    /**
+     * Marque une tentative comme ABANDONNÉE.
+     *
+     * Un abandon n'est pas un échec : le candidat n'a pas de score, et la tentative
+     * ne compte ni dans ses statistiques ni dans sa moyenne. Elle reste visible
+     * dans l'historique comme telle.
+     *
+     * En base, un abandon se reconnaît à : date_fin renseignée + score NULL.
+     * (Une tentative terminée normalement a un score ; une tentative en cours n'a
+     *  pas de date_fin.)
+     */
+    private static function marquer_abandonnee( $tentative_id ) {
+        // On n'abandonne pas une tentative déjà close.
+        if ( self::est_terminee( $tentative_id ) ) {
+            return false;
+        }
+
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $wpdb->update(
+            "{$p}tentative",
+            [
+                'date_fin' => current_time( 'mysql' ),
+                'score'    => null,
+                'reussi'   => null,
+            ],
+            [ 'id' => (int) $tentative_id ]
+        );
+
+        self::effacer_brouillon( $tentative_id );
+
+        return true;
+    }
+
+    /**
+     * Point d'entrée AJAX : le candidat quitte l'examen (bouton ou fermeture).
+     *
+     * Appelé aussi via sendBeacon à la fermeture de l'onglet : la requête doit
+     * donc être légère et ne rien renvoyer d'utile.
+     */
+    public static function ajax_abandon() {
+        if ( ! NPQ_Comptes::peut_passer_examen_complet() ) {
+            wp_send_json_error( [], 403 );
+        }
+        if ( ! check_ajax_referer( 'npq_examen_ajax', 'nonce', false ) ) {
+            wp_send_json_error( [], 403 );
+        }
+
+        $tentative_id = isset( $_POST['tentative'] ) ? (int) $_POST['tentative'] : 0;
+
+        if ( ! $tentative_id || ! self::tentative_appartient( $tentative_id ) ) {
+            wp_send_json_error( [], 404 );
+        }
+
+        // Seul un EXAMEN peut être abandonné : une révision qu'on quitte
+        // n'a pas de conséquence (c'est un entraînement).
+        if ( self::mode_tentative( $tentative_id ) !== 'examen' ) {
+            wp_send_json_success( [ 'abandonnee' => false ] );
+        }
+
+        $ok = self::marquer_abandonnee( $tentative_id );
+
+        wp_send_json_success( [ 'abandonnee' => $ok ] );
+    }
+
+    /**
+     * FILET DE SÉCURITÉ : ferme les examens laissés en plan.
+     *
+     * Si le navigateur plante ou que la connexion coupe, aucun signal d'abandon
+     * ne part. On rattrape ici : tout examen chronométré dont le temps est écoulé
+     * et qui n'a jamais été soumis est marqué abandonné.
+     *
+     * Appelé à chaque affichage de l'espace membre : le ménage se fait tout seul.
+     */
+    public static function fermer_examens_expires() {
+        if ( ! is_user_logged_in() ) {
+            return;
+        }
+
+        $fiche = NPQ_Comptes::fiche_courante();
+        if ( ! $fiche ) {
+            return;
+        }
+
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        // Tentatives d'examen encore ouvertes.
+        $ouvertes = (array) $wpdb->get_results( $wpdb->prepare(
+            "SELECT id FROM {$p}tentative
+             WHERE utilisateur_id = %d
+               AND date_fin IS NULL
+               AND mode = 'examen'",
+            $fiche['id']
+        ), ARRAY_A );
+
+        foreach ( $ouvertes as $t ) {
+            if ( self::temps_ecoule( (int) $t['id'] ) ) {
+                self::marquer_abandonnee( (int) $t['id'] );
+            }
+        }
     }
 
     /** Mode de la tentative : 'examen' (simulation) ou 'revision' (entraînement). */
