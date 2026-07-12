@@ -3,7 +3,7 @@
  * Plugin Name:       NormaPrep Quiz
  * Plugin URI:        https://github.com/【votre-compte】/normaprep-quiz
  * Description:       Module d'examens blancs pour la certification ISO/IEC 27001 Lead Implementer : scénarios, questions à choix multiples, composition d'examens par thèmes, correction détaillée et suivi de progression.
- * Version:           2.4.1
+ * Version:           2.7.3
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            NormaPrep
@@ -32,7 +32,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Version courante. IMPORTANT : cette valeur doit rester synchronisée avec
 // la ligne « Version: » de l'en-tête ci-dessus.
-define( 'NPQ_VERSION', '2.4.1' );
+define( 'NPQ_VERSION', '2.7.3' );
 
 // Chemin absolu vers le dossier du plugin sur le serveur (pour charger des fichiers PHP).
 define( 'NPQ_PATH', plugin_dir_path( __FILE__ ) );

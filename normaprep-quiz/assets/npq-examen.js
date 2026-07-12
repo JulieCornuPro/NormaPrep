@@ -21,6 +21,11 @@
         return;
     }
 
+    // Quels scénarios le candidat a-t-il dépliés ? On s'en souvient pour ne pas
+    // le forcer à replier à chaque question du même scénario.
+    var scenariosOuverts = {};
+    var scenarioCourant = null;
+
     // On mémorise l'identifiant de la tentative une fois pour toutes.
     // En mode révision, l'écran de correction remplace le formulaire : il ne faut
     // donc pas dépendre de sa présence pour retrouver cette valeur.
@@ -53,6 +58,28 @@
                 e.preventDefault();
                 aller(p.getAttribute('data-pos'));
             });
+        });
+
+        brancherScenario();
+    }
+
+    /**
+     * Zone scénario repliable : le candidat la déplie pour lire le contexte,
+     * la replie une fois lu. L'état est mémorisé par scénario, pour ne pas
+     * avoir à replier à chaque question du même scénario.
+     */
+    function brancherScenario() {
+        var bascule = document.getElementById('npq-scen-bascule');
+        var corps   = document.getElementById('npq-scen-corps');
+        if (!bascule || !corps) {
+            return;
+        }
+        bascule.addEventListener('click', function () {
+            var ouvert = corps.classList.toggle('ouvert');
+            bascule.textContent = ouvert ? '[ − Replier ]' : '[ + Lire le scénario ]';
+            if (scenarioCourant) {
+                scenariosOuverts[scenarioCourant] = ouvert;
+            }
         });
     }
 
@@ -169,7 +196,7 @@
         }
     }
 
-    /** Affiche la question reçue et met à jour la vue d'ensemble. */
+    /** Affiche la question reçue, son scénario, et met à jour le suivi. */
     function afficher(d) {
         var q = d.question;
         if (!q) { return; }
@@ -177,7 +204,10 @@
         var type = q.multi_reponses ? 'checkbox' : 'radio';
         var dernier = (d.position + 1 >= d.total);
 
-        // Options.
+        // --- Scénario de cette question ---
+        majScenario(d.scenario);
+
+        // --- Options ---
         var optionsHtml = '';
         q.options.forEach(function (opt) {
             var checked = q.deja.indexOf(opt.id) !== -1 ? 'checked' : '';
@@ -188,15 +218,14 @@
                 '</label>';
         });
 
-        // Boutons de navigation.
+        // --- Navigation ---
         var navHtml = '';
         if (d.position > 0) {
-            navHtml += '<button type="submit" class="npq-btn npq-btn-ghost" data-dest="' + (d.position - 1) + '">Question précédente</button>';
+            navHtml += '<button type="submit" class="npq-btn npq-btn-ghost" data-dest="' + (d.position - 1) + '">Précédente</button>';
         }
         if (!dernier) {
-            navHtml += '<button type="submit" class="npq-btn" data-dest="' + (d.position + 1) + '">Question suivante</button>';
+            navHtml += '<button type="submit" class="npq-btn" data-dest="' + (d.position + 1) + '">Suivante</button>';
         }
-        navHtml += '<button type="submit" class="npq-btn npq-btn-terminer" data-dest="terminer">Terminer</button>';
 
         var html =
             '<p class="npq-progression">Question ' + (d.position + 1) + ' / ' + d.total + '</p>' +
@@ -220,11 +249,60 @@
         }
 
         majApercu(d.apercu, d.position);
+        majProgression(d.apercu, d.total);
 
         brancher();
         zone.style.opacity = '1';
         zone.style.pointerEvents = 'auto';
         zone.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    /**
+     * Met à jour la zone scénario. Si le candidat avait déplié ce scénario,
+     * il reste déplié — on ne le force pas à recliquer à chaque question.
+     */
+    function majScenario(sc) {
+        var box = document.getElementById('npq-scenario-box');
+        if (!box) { return; }
+
+        if (!sc) {
+            box.style.display = 'none';
+            scenarioCourant = null;
+            return;
+        }
+
+        box.style.display = '';
+        scenarioCourant = sc.id;
+        var ouvert = !!scenariosOuverts[sc.id];
+
+        var titre = sc.resume ? sc.resume : sc.nom;
+        box.innerHTML =
+            '<div class="npq-scen-titre">\u2B21 ' + echapper(titre) + '</div>' +
+            '<div class="npq-scen-corps' + (ouvert ? ' ouvert' : '') + '" id="npq-scen-corps">' +
+                echapper(sc.contexte) +
+            '</div>' +
+            '<span class="npq-scen-bascule" id="npq-scen-bascule">' +
+                (ouvert ? '[ \u2212 Replier ]' : '[ + Lire le scénario ]') +
+            '</span>';
+    }
+
+    /** Met à jour le suivi de progression (répondues, marquées, barre). */
+    function majProgression(apercu, total) {
+        if (!apercu) { return; }
+
+        var repondues = 0, marquees = 0;
+        apercu.forEach(function (e) {
+            if (e.repondue) { repondues++; }
+            if (e.marquee)  { marquees++; }
+        });
+
+        var elRep = document.getElementById('npq-nb-repondues');
+        var elMar = document.getElementById('npq-nb-marquees');
+        var elBar = document.getElementById('npq-barre-remplie');
+
+        if (elRep) { elRep.textContent = repondues + ' / ' + total; }
+        if (elMar) { elMar.textContent = marquees; }
+        if (elBar) { elBar.style.width = (total > 0 ? Math.round(repondues * 100 / total) : 0) + '%'; }
     }
 
     /** Met à jour les pastilles de la vue d'ensemble. */

@@ -151,6 +151,83 @@ class NPQ_Composeur {
         ) );
     }
 
+    /**
+     * Compose un examen blanc complet, selon la pondération officielle PECB.
+     *
+     * Chaque domaine fournit un nombre précis de questions, tirées au hasard
+     * parmi celles disponibles. Si un domaine n'a pas assez de questions en
+     * banque, on prend tout ce qu'il a (et l'examen sera plus court).
+     *
+     * @param int   $certification_id
+     * @param array $ponderation Tableau code_domaine => nombre de questions.
+     * @return array Questions assemblées, mélangées.
+     */
+    public static function par_ponderation( $certification_id, $ponderation ) {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $ids = [];
+
+        foreach ( $ponderation as $code => $nombre ) {
+            $nombre = (int) $nombre;
+            if ( $nombre <= 0 ) {
+                continue;
+            }
+
+            // Tirage aléatoire dans le domaine, limité au quota.
+            $ids_domaine = $wpdb->get_col( $wpdb->prepare(
+                "SELECT id FROM {$p}question
+                 WHERE certification_id = %d
+                   AND domaine = %s
+                   AND statut = 'publie'
+                 ORDER BY RAND()
+                 LIMIT %d",
+                $certification_id,
+                $code,
+                $nombre
+            ) );
+
+            $ids = array_merge( $ids, array_map( 'intval', (array) $ids_domaine ) );
+        }
+
+        if ( empty( $ids ) ) {
+            return [];
+        }
+
+        // On mélange l'ensemble : sinon les questions arriveraient groupées par
+        // domaine, ce qui n'est pas le cas dans un vrai examen.
+        shuffle( $ids );
+
+        return self::assembler( $ids, false );
+    }
+
+    /**
+     * Vérifie qu'un examen selon la pondération est possible, et signale les
+     * domaines dont la banque est insuffisante.
+     *
+     * @return array ['possible' => bool, 'total' => int, 'manques' => [code => manque]]
+     */
+    public static function verifier_ponderation( $certification_id, $ponderation ) {
+        $total   = 0;
+        $manques = [];
+
+        foreach ( $ponderation as $code => $nombre ) {
+            $dispo = self::compter_domaines( $certification_id, [ $code ] );
+            $pris  = min( (int) $nombre, $dispo );
+            $total += $pris;
+
+            if ( $dispo < (int) $nombre ) {
+                $manques[ $code ] = (int) $nombre - $dispo;
+            }
+        }
+
+        return [
+            'possible' => ( $total > 0 ),
+            'total'    => $total,
+            'manques'  => $manques,
+        ];
+    }
+
     public static function par_tag( $type_nom, $valeur, $limite = 0, $melanger = false ) {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;

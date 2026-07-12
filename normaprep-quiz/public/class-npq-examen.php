@@ -23,6 +23,25 @@ class NPQ_Examen {
 
     const OPT_PAGE_EXAMEN = 'npq_page_examen_id';
 
+    /**
+     * Règles officielles de l'examen PECB ISO/IEC 27001 Lead Implementer.
+     * Source : guide de préparation PECB (tableau de pondération des domaines).
+     */
+
+    /** Nombre de questions par domaine, tel que défini par PECB (total : 80). */
+    const PONDERATION_PECB = [
+        'D1' => 15,  // Principes et concepts fondamentaux du SMSI
+        'D2' => 12,  // Système de management de la sécurité de l'information
+        'D3' => 18,  // Planification de la mise en œuvre du SMSI
+        'D4' => 14,  // Mise en œuvre du SMSI
+        'D5' => 10,  // Surveillance et mesure du SMSI
+        'D6' => 6,   // Amélioration continue
+        'D7' => 5,   // Préparation à l'audit de certification
+    ];
+
+    /** Durée de l'examen, en minutes (PECB : 180 minutes pour 80 questions). */
+    const DUREE_MINUTES = 180;
+
     public static function init() {
         add_shortcode( 'npq_examen', [ __CLASS__, 'rendu' ] );
         add_action( 'template_redirect', [ __CLASS__, 'traiter_actions' ] );
@@ -210,6 +229,9 @@ class NPQ_Examen {
         $deja = isset( $brouillon['reponses'][ $qid ] ) ? array_map( 'intval', (array) $brouillon['reponses'][ $qid ] ) : [];
         $marquee = ! empty( $brouillon['marquees'][ $qid ] );
 
+        // Le scénario de CETTE question (un examen en mélange plusieurs).
+        $scenario = self::scenario_de_question( $q['scenario_id'] ?? 0 );
+
         return [
             'termine'  => false,
             'position' => $position,
@@ -223,6 +245,12 @@ class NPQ_Examen {
                 'deja'    => $deja,
                 'marquee' => $marquee,
             ],
+            'scenario' => $scenario ? [
+                'id'       => (int) $scenario['id'],
+                'nom'      => $scenario['nom'],
+                'resume'   => (string) $scenario['resume'],
+                'contexte' => (string) $scenario['contexte'],
+            ] : null,
             // Vue d'ensemble : état de chaque question (répondue / marquée).
             'apercu'   => self::apercu_questions( $tentative_id ),
         ];
@@ -339,13 +367,19 @@ class NPQ_Examen {
     /**
      * Démarre un examen : compose les questions d'un scénario et crée la tentative.
      */
+    /**
+     * Démarre un examen blanc : compose 80 questions selon la pondération PECB,
+     * tirées au hasard dans chaque domaine, et crée la tentative chronométrée.
+     *
+     * Il n'y a plus de choix de scénario : un examen est aléatoire, comme le vrai.
+     */
     private static function demarrer() {
-        $scenario_id = isset( $_POST['npq_scenario'] ) ? (int) $_POST['npq_scenario'] : 0;
-        if ( ! $scenario_id ) {
+        $certification_id = self::certification_courante();
+        if ( ! $certification_id ) {
             return;
         }
 
-        $questions = NPQ_Composeur::par_scenario( $scenario_id, false );
+        $questions = NPQ_Composeur::par_ponderation( $certification_id, self::PONDERATION_PECB );
         if ( empty( $questions ) ) {
             return;
         }
@@ -358,25 +392,38 @@ class NPQ_Examen {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
-        // Crée la tentative. On mémorise la liste ordonnée des questions dans
-        // le champ criteres (JSON), pour savoir quoi afficher à chaque position.
         $ids = array_map( function ( $q ) { return (int) $q['id']; }, $questions );
+
+        // L'heure de fin est calculée dès le départ : c'est elle qui fait foi.
+        // Même si le candidat ferme son navigateur, le temps continue de courir.
+        $debut = current_time( 'timestamp' );
+        $fin   = $debut + ( self::DUREE_MINUTES * 60 );
 
         $wpdb->insert( "{$p}tentative", [
             'utilisateur_id'   => $fiche['id'],
             'examen_modele_id' => null,
-            'mode'             => 'libre',
+            'mode'             => 'examen',
             'criteres'         => wp_json_encode( [
-                'type'      => 'scenario',
-                'scenario'  => $scenario_id,
-                'questions' => $ids,
+                'type'        => 'examen_pecb',
+                'questions'   => $ids,
+                'duree'       => self::DUREE_MINUTES,
+                'expire_le'   => $fin,   // horodatage de fin (fait foi)
+                'ponderation' => self::PONDERATION_PECB,
             ] ),
             'date_debut'       => current_time( 'mysql' ),
         ] );
         $tentative_id = $wpdb->insert_id;
 
-        // Redirige vers la première question.
         self::rediriger_vers( $tentative_id, 0 );
+    }
+
+    /** Certification active (la première publiée). */
+    private static function certification_courante() {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+        return (int) $wpdb->get_var(
+            "SELECT id FROM {$p}certification WHERE actif = 1 ORDER BY id ASC LIMIT 1"
+        );
     }
 
     /**
@@ -480,90 +527,87 @@ class NPQ_Examen {
     }
 
     /**
-     * Écran de choix : liste des scénarios disponibles, en grille paginée.
+     * Écran d'accueil de l'examen : les règles, puis le bouton de démarrage.
+     *
+     * Le candidat doit savoir dans quoi il s'engage AVANT de commencer :
+     * le chronomètre tourne, quitter l'examen l'abandonne.
      */
     private static function ecran_choix() {
-        global $wpdb;
-        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
-
-        // Pagination : 10 scénarios par page.
-        $par_page = 10;
-        $page = isset( $_GET['sp'] ) ? max( 1, (int) $_GET['sp'] ) : 1;
-        $offset = ( $page - 1 ) * $par_page;
-
-        $total_scenarios = (int) $wpdb->get_var(
-            "SELECT COUNT(*) FROM {$p}scenario WHERE statut = 'publie'"
-        );
-        $total_pages = max( 1, (int) ceil( $total_scenarios / $par_page ) );
-
-        // Si la page demandée dépasse, on revient à la dernière.
-        if ( $page > $total_pages ) {
-            $page = $total_pages;
-            $offset = ( $page - 1 ) * $par_page;
+        $certification_id = self::certification_courante();
+        if ( ! $certification_id ) {
+            return '<p class="empty">Aucune certification disponible.</p>';
         }
 
-        $scenarios = $wpdb->get_results( $wpdb->prepare(
-            "SELECT id, nom, resume FROM {$p}scenario
-             WHERE statut = 'publie'
-             ORDER BY nom ASC
-             LIMIT %d OFFSET %d",
-            $par_page,
-            $offset
-        ), ARRAY_A );
-
-        if ( empty( $scenarios ) ) {
-            return '<p class="empty">Aucun scénario disponible pour le moment.</p>';
+        // Vérifie que la banque permet de composer l'examen.
+        $verif = NPQ_Composeur::verifier_ponderation( $certification_id, self::PONDERATION_PECB );
+        if ( ! $verif['possible'] ) {
+            return '<p class="empty">Les questions ne sont pas encore disponibles.</p>';
         }
 
-        $url_base = get_permalink( get_option( self::OPT_PAGE_EXAMEN ) );
+        $nb_questions = (int) $verif['total'];
+        $duree        = self::DUREE_MINUTES;
+        $seuil        = (int) get_option( 'npq_seuil_reussite', 70 );
 
         ob_start();
         ?>
-        <div class="npq-examen-choix">
-            <h2>Choisissez un scénario</h2>
+        <div class="npq-examen-accueil">
+            <h2>Examen blanc</h2>
+            <p class="npq-exam-intro">
+                Une simulation dans les conditions du véritable examen PECB
+                ISO/IEC 27001 Lead Implementer.
+            </p>
 
-            <div class="npq-scenario-grille">
-                <?php foreach ( $scenarios as $s ) :
-                    $nb = NPQ_Composeur::compter( 'scenario', [ 'scenario_id' => $s['id'] ] );
-                ?>
-                    <div class="npq-scenario-carte">
-                        <h3><?php echo esc_html( $s['nom'] ); ?></h3>
-                        <?php if ( $s['resume'] ) : ?>
-                            <p class="npq-sc-resume"><?php echo esc_html( $s['resume'] ); ?></p>
-                        <?php endif; ?>
-                        <p class="npq-sc-nb"><?php echo (int) $nb; ?> question(s)</p>
-                        <form method="post">
-                            <input type="hidden" name="npq_examen_action" value="demarrer">
-                            <input type="hidden" name="npq_scenario" value="<?php echo (int) $s['id']; ?>">
-                            <?php wp_nonce_field( 'npq_examen', 'npq_nonce' ); ?>
-                            <button type="submit" class="npq-btn">Commencer</button>
-                        </form>
-                    </div>
-                <?php endforeach; ?>
+            <!-- Les conditions de l'épreuve -->
+            <div class="npq-exam-conditions">
+                <div class="npq-exam-cond">
+                    <span class="npq-cond-val"><?php echo $nb_questions; ?></span>
+                    <span class="npq-cond-lbl">Questions</span>
+                </div>
+                <div class="npq-exam-cond">
+                    <span class="npq-cond-val"><?php echo (int) ( $duree / 60 ); ?><span class="u">h</span></span>
+                    <span class="npq-cond-lbl">Durée</span>
+                </div>
+                <div class="npq-exam-cond">
+                    <span class="npq-cond-val"><?php echo $seuil; ?><span class="u">%</span></span>
+                    <span class="npq-cond-lbl">Seuil de réussite</span>
+                </div>
             </div>
 
-            <?php if ( $total_pages > 1 ) : ?>
-                <nav class="npq-pagination">
-                    <?php if ( $page > 1 ) : ?>
-                        <a class="npq-page-lien" href="<?php echo esc_url( add_query_arg( 'sp', $page - 1, $url_base ) ); ?>">Précédent</a>
-                    <?php endif; ?>
+            <!-- L'avertissement : ce qu'il faut savoir avant de se lancer -->
+            <div class="npq-exam-regles">
+                <h3>Avant de commencer</h3>
+                <ul>
+                    <li>
+                        <strong>Le chronomètre démarre immédiatement</strong> et ne s'arrête pas.
+                        Vous disposez de <?php echo $duree; ?> minutes.
+                    </li>
+                    <li>
+                        <strong>Si vous quittez l'examen</strong> (bouton « Quitter », fermeture
+                        de l'onglet ou du navigateur), la tentative est <strong>abandonnée</strong> :
+                        elle n'aura pas de score et apparaîtra comme telle dans votre historique.
+                    </li>
+                    <li>
+                        <strong>À l'expiration du temps</strong>, votre copie est remise
+                        automatiquement. Les questions sans réponse sont comptées fausses.
+                    </li>
+                    <li>
+                        Vous pouvez <strong>naviguer librement</strong> entre les questions,
+                        marquer celles qui vous font douter, et <strong>terminer avant la fin</strong>
+                        si vous le souhaitez.
+                    </li>
+                    <li>
+                        Les questions sont <strong>tirées au hasard</strong> selon la répartition
+                        officielle des domaines de compétence.
+                    </li>
+                </ul>
+            </div>
 
-                    <?php for ( $i = 1; $i <= $total_pages; $i++ ) : ?>
-                        <?php if ( $i === $page ) : ?>
-                            <span class="npq-page-lien courante"><?php echo $i; ?></span>
-                        <?php else : ?>
-                            <a class="npq-page-lien" href="<?php echo esc_url( add_query_arg( 'sp', $i, $url_base ) ); ?>"><?php echo $i; ?></a>
-                        <?php endif; ?>
-                    <?php endfor; ?>
-
-                    <?php if ( $page < $total_pages ) : ?>
-                        <a class="npq-page-lien" href="<?php echo esc_url( add_query_arg( 'sp', $page + 1, $url_base ) ); ?>">Suivant</a>
-                    <?php endif; ?>
-                </nav>
-                <p class="npq-pagination-info">
-                    <?php echo (int) $total_scenarios; ?> scénario(s) — page <?php echo (int) $page; ?> sur <?php echo (int) $total_pages; ?>
-                </p>
-            <?php endif; ?>
+            <form method="post" class="npq-exam-lancer"
+                  onsubmit="return confirm('Le chronomètre va démarrer. Prêt(e) à commencer ?');">
+                <input type="hidden" name="npq_examen_action" value="demarrer">
+                <?php wp_nonce_field( 'npq_examen', 'npq_nonce' ); ?>
+                <button type="submit" class="npq-btn">Démarrer l'examen</button>
+            </form>
         </div>
         <?php
         return ob_get_clean();
@@ -578,102 +622,144 @@ class NPQ_Examen {
             return '<p>Question introuvable.</p>';
         }
 
-        $total    = self::nombre_questions( $tentative_id );
-        $scenario = self::scenario_de_tentative( $tentative_id );
+        $total = self::nombre_questions( $tentative_id );
+        $mode  = self::mode_tentative( $tentative_id );
 
-        // État de la question courante (réponse déjà donnée, marquage).
+        // Le scénario de CETTE question (un examen en mélange plusieurs).
+        $scenario = self::scenario_de_question( $question['scenario_id'] ?? 0 );
+
+        // État de la question courante.
         $brouillon = self::lire_brouillon( $tentative_id );
         $qid     = (int) $question['id'];
         $deja    = isset( $brouillon['reponses'][ $qid ] ) ? (array) $brouillon['reponses'][ $qid ] : [];
         $marquee = ! empty( $brouillon['marquees'][ $qid ] );
 
-        // Vue d'ensemble : état de toutes les questions.
+        // Vue d'ensemble.
         $apercu = self::apercu_questions( $tentative_id );
 
-        $type_input = $question['multi_reponses'] ? 'checkbox' : 'radio';
+        // Progression : combien de répondues, combien de marquées.
+        $nb_repondues = 0;
+        $nb_marquees  = 0;
+        foreach ( $apercu as $e ) {
+            if ( ! empty( $e['repondue'] ) ) { $nb_repondues++; }
+            if ( ! empty( $e['marquee'] ) )  { $nb_marquees++; }
+        }
+
+        $type_input   = $question['multi_reponses'] ? 'checkbox' : 'radio';
         $est_derniere = ( $position + 1 >= $total );
 
         ob_start();
         ?>
-        <div class="npq-examen" id="npq-examen-zone">
+        <div class="npq-examen npq-examen-deux-col" id="npq-examen-zone">
 
-            <?php if ( $scenario ) : ?>
-                <div class="npq-scenario-contexte">
-                    <strong><?php echo esc_html( $scenario['nom'] ); ?></strong>
-                    <p><?php echo esc_html( $scenario['contexte'] ); ?></p>
-                </div>
-            <?php endif; ?>
+            <!-- Colonne principale : scénario + question -->
+            <div class="npq-col-principale">
 
-            <!-- Vue d'ensemble : pastilles cliquables (répondue / marquée / courante) -->
-            <div class="npq-apercu" id="npq-apercu">
-                <?php foreach ( $apercu as $i => $etat ) :
-                    $classes = 'npq-pastille';
-                    if ( $i === (int) $position )  { $classes .= ' courante'; }
-                    if ( ! empty( $etat['repondue'] ) ) { $classes .= ' repondue'; }
-                    if ( ! empty( $etat['marquee'] ) )  { $classes .= ' marquee'; }
-                ?>
-                    <button type="button" class="<?php echo esc_attr( $classes ); ?>"
-                            data-pos="<?php echo (int) $i; ?>"
-                            title="Question <?php echo ( $i + 1 ); ?><?php echo ! empty( $etat['marquee'] ) ? ' (à revoir)' : ''; ?>">
-                        <?php echo ( $i + 1 ); ?>
-                    </button>
-                <?php endforeach; ?>
-            </div>
-
-            <div id="npq-question-contenu">
-                <p class="npq-progression">Question <?php echo ( $position + 1 ); ?> / <?php echo $total; ?></p>
-
-                <div class="npq-enonce"><?php echo esc_html( $question['enonce'] ); ?></div>
-
-                <form id="npq-examen-form" method="post">
-                    <input type="hidden" name="npq_examen_action" value="repondre">
-                    <input type="hidden" name="npq_tentative" value="<?php echo (int) $tentative_id; ?>">
-                    <input type="hidden" name="npq_position" value="<?php echo (int) $position; ?>">
-                    <!-- Destination : rempli par le JS (ou par les boutons en repli sans JS) -->
-                    <input type="hidden" name="npq_destination" id="npq-destination" value="">
-                    <?php wp_nonce_field( 'npq_examen', 'npq_nonce' ); ?>
-
-                    <?php foreach ( $question['options'] as $opt ) :
-                        $checked = in_array( (int) $opt['id'], array_map( 'intval', $deja ), true ) ? 'checked' : '';
-                    ?>
-                        <label class="npq-option">
-                            <input type="<?php echo $type_input; ?>" name="npq_options[]"
-                                   value="<?php echo (int) $opt['id']; ?>" <?php echo $checked; ?>>
-                            <?php echo esc_html( $opt['texte'] ); ?>
-                        </label>
-                    <?php endforeach; ?>
-
-                    <!-- Marquer « à revoir » -->
-                    <label class="npq-marquer">
-                        <input type="checkbox" name="npq_marquee" id="npq-marquee" value="1" <?php checked( $marquee ); ?>>
-                        Marquer cette question pour y revenir
-                    </label>
-
-                    <!-- Navigation : précédent / suivant / terminer -->
-                    <div class="npq-nav">
-                        <?php if ( $position > 0 ) : ?>
-                            <button type="submit" class="npq-btn npq-btn-ghost"
-                                    name="npq_destination_btn" value="<?php echo (int) ( $position - 1 ); ?>"
-                                    data-dest="<?php echo (int) ( $position - 1 ); ?>">
-                                Question précédente
-                            </button>
-                        <?php endif; ?>
-
-                        <?php if ( ! $est_derniere ) : ?>
-                            <button type="submit" class="npq-btn"
-                                    name="npq_destination_btn" value="<?php echo (int) ( $position + 1 ); ?>"
-                                    data-dest="<?php echo (int) ( $position + 1 ); ?>">
-                                Question suivante
-                            </button>
-                        <?php endif; ?>
-
-                        <button type="submit" class="npq-btn npq-btn-terminer"
-                                name="npq_destination_btn" value="terminer" data-dest="terminer">
-                            Terminer l'examen
-                        </button>
+                <?php if ( $scenario ) : ?>
+                    <!-- Scénario repliable : le candidat le lit une fois, puis le replie.
+                         Sans lui, l'énoncé serait incompréhensible. -->
+                    <div class="npq-scenario-box" id="npq-scenario-box">
+                        <div class="npq-scen-titre">&#11041; <?php echo esc_html( $scenario['resume'] ? $scenario['resume'] : $scenario['nom'] ); ?></div>
+                        <div class="npq-scen-corps" id="npq-scen-corps"><?php echo esc_html( $scenario['contexte'] ); ?></div>
+                        <span class="npq-scen-bascule" id="npq-scen-bascule">[ + Lire le scénario ]</span>
                     </div>
-                </form>
+                <?php endif; ?>
+
+                <div id="npq-question-contenu">
+                    <p class="npq-progression">Question <?php echo ( $position + 1 ); ?> / <?php echo $total; ?></p>
+
+                    <div class="npq-enonce"><?php echo esc_html( $question['enonce'] ); ?></div>
+
+                    <form id="npq-examen-form" method="post">
+                        <input type="hidden" name="npq_examen_action" value="repondre">
+                        <input type="hidden" name="npq_tentative" value="<?php echo (int) $tentative_id; ?>">
+                        <input type="hidden" name="npq_position" value="<?php echo (int) $position; ?>">
+                        <input type="hidden" name="npq_destination" id="npq-destination" value="">
+                        <?php wp_nonce_field( 'npq_examen', 'npq_nonce' ); ?>
+
+                        <?php foreach ( $question['options'] as $opt ) :
+                            $checked = in_array( (int) $opt['id'], array_map( 'intval', $deja ), true ) ? 'checked' : '';
+                        ?>
+                            <label class="npq-option">
+                                <input type="<?php echo $type_input; ?>" name="npq_options[]"
+                                       value="<?php echo (int) $opt['id']; ?>" <?php echo $checked; ?>>
+                                <?php echo esc_html( $opt['texte'] ); ?>
+                            </label>
+                        <?php endforeach; ?>
+
+                        <label class="npq-marquer">
+                            <input type="checkbox" name="npq_marquee" id="npq-marquee" value="1" <?php checked( $marquee ); ?>>
+                            Marquer cette question pour y revenir
+                        </label>
+
+                        <div class="npq-nav">
+                            <?php if ( $position > 0 ) : ?>
+                                <button type="submit" class="npq-btn npq-btn-ghost"
+                                        name="npq_destination_btn" value="<?php echo (int) ( $position - 1 ); ?>"
+                                        data-dest="<?php echo (int) ( $position - 1 ); ?>">
+                                    Précédente
+                                </button>
+                            <?php endif; ?>
+
+                            <?php if ( ! $est_derniere ) : ?>
+                                <button type="submit" class="npq-btn"
+                                        name="npq_destination_btn" value="<?php echo (int) ( $position + 1 ); ?>"
+                                        data-dest="<?php echo (int) ( $position + 1 ); ?>">
+                                    Suivante
+                                </button>
+                            <?php endif; ?>
+                        </div>
+                    </form>
+                </div>
             </div>
+
+            <!-- Colonne droite : suivi de l'épreuve -->
+            <aside class="npq-col-suivi">
+
+                <!-- Emplacement du chronomètre (rempli à l'étape suivante) -->
+                <div class="npq-chrono-box" id="npq-chrono-box"></div>
+
+                <!-- Progression -->
+                <div class="npq-suivi-box">
+                    <div class="npq-suivi-titre">Progression</div>
+                    <div class="npq-suivi-ligne">
+                        <span class="npq-suivi-lbl">Répondues</span>
+                        <span class="npq-suivi-val" id="npq-nb-repondues"><?php echo (int) $nb_repondues; ?> / <?php echo (int) $total; ?></span>
+                    </div>
+                    <div class="npq-suivi-ligne">
+                        <span class="npq-suivi-lbl">À revoir</span>
+                        <span class="npq-suivi-val marquee" id="npq-nb-marquees"><?php echo (int) $nb_marquees; ?></span>
+                    </div>
+                    <div class="npq-barre-progression">
+                        <div class="npq-barre-remplie" id="npq-barre-remplie"
+                             style="width:<?php echo $total > 0 ? (int) round( $nb_repondues * 100 / $total ) : 0; ?>%"></div>
+                    </div>
+                </div>
+
+                <!-- Vue d'ensemble : pastilles cliquables -->
+                <div class="npq-suivi-box">
+                    <div class="npq-suivi-titre">Questions</div>
+                    <div class="npq-apercu" id="npq-apercu">
+                        <?php foreach ( $apercu as $i => $etat ) :
+                            $classes = 'npq-pastille';
+                            if ( $i === (int) $position )       { $classes .= ' courante'; }
+                            if ( ! empty( $etat['repondue'] ) ) { $classes .= ' repondue'; }
+                            if ( ! empty( $etat['marquee'] ) )  { $classes .= ' marquee'; }
+                        ?>
+                            <button type="button" class="<?php echo esc_attr( $classes ); ?>"
+                                    data-pos="<?php echo (int) $i; ?>"
+                                    title="Question <?php echo ( $i + 1 ); ?><?php echo ! empty( $etat['marquee'] ) ? ' (à revoir)' : ''; ?>">
+                                <?php echo ( $i + 1 ); ?>
+                            </button>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
+                <!-- Terminer -->
+                <button type="button" class="npq-btn npq-btn-terminer" data-dest="terminer">
+                    <?php echo ( $mode === 'revision' ) ? 'Terminer la révision' : "Terminer l'examen"; ?>
+                </button>
+            </aside>
         </div>
         <?php
         return ob_get_clean();
@@ -895,20 +981,23 @@ class NPQ_Examen {
         return $question;
     }
 
-    private static function scenario_de_tentative( $tentative_id ) {
-        global $wpdb;
-        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
-        $criteres = $wpdb->get_var( $wpdb->prepare(
-            "SELECT criteres FROM {$p}tentative WHERE id = %d",
-            $tentative_id
-        ) );
-        $data = json_decode( (string) $criteres, true );
-        if ( empty( $data['scenario'] ) ) {
+    /**
+     * Scénario d'une question donnée.
+     *
+     * Un examen mélange des questions de plusieurs scénarios : chaque question
+     * porte donc le sien. Sans lui, l'énoncé serait incompréhensible (il parle
+     * d'entreprises que le candidat ne connaîtrait pas).
+     */
+    private static function scenario_de_question( $scenario_id ) {
+        if ( ! $scenario_id ) {
             return null;
         }
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
         return $wpdb->get_row( $wpdb->prepare(
-            "SELECT id, nom, contexte FROM {$p}scenario WHERE id = %d",
-            (int) $data['scenario']
+            "SELECT id, nom, resume, contexte FROM {$p}scenario WHERE id = %d",
+            (int) $scenario_id
         ), ARRAY_A );
     }
 

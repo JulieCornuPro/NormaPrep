@@ -21,6 +21,8 @@
   --ease:cubic-bezier(0.16,1,0.3,1);
   --sidebar-w:264px;
   --sidebar-w-collapsed:76px;
+  /* Hauteur de l'en-tête fixe du thème (.site-header). */
+  --npq-header-h:64px;
 
   background:var(--bg); color:var(--text);
   font-family:'Rajdhani',sans-serif;
@@ -41,7 +43,21 @@
   background:var(--surface); border-right:1px solid var(--border);
   display:flex; flex-direction:column;
   transition:width .3s var(--ease);
+  /* Collante : le menu (et son bouton de repli) restent visibles quand on fait
+     défiler une page longue. Sans cela, le bouton se retrouve tout en bas.
+
+     L'en-tête du thème est fixe et fait 64px : la barre se cale juste dessous
+     (top:64px) et ne fait que la hauteur restante (100vh - 64px). Sans cette
+     soustraction, son bas — donc le bouton de repli — dépasserait sous l'écran. */
+  position:sticky;
+  top:var(--npq-header-h);
+  height:calc(100vh - var(--npq-header-h));
+  align-self:flex-start;
 }
+/* La zone de navigation défile si les entrées dépassent, mais le bloc du bas
+   (bouton de repli) reste collé en bas de la barre. */
+.npq-app .side-nav{ overflow-y:auto; }
+.npq-app .side-bottom{ margin-top:auto; }
 .npq-app .shell.collapsed .sidebar{ width:var(--sidebar-w-collapsed); }
 .npq-app .side-user{ display:flex; align-items:center; gap:14px; padding:24px 22px; border-bottom:1px solid var(--border); }
 .npq-app .side-user .avatar{
@@ -99,7 +115,13 @@
 
 @media (max-width:880px){
   .npq-app .shell{ flex-direction:column; }
-  .npq-app .sidebar{ width:100%; border-right:none; border-bottom:1px solid var(--border); }
+  .npq-app .sidebar{
+    width:100%; border-right:none; border-bottom:1px solid var(--border);
+    /* En mobile la barre passe au-dessus du contenu : le collant et la hauteur
+       d'écran n'ont plus lieu d'être (ils occuperaient tout l'écran). */
+    position:static;
+    height:auto;
+  }
 }
 
 /* ============ MAIN ============ */
@@ -654,3 +676,262 @@
 .npq-app .npq-act-vide .npq-btn:hover{
   transform:translateY(-2px); box-shadow:0 10px 24px rgba(0,207,207,0.25);
 }
+
+/* ---- Points faibles : barres par domaine ---- */
+.npq-app .npq-barres-cadre{
+  background:var(--surface); border:1px solid var(--border);
+  border-left:3px solid var(--teal);
+  padding:22px 28px 14px; margin-bottom:20px;
+}
+
+/* Légende détaillée sous les barres */
+.npq-app .npq-legende-domaines{
+  display:flex; flex-direction:column; gap:2px; margin-bottom:24px;
+}
+.npq-app .npq-legende-ligne{
+  display:flex; align-items:center; gap:14px;
+  padding:10px 16px; border-bottom:1px solid var(--border);
+  font-size:15px; color:var(--text-lo);
+}
+.npq-app .npq-legende-ligne:last-child{ border-bottom:none; }
+.npq-app .npq-legende-ligne.faible{ color:var(--text); }
+.npq-app .npq-leg-code{
+  font-family:'Inconsolata',monospace; font-size:12px; font-weight:700;
+  letter-spacing:0.08em; color:var(--muted);
+  min-width:32px;
+}
+.npq-app .npq-legende-ligne.faible .npq-leg-code{ color:var(--orange); }
+.npq-app .npq-leg-nom{ flex:1; }
+.npq-app .npq-leg-taux{
+  font-family:'Inconsolata',monospace; font-size:15px; font-weight:700;
+  color:var(--teal); min-width:56px; text-align:right;
+}
+.npq-app .npq-legende-ligne.faible .npq-leg-taux{ color:var(--orange); }
+.npq-app .npq-leg-nb{
+  font-family:'Inconsolata',monospace; font-size:12px;
+  color:var(--muted); min-width:48px; text-align:right;
+}
+
+/* Conseil : le domaine le plus fragile, avec une action */
+.npq-app .npq-conseil{
+  display:flex; align-items:center; gap:24px; flex-wrap:wrap;
+  background:rgba(255,122,80,0.06); border:1px solid var(--border);
+  border-left:3px solid var(--orange);
+  padding:22px 26px;
+}
+.npq-app .npq-conseil p{
+  flex:1; min-width:280px; margin:0;
+  color:var(--text-lo); font-size:16px; line-height:1.5;
+}
+.npq-app .npq-conseil strong{ color:var(--text); }
+.npq-app .npq-conseil .npq-btn{
+  flex-shrink:0;
+  font-family:'Inconsolata',monospace; font-size:14px; font-weight:700;
+  letter-spacing:0.08em; text-transform:uppercase;
+  padding:14px 28px; border:none; border-radius:0;
+  background:var(--teal); color:#06251f !important;
+  transition:transform .2s var(--ease), box-shadow .2s var(--ease);
+}
+.npq-app .npq-conseil .npq-btn:hover{
+  transform:translateY(-2px); box-shadow:0 10px 24px rgba(0,207,207,0.25);
+}
+
+/* ---- Volume de travail : compteurs animés ---- */
+.npq-app .npq-volume-grille{
+  display:grid; grid-template-columns:repeat(4,1fr); gap:18px;
+}
+@media (max-width:980px){
+  .npq-app .npq-volume-grille{ grid-template-columns:repeat(2,1fr); }
+}
+@media (max-width:560px){
+  .npq-app .npq-volume-grille{ grid-template-columns:1fr; }
+}
+.npq-app .npq-compteur{
+  background:var(--surface); border:1px solid var(--border);
+  border-left:3px solid var(--teal);
+  padding:24px 26px;
+}
+/* Le composant counter du thème produit une valeur très grande : on la calme,
+   pour rester cohérent avec les autres chiffres de la page. */
+.npq-app .npq-compteur .counter-value,
+.npq-app .npq-compteur [class*="value"]{
+  font-size:38px !important;
+}
+
+/* ============ ÉCRAN D'ACCUEIL DE L'EXAMEN ============ */
+.npq-app .npq-examen-accueil{ max-width:760px; }
+.npq-app .npq-examen-accueil h2{
+  font-family:'Rajdhani',sans-serif; font-weight:700; font-size:30px;
+  text-transform:uppercase; color:#fff; margin-bottom:10px;
+}
+.npq-app .npq-exam-intro{
+  color:var(--text-lo); font-size:16px; line-height:1.55; margin-bottom:34px;
+}
+
+/* Les conditions en chiffres */
+.npq-app .npq-exam-conditions{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:36px;
+}
+@media (max-width:640px){
+  .npq-app .npq-exam-conditions{ grid-template-columns:1fr; }
+}
+.npq-app .npq-exam-cond{
+  background:var(--surface); border:1px solid var(--border);
+  border-left:3px solid var(--teal);
+  padding:22px 24px; text-align:center;
+}
+.npq-app .npq-cond-val{
+  display:block;
+  font-family:'Rajdhani',sans-serif; font-weight:700; font-size:38px;
+  color:#fff; line-height:1;
+}
+.npq-app .npq-cond-val .u{ font-size:20px; color:var(--teal); }
+.npq-app .npq-cond-lbl{
+  display:block; margin-top:8px;
+  font-family:'Inconsolata',monospace; font-size:12px; font-weight:700;
+  letter-spacing:0.1em; text-transform:uppercase; color:var(--text-lo);
+}
+
+/* Les règles : l'avertissement avant de se lancer */
+.npq-app .npq-exam-regles{
+  background:var(--surface); border:1px solid var(--border);
+  border-left:3px solid var(--orange);
+  padding:26px 30px; margin-bottom:34px;
+}
+.npq-app .npq-exam-regles h3{
+  font-family:'Rajdhani',sans-serif; font-weight:700; font-size:20px;
+  text-transform:uppercase; color:var(--orange); margin:0 0 18px;
+}
+.npq-app .npq-exam-regles ul{
+  list-style:none; margin:0; padding:0;
+  display:flex; flex-direction:column; gap:14px;
+}
+.npq-app .npq-exam-regles li{
+  position:relative; padding-left:22px;
+  color:var(--text-lo); font-size:15px; line-height:1.6;
+}
+.npq-app .npq-exam-regles li::before{
+  content:''; position:absolute; left:0; top:9px;
+  width:6px; height:6px; background:var(--orange);
+}
+.npq-app .npq-exam-regles strong{ color:var(--text); }
+
+/* Bouton de lancement */
+.npq-app .npq-exam-lancer .npq-btn{
+  font-family:'Inconsolata',monospace; font-size:15px; font-weight:700;
+  letter-spacing:0.1em; text-transform:uppercase;
+  padding:18px 42px; border:none; border-radius:0; cursor:pointer;
+  background:var(--teal); color:#06251f !important;
+  transition:transform .2s var(--ease), box-shadow .2s var(--ease);
+}
+.npq-app .npq-exam-lancer .npq-btn:hover{
+  transform:translateY(-2px); box-shadow:0 12px 30px rgba(0,207,207,0.3);
+}
+
+/* ============ EXAMEN : DEUX COLONNES ============ */
+.npq-app .npq-examen-deux-col{
+  display:grid; grid-template-columns:1fr 300px; gap:24px;
+  align-items:start; max-width:none;
+}
+@media (max-width:1100px){
+  .npq-app .npq-examen-deux-col{ grid-template-columns:1fr; }
+}
+.npq-app .npq-col-principale{ min-width:0; }
+
+/* Colonne de suivi : collante, reste visible quand on fait défiler.
+   Le décalage vertical (top) ne doit PAS créer d'écart au chargement : la
+   colonne s'aligne en haut avec le bloc scénario de la colonne principale. */
+.npq-app .npq-col-suivi{
+  display:flex; flex-direction:column; gap:14px;
+  position:sticky; top:var(--npq-header-h);
+  margin-top:0;
+}
+@media (max-width:1100px){
+  .npq-app .npq-col-suivi{ position:static; }
+}
+
+/* ---- Scénario repliable ---- */
+.npq-app .npq-scenario-box{
+  background:var(--surface); border:1px solid var(--border);
+  border-left:3px solid var(--teal);
+  /* Padding vertical identique au panneau de suivi (18px) : les deux colonnes
+     s'alignent alors exactement en haut. */
+  padding:18px 20px; margin-bottom:20px;
+}
+.npq-app .npq-scen-titre{
+  font-family:'Inconsolata',monospace; font-size:11px;
+  letter-spacing:0.18em; text-transform:uppercase; color:var(--teal);
+  line-height:1.5;
+}
+.npq-app .npq-scen-corps{
+  display:none;
+  font-size:14px; color:var(--text-lo); line-height:1.7;
+  margin-top:12px; padding-top:12px; border-top:1px solid var(--border);
+}
+.npq-app .npq-scen-corps.ouvert{ display:block; }
+.npq-app .npq-scen-bascule{
+  display:inline-block; margin-top:8px;
+  font-family:'Inconsolata',monospace; font-size:11px;
+  letter-spacing:0.1em; color:var(--teal); cursor:pointer; opacity:0.75;
+  transition:opacity .15s var(--ease);
+}
+.npq-app .npq-scen-bascule:hover{ opacity:1; }
+
+/* Emplacement du chronomètre : tant qu'il est vide (avant l'étape chrono), il
+   ne doit pas occuper de place — sinon le gap de la colonne crée un décalage
+   fantôme en haut, et la colonne ne s'aligne plus avec le bloc scénario. */
+.npq-app .npq-chrono-box:empty{ display:none; }
+
+/* ---- Panneau de suivi (colonne droite) ---- */
+.npq-app .npq-suivi-box{
+  background:var(--surface); border:1px solid var(--border);
+  padding:18px 20px;
+}
+.npq-app .npq-suivi-titre{
+  font-family:'Inconsolata',monospace; font-size:11px; font-weight:700;
+  letter-spacing:0.14em; text-transform:uppercase; color:var(--muted);
+  margin-bottom:14px;
+}
+.npq-app .npq-suivi-ligne{
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:10px; font-size:14px; color:var(--text-lo);
+}
+.npq-app .npq-suivi-val{
+  font-family:'Inconsolata',monospace; font-weight:700; color:var(--text);
+}
+.npq-app .npq-suivi-val.marquee{ color:var(--orange); }
+
+/* Barre de progression */
+.npq-app .npq-barre-progression{
+  height:6px; background:var(--bg-2); margin-top:14px; overflow:hidden;
+}
+.npq-app .npq-barre-remplie{
+  height:100%; background:var(--teal); transition:width .3s var(--ease);
+}
+
+/* Les pastilles dans la colonne : plus compactes */
+.npq-app .npq-col-suivi .npq-apercu{
+  display:flex; flex-wrap:wrap; gap:5px;
+  padding:0; margin:0; background:transparent; border:none;
+  max-height:280px; overflow-y:auto;
+}
+.npq-app .npq-col-suivi .npq-pastille{
+  width:28px; height:28px; font-size:11px;
+}
+
+/* Bouton Terminer dans la colonne */
+.npq-app .npq-col-suivi .npq-btn-terminer{
+  width:100%; margin:0;
+  font-family:'Inconsolata',monospace; font-size:13px; font-weight:700;
+  letter-spacing:0.08em; text-transform:uppercase;
+  padding:15px 20px; cursor:pointer;
+  background:transparent !important; color:var(--text-lo) !important;
+  border:1px solid var(--border) !important; border-radius:0;
+  transition:border-color .2s var(--ease), color .2s var(--ease);
+}
+.npq-app .npq-col-suivi .npq-btn-terminer:hover{
+  border-color:var(--green) !important; color:var(--green) !important;
+}
+
+/* La navigation ne contient plus que Précédente/Suivante */
+.npq-app .npq-nav{ justify-content:flex-start; }
