@@ -40,6 +40,12 @@
 
     brancher();
 
+    // Chronomètre : valeur initiale fournie par le serveur dans l'attribut data.
+    var boxChrono = document.getElementById('npq-chrono-box');
+    if (boxChrono && boxChrono.hasAttribute('data-restant')) {
+        demarrerChrono(boxChrono.getAttribute('data-restant'));
+    }
+
     /** (Re)branche les écouteurs sur le contenu courant. */
     function brancher() {
         // Boutons de navigation (précédent / suivant / terminer).
@@ -121,6 +127,10 @@
                     return;
                 }
                 if (rep.data.termine) {
+                    if (window.__npqChronoTimer) {
+                        clearInterval(window.__npqChronoTimer);
+                        window.__npqChronoTimer = null;
+                    }
                     window.location.href = rep.data.url_resultat;
                     return;
                 }
@@ -225,6 +235,11 @@
         }
         if (!dernier) {
             navHtml += '<button type="submit" class="npq-btn" data-dest="' + (d.position + 1) + '">Suivante</button>';
+        } else {
+            // Dernière question : un bouton explicite, dans le flux de lecture.
+            // Sans lui, le candidat doit deviner qu'il faut chercher « Terminer »
+            // dans la colonne de droite — mauvaise accessibilité.
+            navHtml += '<button type="submit" class="npq-btn npq-btn-fin" data-dest="terminer">Terminer et voir mon résultat</button>';
         }
 
         var html =
@@ -251,10 +266,21 @@
         majApercu(d.apercu, d.position);
         majProgression(d.apercu, d.total);
 
+        // Resynchronise le chronomètre sur la valeur du serveur.
+        if (d.restant !== null && d.restant !== undefined) {
+            demarrerChrono(d.restant);
+        }
+
         brancher();
         zone.style.opacity = '1';
         zone.style.pointerEvents = 'auto';
-        zone.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        // On remonte en haut de la zone d'examen SEULEMENT si elle n'est plus
+        // visible. Un scrollIntoView systématique masquait le scénario.
+        var haut = zone.getBoundingClientRect().top;
+        if (haut < 0) {
+            window.scrollBy({ top: haut - 20, behavior: 'smooth' });
+        }
     }
 
     /**
@@ -320,6 +346,147 @@
             html += '<button type="button" class="' + classes + '" data-pos="' + i + '" title="' + titre + '">' + (i + 1) + '</button>';
         });
         conteneur.innerHTML = html;
+    }
+
+
+    /* ================= CHRONOMÈTRE ================= */
+
+    /**
+     * Le chronomètre stocke son heure de fin DANS LE DOM, pas dans une variable
+     * de module.
+     *
+     * Pourquoi : si le script se retrouve évalué en double (deux fermetures en
+     * mémoire), chaque copie a ses propres variables. L'intervalle d'une copie
+     * lirait alors une variable vide et n'afficherait rien — c'est exactement le
+     * bug observé (« tick ignoré : chronoFinMs null », 25 fois).
+     *
+     * En stockant l'heure de fin sur l'élément lui-même, toutes les copies lisent
+     * la même valeur au même endroit. Le problème devient structurellement
+     * impossible, quelle que soit la façon dont le script est chargé.
+     */
+
+    /**
+     * (Re)synchronise le chronomètre sur la valeur du serveur.
+     *
+     * NB : on écrit l'identifiant en dur plutôt que d'utiliser une constante de
+     * module. Une variable déclarée avec `var` plus bas dans le fichier vaut
+     * `undefined` au moment où l'initialisation (en haut) appelle cette fonction :
+     * getElementById(undefined) renvoie null, et le chronomètre ne démarrait
+     * jamais sur la première question. Piège classique du hoisting.
+     *
+     * @param {number} secondes Secondes restantes, selon le serveur.
+     */
+    function demarrerChrono(secondes) {
+        var box = document.getElementById('npq-chrono-box');
+        if (!box) {
+            return; // pas de chronomètre sur cette page (révision)
+        }
+
+        if (secondes === null || secondes === undefined || secondes === '') {
+            return;
+        }
+
+        var valeur = parseInt(secondes, 10);
+        if (isNaN(valeur) || valeur <= 0) {
+            return;
+        }
+
+        // L'heure de fin vit DANS LE DOM : partagée par toutes les copies du script.
+        box.dataset.finMs = String(Date.now() + (valeur * 1000));
+
+        // Un seul intervalle global, mémorisé lui aussi hors du module.
+        if (window.__npqChronoTimer) {
+            clearInterval(window.__npqChronoTimer);
+        }
+
+        tickChrono();
+        window.__npqChronoTimer = setInterval(tickChrono, 1000);
+    }
+
+    /** Un battement : on recalcule le restant depuis l'heure de fin (lue dans le DOM). */
+    function tickChrono() {
+        var box = document.getElementById('npq-chrono-box');
+        if (!box || !box.dataset.finMs) {
+            return;
+        }
+
+        var finMs = parseInt(box.dataset.finMs, 10);
+        if (isNaN(finMs)) {
+            return;
+        }
+
+        var restant = Math.round((finMs - Date.now()) / 1000);
+        if (restant < 0) {
+            restant = 0;
+        }
+
+        afficherChrono(box, restant);
+
+        if (restant <= 0) {
+            if (window.__npqChronoTimer) {
+                clearInterval(window.__npqChronoTimer);
+                window.__npqChronoTimer = null;
+            }
+            expirer();
+        }
+    }
+
+    /**
+     * Affiche le temps restant.
+     *
+     * On REMPLACE le nœud plutôt que de modifier son textContent : dans certains
+     * contextes de composition (colonnes collantes, couches GPU), une simple
+     * écriture de texte ne déclenche pas toujours le repaint — le DOM est à jour
+     * mais l'écran reste figé. Remplacer le nœud force le navigateur à repeindre.
+     */
+    function afficherChrono(box, restant) {
+        var ancien = document.getElementById('npq-chrono-val');
+        if (!ancien) { return; }
+
+        var h = Math.floor(restant / 3600);
+        var m = Math.floor((restant % 3600) / 60);
+        var s = restant % 60;
+        var texte = deuxChiffres(h) + ':' + deuxChiffres(m) + ':' + deuxChiffres(s);
+
+        // Nœud neuf : le repaint est garanti.
+        var nouveau = document.createElement('div');
+        nouveau.className = 'npq-chrono-val';
+        nouveau.id = 'npq-chrono-val';
+        nouveau.textContent = texte;
+
+        ancien.parentNode.replaceChild(nouveau, ancien);
+
+        // Alerte : orange sous 15 minutes, rouge pulsant sous 5 minutes.
+        box.classList.toggle('alerte', restant <= 900 && restant > 300);
+        box.classList.toggle('critique', restant <= 300);
+    }
+
+    /** Temps écoulé : on remet la copie automatiquement. */
+    function expirer() {
+        // Le drapeau vit aussi hors du module : une seule soumission, quoi qu'il arrive.
+        if (window.__npqChronoFini) { return; }
+        window.__npqChronoFini = true;
+
+        var box = document.getElementById('npq-chrono-box');
+        if (box) {
+            box.classList.add('critique');
+        }
+
+        afficherMessageFin();
+        aller('terminer');
+    }
+
+    /** Message de fin, affiché dans la page (non bloquant). */
+    function afficherMessageFin() {
+        if (document.querySelector('.npq-banniere-fin')) { return; }
+        var banniere = document.createElement('div');
+        banniere.className = 'npq-banniere-fin';
+        banniere.textContent = 'Le temps imparti est écoulé. Votre copie est remise automatiquement.';
+        zone.insertBefore(banniere, zone.firstChild);
+    }
+
+    function deuxChiffres(n) {
+        return (n < 10 ? '0' : '') + n;
     }
 
     function echapper(texte) {

@@ -112,6 +112,11 @@ class NPQ_Examen {
             wp_send_json_error( [ 'message' => 'Examen introuvable.' ], 404 );
         }
 
+        // Examen déjà clos : on ne le rouvre pas.
+        if ( self::est_terminee( $tentative_id ) ) {
+            wp_send_json_error( [ 'message' => 'Cet examen est déjà terminé.' ], 409 );
+        }
+
         $total = self::nombre_questions( $tentative_id );
         $mode  = self::mode_tentative( $tentative_id );
 
@@ -121,7 +126,22 @@ class NPQ_Examen {
             self::enregistrer_brouillon( $tentative_id, (int) $question_courante['id'], $options, $marquee );
         }
 
-        // Fin de l'examen demandée : on corrige et on renvoie l'URL du résultat.
+        // TEMPS ÉCOULÉ : le serveur fait foi. On corrige d'office, quelle que soit
+        // la demande du navigateur. Les questions sans réponse comptent fausses.
+        if ( self::temps_ecoule( $tentative_id ) ) {
+            $brouillon = self::lire_brouillon( $tentative_id );
+            NPQ_Correcteur::corriger_tentative( $tentative_id, $brouillon['reponses'] );
+            self::effacer_brouillon( $tentative_id );
+
+            $url = self::url_deroule( $tentative_id );
+            wp_send_json_success( [
+                'termine'      => true,
+                'expire'       => true,
+                'url_resultat' => add_query_arg( [ 't' => $tentative_id, 'resultat' => 1 ], $url ),
+            ] );
+        }
+
+        // Fin de l'examen demandée par le candidat : on corrige.
         if ( $destination === 'terminer' ) {
             $brouillon = self::lire_brouillon( $tentative_id );
             NPQ_Correcteur::corriger_tentative( $tentative_id, $brouillon['reponses'] );
@@ -251,6 +271,9 @@ class NPQ_Examen {
                 'resume'   => (string) $scenario['resume'],
                 'contexte' => (string) $scenario['contexte'],
             ] : null,
+            // Temps restant (null si non chronométré). Renvoyé à chaque étape :
+            // le compte à rebours du navigateur se resynchronise sur le serveur.
+            'restant'  => self::temps_restant( $tentative_id ),
             // Vue d'ensemble : état de chaque question (répondue / marquée).
             'apercu'   => self::apercu_questions( $tentative_id ),
         ];
@@ -396,7 +419,12 @@ class NPQ_Examen {
 
         // L'heure de fin est calculée dès le départ : c'est elle qui fait foi.
         // Même si le candidat ferme son navigateur, le temps continue de courir.
-        $debut = current_time( 'timestamp' );
+        //
+        // On utilise time() (UTC absolu), PAS current_time('timestamp') : cette
+        // dernière applique un décalage de fuseau horaire, ce qui fausse un
+        // chronomètre (un décalage de +3h le ferait expirer instantanément).
+        // Un compteur de secondes ne doit dépendre d'aucun fuseau.
+        $debut = time();
         $fin   = $debut + ( self::DUREE_MINUTES * 60 );
 
         $wpdb->insert( "{$p}tentative", [
@@ -516,10 +544,21 @@ class NPQ_Examen {
         if ( ! $tentative_id ) {
             return self::ecran_choix();
         }
+
+        // Sécurité : la tentative doit appartenir à l'utilisateur connecté.
+        // (Empêche d'accéder à l'examen d'un autre en changeant l'id dans l'URL.)
         if ( ! self::tentative_appartient( $tentative_id ) ) {
-            return '<p>Examen introuvable.</p>';
+            return '<p class="empty">Examen introuvable.</p>';
         }
+
         if ( $resultat ) {
+            return self::ecran_resultat( $tentative_id );
+        }
+
+        // Un examen TERMINÉ ne se rouvre pas : on renvoie vers son résultat.
+        // (Sinon, le bouton « retour » du navigateur relançait le déroulé d'un
+        //  examen déjà corrigé.)
+        if ( self::est_terminee( $tentative_id ) ) {
             return self::ecran_resultat( $tentative_id );
         }
 
@@ -707,6 +746,13 @@ class NPQ_Examen {
                                         data-dest="<?php echo (int) ( $position + 1 ); ?>">
                                     Suivante
                                 </button>
+                            <?php else : ?>
+                                <!-- Dernière question : bouton explicite dans le flux. -->
+                                <button type="submit" class="npq-btn npq-btn-fin"
+                                        name="npq_destination_btn" value="terminer"
+                                        data-dest="terminer">
+                                    Terminer et voir mon résultat
+                                </button>
                             <?php endif; ?>
                         </div>
                     </form>
@@ -716,8 +762,27 @@ class NPQ_Examen {
             <!-- Colonne droite : suivi de l'épreuve -->
             <aside class="npq-col-suivi">
 
-                <!-- Emplacement du chronomètre (rempli à l'étape suivante) -->
-                <div class="npq-chrono-box" id="npq-chrono-box"></div>
+                <?php
+                $restant = self::temps_restant( $tentative_id );
+                if ( $restant !== null ) :
+                ?>
+                    <!-- Chronomètre. Le serveur fait foi : cette valeur est
+                         resynchronisée à chaque étape. -->
+                    <div class="npq-chrono-box" id="npq-chrono-box"
+                         data-restant="<?php echo (int) $restant; ?>">
+                        <div class="npq-chrono-lbl">Temps restant</div>
+                        <div class="npq-chrono-val" id="npq-chrono-val">
+                            <?php
+                            $h = floor( $restant / 3600 );
+                            $m = floor( ( $restant % 3600 ) / 60 );
+                            $s = $restant % 60;
+                            printf( '%02d:%02d:%02d', $h, $m, $s );
+                            ?>
+                        </div>
+                    </div>
+                <?php else : ?>
+                    <div class="npq-chrono-box" id="npq-chrono-box"></div>
+                <?php endif; ?>
 
                 <!-- Progression -->
                 <div class="npq-suivi-box">
@@ -909,6 +974,86 @@ class NPQ_Examen {
         }
 
         return $page_id ? get_permalink( $page_id ) : home_url( '/' );
+    }
+
+    /**
+     * Temps restant d'une tentative chronométrée, en secondes.
+     *
+     * C'est LE SERVEUR qui fait foi, jamais le navigateur : l'heure de fin est
+     * enregistrée en base au démarrage. Trafiquer l'horloge du navigateur ou le
+     * JavaScript ne donne pas une seconde de plus.
+     *
+     * @return int|null Secondes restantes, 0 si expiré, null si non chronométré.
+     */
+    private static function temps_restant( $tentative_id ) {
+        $criteres = self::criteres( $tentative_id );
+
+        if ( empty( $criteres['duree'] ) ) {
+            return null; // pas de chronomètre (révision)
+        }
+
+        // On recalcule depuis la DATE DE DÉBUT en base, qui est la source fiable.
+        // (Le champ expire_le des anciennes tentatives a pu être faussé par un
+        //  décalage de fuseau horaire ; on ne s'y fie plus.)
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $date_debut = $wpdb->get_var( $wpdb->prepare(
+            "SELECT date_debut FROM {$p}tentative WHERE id = %d",
+            $tentative_id
+        ) );
+
+        if ( ! $date_debut ) {
+            return null;
+        }
+
+        // get_gmt_from_date convertit la date locale WordPress en UTC, puis
+        // strtotime la ramène en secondes. Même référence des deux côtés.
+        $debut_ts = strtotime( get_gmt_from_date( $date_debut ) . ' UTC' );
+        if ( ! $debut_ts ) {
+            return null;
+        }
+
+        $duree_s = (int) $criteres['duree'] * 60;
+        $restant = ( $debut_ts + $duree_s ) - time();
+
+        return max( 0, $restant );
+    }
+
+    /** La tentative est-elle chronométrée et son temps est-il écoulé ? */
+    private static function temps_ecoule( $tentative_id ) {
+        $restant = self::temps_restant( $tentative_id );
+        return ( $restant !== null && $restant <= 0 );
+    }
+
+    /** Critères de la tentative (JSON décodé). */
+    private static function criteres( $tentative_id ) {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $brut = $wpdb->get_var( $wpdb->prepare(
+            "SELECT criteres FROM {$p}tentative WHERE id = %d",
+            $tentative_id
+        ) );
+
+        $data = json_decode( (string) $brut, true );
+        return is_array( $data ) ? $data : [];
+    }
+
+    /**
+     * La tentative est-elle déjà terminée (corrigée) ?
+     * Sert à ne pas rouvrir un examen clos.
+     */
+    private static function est_terminee( $tentative_id ) {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $fin = $wpdb->get_var( $wpdb->prepare(
+            "SELECT date_fin FROM {$p}tentative WHERE id = %d",
+            $tentative_id
+        ) );
+
+        return ! empty( $fin );
     }
 
     /** Mode de la tentative : 'examen' (simulation) ou 'revision' (entraînement). */

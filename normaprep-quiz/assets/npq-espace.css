@@ -935,3 +935,61 @@
 
 /* La navigation ne contient plus que Précédente/Suivante */
 .npq-app .npq-nav{ justify-content:flex-start; }
+
+/* ---- Chronomètre ---- */
+.npq-app .npq-chrono-box{
+  background:var(--surface); border:1px solid var(--border);
+  border-left:3px solid var(--teal);
+  padding:18px 20px; text-align:center;
+  transition:border-color .3s var(--ease), background .3s var(--ease);
+}
+.npq-app .npq-chrono-lbl{
+  font-family:'Inconsolata',monospace; font-size:11px; font-weight:700;
+  letter-spacing:0.14em; text-transform:uppercase; color:var(--muted);
+  margin-bottom:8px;
+}
+.npq-app .npq-chrono-val{
+  font-family:'Inconsolata',monospace; font-size:30px; font-weight:700;
+  letter-spacing:0.04em; color:var(--teal); line-height:1;
+  font-variant-numeric:tabular-nums;
+}
+
+/* Alerte : sous 15 minutes */
+.npq-app .npq-chrono-box.alerte{
+  border-left-color:var(--orange);
+  background:rgba(255,122,80,0.06);
+}
+.npq-app .npq-chrono-box.alerte .npq-chrono-val{ color:var(--orange); }
+
+/* Critique : sous 5 minutes, le chiffre pulse */
+.npq-app .npq-chrono-box.critique{
+  border-left-color:#e5484d;
+  background:rgba(229,72,77,0.1);
+}
+.npq-app .npq-chrono-box.critique .npq-chrono-val{
+  color:#ff6b6b;
+  animation:npq-pulse-chrono 1s ease-in-out infinite;
+}
+@keyframes npq-pulse-chrono{
+  0%,100%{ opacity:1; }
+  50%{ opacity:0.45; }
+}
+
+/* Bannière de fin d'examen (remplace la popup bloquante) */
+.npq-app .npq-banniere-fin{
+  grid-column:1 / -1;
+  background:rgba(229,72,77,0.12); border:1px solid #e5484d;
+  border-left:3px solid #e5484d;
+  padding:16px 22px; margin-bottom:20px;
+  color:#ff8f8f; font-size:15px; font-weight:600;
+}
+
+/* Bouton de fin, à la dernière question (dans le flux de lecture) */
+.npq-app .npq-btn-fin{
+  background:var(--green) !important; color:#06251f !important;
+  border:none !important;
+}
+.npq-app .npq-btn-fin:hover{
+  transform:translateY(-2px);
+  box-shadow:0 10px 24px rgba(74,222,128,0.25) !important;
+}
