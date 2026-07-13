@@ -26,7 +26,13 @@ get_header();
     <?php echo NPQ_Espace::barre_laterale( 'examens' ); ?>
 
     <main class="main">
-      <?php echo do_shortcode( '[npq_examen]' ); ?>
+      <?php
+      // Sur mobile, le déroulé est masqué et ce message s'affiche à la place
+      // (voir npq-espace.css). Passer un examen demande un ordinateur.
+      echo NPQ_Espace::message_mobile( 'examen' );
+
+      echo do_shortcode( '[npq_examen]' );
+      ?>
     </main>
   </div>
 </div>

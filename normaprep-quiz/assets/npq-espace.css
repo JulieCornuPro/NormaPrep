@@ -122,6 +122,25 @@
     position:static;
     height:auto;
   }
+
+  /* La barre latérale ne doit pas repousser le contenu hors de l'écran :
+     on la rend COMPACTE — entrées en ligne, sans les libellés de groupe,
+     sans le bouton de repli (qui n'a aucun sens ici). */
+  .npq-app .side-user{ padding:16px 18px; }
+  .npq-app .side-nav{
+    flex-direction:row; flex-wrap:wrap; gap:6px;
+    padding:12px 14px; overflow-x:auto;
+  }
+  .npq-app .side-group-label{ display:none; }
+  .npq-app .side-divider{ display:none; }
+  .npq-app .side-bottom{ display:none; }
+  .npq-app .side-link{
+    padding:8px 12px; font-size:14px; white-space:nowrap;
+  }
+  .npq-app .side-link.active::before{ display:none; }
+  /* Les entrées « à venir » n'encombrent pas l'écran mobile. */
+  .npq-app .side-link.soon{ display:none; }
+  .npq-app .side-link .badge{ display:none; }
 }
 
 /* ============ MAIN ============ */
@@ -1045,4 +1064,72 @@
 .npq-app .npq-table-note{
   font-family:'Inconsolata',monospace; font-size:12px;
   color:var(--muted); letter-spacing:0.04em; margin-top:-32px; margin-bottom:40px;
+}
+
+/* ============ MOBILE : EXAMEN ET RÉVISIONS INDISPONIBLES ============
+
+   Personne ne passe un examen de 80 questions en 3 heures sur un téléphone.
+   Plutôt que d'optimiser pour un usage qui n'existe pas — et de laisser
+   l'utilisateur peiner sur une interface inadaptée — on l'invite clairement
+   à passer sur ordinateur.
+
+   Le tableau de bord et l'activité restent consultables : jeter un œil à sa
+   progression dans les transports est un usage légitime. Travailler, non. */
+
+.npq-mobile-requis {
+    display: none;
+}
+
+@media (max-width: 900px) {
+    /* On masque le déroulé (examen ou révision)… */
+    .npq-app .npq-examen,
+    .npq-app .npq-examen-accueil,
+    .npq-app .npq-examen-choix,
+    .npq-app .npq-revision,
+    .npq-app .npq-resultat {
+        display: none !important;
+    }
+
+    /* … et on affiche le message à la place. */
+    .npq-mobile-requis {
+        display: block;
+        background: var(--surface, #111827);
+        border: 1px solid var(--border, #1F2A3D);
+        border-left: 3px solid var(--teal, #00CFCF);
+        padding: 32px 28px;
+        max-width: 560px;
+    }
+
+    .npq-mobile-requis h2 {
+        font-family: 'Rajdhani', sans-serif;
+        font-weight: 700;
+        font-size: 24px;
+        text-transform: uppercase;
+        color: #fff;
+        margin: 0 0 16px;
+    }
+
+    .npq-mobile-requis p {
+        color: var(--text-lo, #8B98B3);
+        font-size: 16px;
+        line-height: 1.6;
+        margin: 0 0 14px;
+    }
+
+    .npq-mobile-requis p:last-of-type {
+        margin-bottom: 24px;
+    }
+
+    .npq-mobile-requis .npq-btn {
+        display: inline-block;
+        font-family: 'Inconsolata', monospace;
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 14px 28px;
+        background: var(--teal, #00CFCF);
+        color: #06251f !important;
+        text-decoration: none;
+    }
 }

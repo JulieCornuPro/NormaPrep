@@ -37,6 +37,48 @@ class NPQ_Espace {
         add_action( 'admin_init', [ __CLASS__, 'bloquer_acces_admin' ] );
     }
 
+    /**
+     * Message affiché sur mobile à la place de l'examen ou des révisions.
+     *
+     * Personne ne passe un examen de 80 questions en 3 heures sur un téléphone.
+     * Plutôt que d'optimiser pour un usage qui n'existe pas, on l'invite à passer
+     * sur ordinateur — c'est plus honnête que de le laisser peiner.
+     *
+     * (Le CSS ne l'affiche que sous 900px ; au-dessus, il est masqué.)
+     *
+     * @param string $quoi 'examen' ou 'révision', pour adapter le texte.
+     * @return string HTML du message.
+     */
+    public static function message_mobile( $quoi = 'examen' ) {
+        $page_espace = get_option( self::OPT_PAGE_ESPACE );
+        $url_espace  = $page_espace ? get_permalink( $page_espace ) : home_url( '/' );
+
+        $article = ( $quoi === 'révision' ) ? 'une révision' : 'un examen';
+
+        ob_start();
+        ?>
+        <div class="npq-mobile-requis">
+            <h2>Un ordinateur est nécessaire</h2>
+            <p>
+                Passer <?php echo esc_html( $article ); ?> demande de la concentration,
+                de la lecture attentive et du temps. L'écran d'un téléphone n'est pas
+                adapté à cet exercice.
+            </p>
+            <p>
+                Retrouvez-nous sur ordinateur pour vous entraîner dans de bonnes conditions.
+            </p>
+            <p>
+                Vous pouvez en revanche consulter votre tableau de bord et votre
+                progression depuis votre mobile.
+            </p>
+            <a href="<?php echo esc_url( $url_espace ); ?>" class="npq-btn">
+                Retour à mon espace
+            </a>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
+
     /** Déclare le template dans la liste des modèles de page disponibles. */
     public static function declarer_template( $templates ) {
         $templates['npq-espace'] = 'Espace membre NormaPrep';
@@ -258,15 +300,24 @@ class NPQ_Espace {
      * Le thème n'a qu'à appeler NPQ_Espace::bloc_compte() dans son header.
      * Toute la logique reste ici, dans le plugin.
      *
+     * @param string $contexte 'header' (barre du haut, desktop) ou 'menu'
+     *                         (à l'intérieur du menu burger, mobile).
+     *                         Sur mobile, le thème masque la nav principale et
+     *                         l'ouvre en panneau : le bloc compte doit s'y trouver,
+     *                         sinon l'utilisateur ne peut plus se connecter.
      * @return string HTML du bloc.
      */
-    public static function bloc_compte() {
+    public static function bloc_compte( $contexte = 'header' ) {
+        $classe_contexte = ( $contexte === 'menu' )
+            ? 'npq-compte--menu'
+            : 'npq-compte--header';
+
         if ( is_user_logged_in() ) {
             $page_id    = get_option( self::OPT_PAGE_ESPACE );
             $url_espace = $page_id ? get_permalink( $page_id ) : home_url( '/' );
             $url_deco   = wp_logout_url( home_url( '/' ) );
 
-            return '<div class="npq-compte npq-compte--connecte">'
+            return '<div class="npq-compte npq-compte--connecte ' . $classe_contexte . '">'
                  . '<a href="' . esc_url( $url_espace ) . '" class="npq-compte-lien">Mon espace</a>'
                  . '<a href="' . esc_url( $url_deco ) . '" class="npq-compte-lien npq-compte-deco">Se déconnecter</a>'
                  . '</div>';
@@ -275,7 +326,7 @@ class NPQ_Espace {
         $page_connexion = get_option( NPQ_Auth::OPT_PAGE_CONNEXION );
         $url_connexion  = $page_connexion ? get_permalink( $page_connexion ) : home_url( '/' );
 
-        return '<div class="npq-compte npq-compte--visiteur">'
+        return '<div class="npq-compte npq-compte--visiteur ' . $classe_contexte . '">'
              . '<a href="' . esc_url( $url_connexion ) . '" class="npq-compte-lien">Connexion</a>'
              . '</div>';
     }

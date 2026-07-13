@@ -22,7 +22,12 @@ get_header();
     <?php echo NPQ_Espace::barre_laterale( 'revisions' ); ?>
 
     <main class="main">
-      <?php echo do_shortcode( '[npq_revision]' ); ?>
+      <?php
+      // Sur mobile, le déroulé est masqué et ce message s'affiche à la place.
+      echo NPQ_Espace::message_mobile( 'révision' );
+
+      echo do_shortcode( '[npq_revision]' );
+      ?>
     </main>
   </div>
 </div>

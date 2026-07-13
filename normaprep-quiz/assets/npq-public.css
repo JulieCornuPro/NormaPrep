@@ -123,3 +123,50 @@ a.npq-btn:hover {
     margin-bottom: 20px;
     line-height: 1.5;
 }
+
+/* ---- Bloc compte : version mobile (dans le menu burger) ----
+   Le thème masque la nav principale sous 768px et l'ouvre en panneau au clic
+   sur le burger. Le bloc compte de l'en-tête, lui, reste dehors — d'où le
+   chevauchement, et pire : sur mobile, l'utilisateur ne pouvait plus se
+   connecter ni se déconnecter.
+
+   On affiche donc DEUX versions du bloc, et on ne montre que la bonne :
+   - au-dessus de 768px : celle de l'en-tête ;
+   - en dessous : celle qui vit à l'intérieur du menu. */
+
+/* Par défaut (desktop) : la version « menu » est masquée. */
+.npq-compte--menu {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    /* Sous 768px, le bloc de l'en-tête disparaît (il chevauchait le burger)… */
+    .npq-compte--header {
+        display: none;
+    }
+
+    /* … et celui du menu prend le relais, à l'intérieur du panneau ouvert. */
+    .npq-compte--menu {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0;
+        margin: 0;
+        padding-top: 8px;
+    }
+
+    .npq-compte--menu .npq-compte-lien {
+        display: block;
+        width: 100%;
+        padding: 14px 0;
+        border-bottom: 1px solid var(--carto-border, #1A2840);
+        font-size: 12px;
+        letter-spacing: 0.14em;
+    }
+
+    /* La déconnexion se distingue : c'est une action, pas une navigation. */
+    .npq-compte--menu .npq-compte-deco {
+        color: #8B98B3;
+        border-bottom: none;
+    }
+}
