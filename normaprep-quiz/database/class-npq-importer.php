@@ -28,13 +28,20 @@ class NPQ_Importer {
     /**
      * Ajoute une entrée « NormaPrep » dans le menu d'administration.
      */
+    /**
+     * Crée le menu « NormaPrep » dans l'administration.
+     *
+     * Le CONTENU des pages est défini par NPQ_Admin (accueil, état du contenu,
+     * import). Ici on ne fait que déclarer le menu parent : la fonction de rendu
+     * passée est neutre, car NPQ_Admin redéfinit le premier sous-menu.
+     */
     public static function ajouter_page_admin() {
         add_menu_page(
-            'NormaPrep Quiz',            // titre de la page
+            'NormaPrep',                 // titre de la page
             'NormaPrep',                 // libellé du menu
             'manage_options',            // capacité requise (administrateur)
             'normaprep-quiz',            // identifiant de la page
-            [ __CLASS__, 'afficher_page' ],
+            '__return_null',             // rendu défini par NPQ_Admin
             'dashicons-welcome-learn-more',
             30
         );
@@ -304,7 +311,7 @@ class NPQ_Importer {
         wp_safe_redirect( add_query_arg(
             'npq_resultat',
             rawurlencode( $message ),
-            admin_url( 'admin.php?page=normaprep-quiz' )
+            admin_url( 'admin.php?page=normaprep-import' )
         ) );
         exit;
     }
