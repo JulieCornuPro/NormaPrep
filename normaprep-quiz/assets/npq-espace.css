@@ -1133,3 +1133,258 @@
         text-decoration: none;
     }
 }
+
+/* ============ FLASHCARDS ============ */
+.npq-app .npq-flashcards h2{
+  font-family:'Rajdhani',sans-serif; font-weight:700; font-size:30px;
+  text-transform:uppercase; color:#fff; margin-bottom:10px;
+}
+.npq-app .npq-fc-intro{
+  color:var(--text-lo); font-size:16px; line-height:1.55;
+  max-width:620px; margin-bottom:34px;
+}
+.npq-app .npq-fc-form{
+  background:var(--surface); border:1px solid var(--border);
+  border-left:3px solid var(--teal); padding:26px 28px; max-width:640px;
+}
+.npq-app .npq-fc-form .npq-btn{
+  font-family:'Inconsolata',monospace; font-size:14px; font-weight:700;
+  letter-spacing:0.08em; text-transform:uppercase;
+  padding:14px 28px; border:none; border-radius:0; cursor:pointer;
+  background:var(--teal); color:#06251f !important;
+  transition:transform .2s var(--ease), box-shadow .2s var(--ease);
+}
+.npq-app .npq-fc-form .npq-btn:hover{
+  transform:translateY(-2px); box-shadow:0 10px 24px rgba(0,207,207,0.25);
+}
+
+/* En-tête de session */
+.npq-app .npq-fc-entete{
+  display:flex; justify-content:space-between; align-items:center;
+  max-width:720px; margin-bottom:16px;
+}
+.npq-app .npq-fc-compteur,
+.npq-app .npq-fc-domaine{
+  font-family:'Inconsolata',monospace; font-size:13px; font-weight:700;
+  letter-spacing:0.1em; text-transform:uppercase;
+}
+.npq-app .npq-fc-compteur{ color:var(--teal); }
+.npq-app .npq-fc-domaine{ color:var(--muted); }
+
+/* ---- La carte, avec son retournement 3D ----
+
+   Une flashcard, ça se RETOURNE : l'animation n'est pas décorative, elle porte
+   la métaphore. Les deux faces sont posées dès le départ (le verso à l'envers,
+   derrière), et le clic fait pivoter la carte sur son axe vertical.
+
+   - .npq-fc-scene   : donne la perspective (sans elle, pas d'effet 3D).
+   - .npq-fc-carte   : l'objet qui pivote.
+   - .npq-fc-face    : les deux faces, dont on cache le dos. */
+
+.npq-app .npq-fc-scene{
+  perspective:1400px;      /* la profondeur : plus la valeur est faible, plus l'effet est marqué */
+  max-width:720px;
+  margin-bottom:22px;
+  cursor:pointer;
+}
+
+.npq-app .npq-fc-carte{
+  position:relative;
+  min-height:280px;
+  transform-style:preserve-3d;   /* les enfants vivent dans l'espace 3D */
+  transition:transform .6s var(--ease);
+}
+
+/* Le pivot : un demi-tour sur l'axe vertical. */
+.npq-app .npq-fc-carte.retournee{
+  transform:rotateY(180deg);
+}
+
+/* Les deux faces se superposent exactement. */
+.npq-app .npq-fc-face{
+  position:absolute; inset:0;
+  display:flex; flex-direction:column; justify-content:center;
+  background:var(--surface); border:1px solid var(--border);
+  padding:40px 44px;
+  backface-visibility:hidden;         /* on ne voit pas le dos d'une face */
+  -webkit-backface-visibility:hidden; /* (Safari) */
+}
+
+.npq-app .npq-fc-recto{
+  border-left:3px solid var(--teal);
+}
+.npq-app .npq-fc-scene:hover .npq-fc-recto{
+  border-color:var(--teal);
+}
+
+/* Le verso est posé À L'ENVERS : quand la carte pivote, il se retrouve à l'endroit. */
+.npq-app .npq-fc-verso{
+  border-left:3px solid var(--green);
+  transform:rotateY(180deg);
+}
+/* Le verso a lui aussi son indice : on peut revenir à la question. */
+.npq-app .npq-fc-verso::after{
+  content:'Cliquez pour revoir la question';
+  position:absolute; bottom:18px; left:44px;
+  font-family:'Inconsolata',monospace; font-size:11px;
+  letter-spacing:0.1em; text-transform:uppercase;
+  color:var(--muted); opacity:0.7;
+}
+
+.npq-app .npq-fc-label{
+  font-family:'Inconsolata',monospace; font-size:11px; font-weight:700;
+  letter-spacing:0.16em; text-transform:uppercase;
+  color:var(--muted); margin-bottom:16px;
+}
+.npq-app .npq-fc-verso .npq-fc-label{ color:var(--green); }
+
+.npq-app .npq-fc-texte{
+  font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:500;
+  color:var(--text); line-height:1.6;
+  overflow-y:auto;   /* une réponse longue reste lisible */
+}
+
+.npq-app .npq-fc-indice{
+  position:absolute; bottom:18px; left:44px;
+  font-family:'Inconsolata',monospace; font-size:11px;
+  letter-spacing:0.1em; text-transform:uppercase;
+  color:var(--muted); opacity:0.7;
+}
+
+/* La carte reste cliquable dans les deux sens : on peut revenir à la question
+   après avoir vu la réponse. Une vraie carte se retourne librement. */
+
+/* Actions après retournement */
+.npq-app .npq-fc-actions{
+  display:flex; gap:12px; flex-wrap:wrap; max-width:720px;
+}
+.npq-app .npq-fc-actions .npq-btn{
+  font-family:'Inconsolata',monospace; font-size:14px; font-weight:700;
+  letter-spacing:0.08em; text-transform:uppercase;
+  padding:14px 28px; border:none; border-radius:0; cursor:pointer;
+  background:var(--teal); color:#06251f !important;
+  transition:transform .2s var(--ease), box-shadow .2s var(--ease);
+}
+.npq-app .npq-fc-actions .npq-btn:hover{ transform:translateY(-2px); }
+.npq-app .npq-fc-actions .npq-btn-ghost{
+  background:transparent !important; color:var(--orange) !important;
+  border:1px solid var(--border) !important;
+}
+.npq-app .npq-fc-actions .npq-btn-ghost:hover{
+  border-color:var(--orange) !important; box-shadow:none !important;
+}
+
+/* Fin de session */
+.npq-app .npq-fc-fin{ max-width:720px; }
+.npq-app .npq-fc-bilan{
+  display:flex; gap:18px; margin:24px 0 26px;
+}
+.npq-app .npq-fc-stat{
+  flex:1; background:var(--surface); border:1px solid var(--border);
+  border-left:3px solid var(--teal);
+  padding:22px 24px; text-align:center;
+}
+.npq-app .npq-fc-stat-val{
+  display:block;
+  font-family:'Rajdhani',sans-serif; font-weight:700; font-size:38px;
+  color:#fff; line-height:1;
+}
+.npq-app .npq-fc-stat-val.orange{ color:var(--orange); }
+.npq-app .npq-fc-stat-lbl{
+  display:block; margin-top:8px;
+  font-family:'Inconsolata',monospace; font-size:12px; font-weight:700;
+  letter-spacing:0.1em; text-transform:uppercase; color:var(--text-lo);
+}
+.npq-app .npq-fc-conseil{
+  color:var(--text-lo); font-size:16px; line-height:1.55; margin-bottom:24px;
+}
+
+/* ---- Flashcards : deux colonnes (comme l'examen) ---- */
+.npq-app .npq-fc-deux-col{
+  display:grid; grid-template-columns:1fr 300px; gap:24px;
+  align-items:start;
+}
+@media (max-width:1100px){
+  .npq-app .npq-fc-deux-col{ grid-template-columns:1fr; }
+}
+
+.npq-app .npq-fc-principale{ min-width:0; }
+
+/* La colonne de suivi, collante comme celle de l'examen */
+.npq-app .npq-fc-suivi{
+  display:flex; flex-direction:column; gap:14px;
+  position:sticky; top:var(--npq-header-h);
+}
+@media (max-width:1100px){
+  .npq-app .npq-fc-suivi{ position:static; }
+}
+
+/* En-tête : le domaine de la carte */
+.npq-app .npq-fc-entete{
+  display:flex; justify-content:flex-start; align-items:center;
+  margin-bottom:14px;
+}
+
+/* La scène prend toute la largeur disponible de sa colonne */
+.npq-app .npq-fc-deux-col .npq-fc-scene{
+  max-width:none;
+  width:100%;
+}
+
+/* Marquage « à revoir » : sous la carte */
+.npq-app .npq-fc-marquage{ min-height:0; }
+.npq-app .npq-fc-marquer{
+  display:flex; align-items:center; gap:10px;
+  margin-bottom:20px; padding:12px 16px;
+  background:var(--surface); border:1px dashed var(--border);
+  color:var(--text-lo); font-size:15px; cursor:pointer;
+  transition:border-color .15s var(--ease), color .15s var(--ease);
+}
+.npq-app .npq-fc-marquer:hover{ border-color:var(--orange); color:var(--text); }
+.npq-app .npq-fc-marquer input{ accent-color:var(--orange); margin:0; }
+
+/* Navigation sous la carte */
+.npq-app .npq-fc-nav{
+  display:flex; gap:12px; flex-wrap:wrap;
+  padding-top:18px; border-top:1px solid var(--border);
+}
+.npq-app .npq-fc-nav .npq-btn{
+  font-family:'Inconsolata',monospace; font-size:14px; font-weight:700;
+  letter-spacing:0.08em; text-transform:uppercase;
+  padding:14px 28px; border:none; border-radius:0; cursor:pointer;
+  background:var(--teal); color:#06251f !important;
+  transition:transform .2s var(--ease), box-shadow .2s var(--ease);
+}
+.npq-app .npq-fc-nav .npq-btn:hover{ transform:translateY(-2px); }
+.npq-app .npq-fc-nav .npq-btn-ghost{
+  background:transparent !important; color:var(--text) !important;
+  border:1px solid var(--border) !important;
+}
+.npq-app .npq-fc-nav .npq-btn-ghost:hover{
+  border-color:var(--teal) !important; color:var(--teal) !important;
+  box-shadow:none !important;
+}
+
+/* Le bouton Terminer, dans la colonne de suivi */
+.npq-app .npq-fc-suivi .npq-btn-terminer{
+  width:100%; margin:0;
+  font-family:'Inconsolata',monospace; font-size:13px; font-weight:700;
+  letter-spacing:0.08em; text-transform:uppercase;
+  padding:15px 20px; cursor:pointer;
+  background:transparent !important; color:var(--text-lo) !important;
+  border:1px solid var(--border) !important; border-radius:0;
+  transition:border-color .2s var(--ease), color .2s var(--ease);
+}
+.npq-app .npq-fc-suivi .npq-btn-terminer:hover{
+  border-color:var(--green) !important; color:var(--green) !important;
+}
+
+/* Les pastilles dans la colonne : compactes */
+.npq-app .npq-fc-suivi .npq-apercu{
+  display:flex; flex-wrap:wrap; gap:5px;
+  padding:0; margin:0; background:transparent; border:none;
+  max-height:280px; overflow-y:auto;
+}
+.npq-app .npq-fc-suivi .npq-pastille{
+  width:28px; height:28px; font-size:11px;
+}

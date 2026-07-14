@@ -36,6 +36,9 @@ class NPQ_Admin {
 
         require_once NPQ_PATH . 'admin/class-npq-question-form.php';
         NPQ_Question_Form::traiter();
+
+        require_once NPQ_PATH . 'admin/class-npq-flashcard-form.php';
+        NPQ_Flashcard_Form::traiter();
     }
 
     /**
@@ -85,12 +88,73 @@ class NPQ_Admin {
 
         add_submenu_page(
             'normaprep-quiz',
+            'Flashcards',
+            'Flashcards',
+            'manage_options',
+            'normaprep-flashcards',
+            [ __CLASS__, 'page_flashcards' ]
+        );
+
+        add_submenu_page(
+            'normaprep-quiz',
             'Importer le contenu',
             'Import',
             'manage_options',
             'normaprep-import',
             [ 'NPQ_Importer', 'afficher_page' ]
         );
+    }
+
+    /* =====================================================================
+     * PAGE : FLASHCARDS
+     * ===================================================================== */
+
+    public static function page_flashcards() {
+        require_once NPQ_PATH . 'admin/class-npq-flashcard-form.php';
+
+        $vue = isset( $_GET['npq_vue'] ) ? sanitize_key( $_GET['npq_vue'] ) : 'liste';
+
+        if ( $vue === 'form' ) {
+            NPQ_Flashcard_Form::afficher_formulaire();
+            return;
+        }
+
+        require_once NPQ_PATH . 'admin/class-npq-table-flashcards.php';
+
+        $table = new NPQ_Table_Flashcards();
+        $table->prepare_items();
+
+        $message = get_transient( 'npq_flashcard_message' );
+        delete_transient( 'npq_flashcard_message' );
+
+        $url_nouveau = admin_url( 'admin.php?page=normaprep-flashcards&npq_vue=form' );
+        ?>
+        <div class="wrap">
+            <h1 class="wp-heading-inline">Flashcards</h1>
+            <a href="<?php echo esc_url( $url_nouveau ); ?>" class="page-title-action">Ajouter</a>
+            <hr class="wp-header-end">
+
+            <?php if ( $message ) : ?>
+                <div class="notice notice-success is-dismissible">
+                    <p><?php echo esc_html( $message ); ?></p>
+                </div>
+            <?php endif; ?>
+
+            <p class="description" style="max-width:820px">
+                Les flashcards servent à <strong>mémoriser</strong> : articles, définitions,
+                mesures de l'Annexe A. Contrairement aux questions d'examen, elles n'ont pas
+                de scénario — elles sont générales et directes.
+            </p>
+
+            <form method="get">
+                <input type="hidden" name="page" value="normaprep-flashcards">
+                <?php
+                $table->search_box( 'Rechercher', 'npq-recherche-flashcard' );
+                $table->display();
+                ?>
+            </form>
+        </div>
+        <?php
     }
 
     /* =====================================================================
@@ -295,6 +359,10 @@ class NPQ_Admin {
                     <tr>
                         <td><strong>Scénarios</strong></td>
                         <td><?php echo (int) $contenu['scenarios']; ?></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Flashcards</strong></td>
+                        <td><?php echo (int) $contenu['flashcards']; ?></td>
                     </tr>
                     <tr>
                         <td><strong>Domaines</strong></td>
@@ -574,6 +642,7 @@ class NPQ_Admin {
             'scenarios'      => (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}scenario WHERE statut = 'publie'" ),
             'questions'      => (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}question WHERE statut = 'publie'" ),
             'domaines'       => (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}domaine" ),
+            'flashcards'     => (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}flashcard WHERE statut = 'publie'" ),
         ];
     }
 

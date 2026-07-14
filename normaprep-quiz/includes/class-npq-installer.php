@@ -99,6 +99,26 @@ class NPQ_Installer {
             UNIQUE KEY cert_code (certification_id, code)
         ) $charset;";
 
+        // Flashcards : cartes de mémorisation (recto / verso).
+        //
+        // Contrairement aux questions, une flashcard n'est PAS rattachée à un
+        // scénario : c'est une carte générale (« Que dit l'article 6.1.3 d) ? »),
+        // sans contexte d'entreprise. C'est ce qui la rend efficace pour retenir
+        // la norme. Elle est en revanche rattachée à un domaine, pour pouvoir
+        // réviser par thème.
+        $sql[] = "CREATE TABLE {$p}flashcard (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            certification_id BIGINT UNSIGNED NULL,
+            domaine VARCHAR(20) NOT NULL,
+            recto LONGTEXT NOT NULL,
+            verso LONGTEXT NOT NULL,
+            statut VARCHAR(20) NOT NULL DEFAULT 'publie',
+            date_creation DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY certification_id (certification_id),
+            KEY domaine (domaine)
+        ) $charset;";
+
         $sql[] = "CREATE TABLE {$p}question (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             certification_id BIGINT UNSIGNED NULL,

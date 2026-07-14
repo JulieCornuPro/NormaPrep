@@ -110,6 +110,7 @@ class NPQ_Espace {
         $url_profil = ( $id = get_option( 'npq_page_profil_id' ) ) ? get_permalink( $id ) : '#';
         $url_revision = ( $id = get_option( 'npq_page_revision_id' ) ) ? get_permalink( $id ) : '#';
         $url_activite = ( $id = get_option( 'npq_page_activite_id' ) ) ? get_permalink( $id ) : '#';
+        $url_flashcards = ( $id = get_option( 'npq_page_flashcards_id' ) ) ? get_permalink( $id ) : '#';
 
         // Nombre d'EXAMENS passés (badge). Les révisions ne comptent pas :
         // ce sont des entraînements, pas des épreuves.
@@ -165,6 +166,11 @@ class NPQ_Espace {
             <a class="side-link<?php echo $cls( 'revisions' ); ?>" href="<?php echo esc_url( $url_revision ); ?>">
               <span class="icon"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="12" height="15"/><rect x="8" y="2" width="12" height="15"/></svg></span>
               <span class="lbl">Révisions</span>
+            </a>
+
+            <a class="side-link<?php echo $cls( 'flashcards' ); ?>" href="<?php echo esc_url( $url_flashcards ); ?>">
+              <span class="icon"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="14" height="12"/><path d="M7 3h14v12"/></svg></span>
+              <span class="lbl">Flashcards</span>
             </a>
 
             <a class="side-link soon" href="#" title="Bientot disponible">
@@ -253,6 +259,15 @@ class NPQ_Espace {
             }
         }
 
+        // Page « Flashcards » (même coquille).
+        $page_flashcards = get_option( 'npq_page_flashcards_id' );
+        if ( $page_flashcards && is_page( $page_flashcards ) ) {
+            $fichier = NPQ_PATH . 'public/page-flashcards-normaprep.php';
+            if ( file_exists( $fichier ) ) {
+                return $fichier;
+            }
+        }
+
         return $template;
     }
 
@@ -265,13 +280,15 @@ class NPQ_Espace {
         $page_examen = get_option( 'npq_page_examen_id' );
 
         $page_revision = get_option( 'npq_page_revision_id' );
-        $page_activite = get_option( 'npq_page_activite_id' );
+        $page_activite   = get_option( 'npq_page_activite_id' );
+        $page_flashcards = get_option( 'npq_page_flashcards_id' );
 
         $sur_espace = ( $page_espace && is_page( $page_espace ) )
                    || ( $page_profil && is_page( $page_profil ) )
                    || ( $page_examen && is_page( $page_examen ) )
                    || ( $page_revision && is_page( $page_revision ) )
-                   || ( $page_activite && is_page( $page_activite ) );
+                   || ( $page_activite && is_page( $page_activite ) )
+                   || ( $page_flashcards && is_page( $page_flashcards ) );
 
         if ( ! $sur_espace ) {
             return;
