@@ -847,6 +847,64 @@
   transform:translateY(-2px); box-shadow:0 12px 30px rgba(0,207,207,0.3);
 }
 
+/* ============ EXAMEN : Gestion de l'affichage pour le choix de l'examen ============ */
+
+/* ============ EXAMENS THÉMATIQUES (par scénarios) ============ */
+/* À AJOUTER dans assets/npq-espace.css, à la suite du bloc
+   « .npq-exam-lancer » (vers la ligne 848).
+
+   Même patron que les cartes de parcours de la page /revisions/ :
+   une grille à 2 colonnes, chaque examen dans une carte verticale
+   (titre, description, nombre de questions, bouton en bas).
+
+   Le bouton n'a PAS besoin de style dédié : le conteneur du bouton porte
+   la classe .npq-exam-lancer, donc il hérite du bouton plein de l'examen
+   blanc (défini plus haut dans ce fichier). */
+
+.npq-app .npq-exam-modeles{
+  margin-top:44px;
+  border-top:1px solid var(--border);
+  padding-top:30px;
+}
+.npq-app .npq-exam-modeles h3{
+  font-family:'Rajdhani',sans-serif; font-weight:700; font-size:20px;
+  text-transform:uppercase; color:#fff; margin:0 0 8px;
+}
+
+/* La grille : deux examens côte à côte, comme les parcours de révision. */
+.npq-app .npq-exam-modeles-grille{
+  display:grid; grid-template-columns:repeat(2,1fr); gap:18px; margin-top:20px;
+}
+@media (max-width:900px){
+  .npq-app .npq-exam-modeles-grille{ grid-template-columns:1fr; }
+}
+
+/* Une carte d'examen : colonne verticale, bouton poussé en bas. */
+.npq-app .npq-exam-modele-carte{
+  display:flex; flex-direction:column;
+  background:var(--surface); border:1px solid var(--border);
+  border-left:3px solid var(--teal); padding:22px 26px;
+}
+.npq-app .npq-exam-modele-carte h3{
+  font-family:'Rajdhani',sans-serif; font-weight:700; font-size:20px;
+  color:#fff; margin:0 0 8px;
+}
+/* La description : couleur et espacement. (L'alignement du bouton en bas est
+   géré par margin-top:auto sur le formulaire, ce qui marche même si une carte
+   n'a pas de description.) */
+.npq-app .npq-exam-modele-desc{
+  color:var(--text-lo); font-size:15px; line-height:1.5; margin:0 0 12px;
+}
+.npq-app .npq-exam-modele-nb{
+  font-family:'Inconsolata',monospace; font-size:12px; font-weight:700;
+  letter-spacing:0.08em; text-transform:uppercase; color:var(--teal); margin:0 0 18px;
+}
+/* Le formulaire (et son bouton) ne s'étire pas : il reste à sa taille, en bas. */
+.npq-app .npq-exam-modele-carte .npq-exam-lancer{
+  margin-top:auto;
+}
+
+
 /* ============ EXAMEN : DEUX COLONNES ============ */
 .npq-app .npq-examen-deux-col{
   display:grid; grid-template-columns:1fr 300px; gap:24px;

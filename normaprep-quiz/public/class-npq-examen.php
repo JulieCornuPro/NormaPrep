@@ -390,7 +390,9 @@ class NPQ_Examen {
         $action = sanitize_key( $_POST['npq_examen_action'] );
 
         if ( $action === 'demarrer' ) {
-            self::demarrer();
+            // Id du modèle d'examen choisi (0 = examen blanc PECB par défaut).
+            $modele_id = isset( $_POST['npq_examen_modele'] ) ? (int) $_POST['npq_examen_modele'] : 0;
+            self::demarrer( $modele_id );
         } elseif ( $action === 'repondre' ) {
             self::enregistrer_reponse();
         }
@@ -405,13 +407,28 @@ class NPQ_Examen {
      *
      * Il n'y a plus de choix de scénario : un examen est aléatoire, comme le vrai.
      */
-    private static function demarrer() {
+    private static function demarrer( $modele_id = 0 ) {
         $certification_id = self::certification_courante();
         if ( ! $certification_id ) {
             return;
         }
 
-        $questions = NPQ_Composeur::par_ponderation( $certification_id, self::PONDERATION_PECB );
+        // Un modèle d'examen administrable a-t-il été choisi ? On ne l'accepte
+        // que s'il est actif, de type « scenarios », et de la certification
+        // courante — sinon on retombe sur l'examen blanc PECB.
+        $modele = $modele_id ? self::charger_modele_actif( $modele_id, $certification_id ) : null;
+
+        if ( $modele ) {
+            // Examen par scénarios : tirage aléatoire parmi les questions des
+            // scénarios rattachés (rotation à chaque passage).
+            $questions = NPQ_Composeur::par_scenarios( (int) $modele['id'] );
+            $type_criteres = 'examen_scenarios';
+        } else {
+            // Examen blanc PECB (comportement historique).
+            $questions = NPQ_Composeur::par_ponderation( $certification_id, self::PONDERATION_PECB );
+            $type_criteres = 'examen_pecb';
+        }
+
         if ( empty( $questions ) ) {
             return;
         }
@@ -436,17 +453,29 @@ class NPQ_Examen {
         $debut = time();
         $fin   = $debut + ( self::DUREE_MINUTES * 60 );
 
+        // Critères de la tentative. On mémorise le modèle éventuel pour la
+        // traçabilité, sans changer la structure attendue par le déroulé
+        // (le champ « questions » reste la source de vérité des questions).
+        $criteres = [
+            'type'      => $type_criteres,
+            'questions' => $ids,
+            'duree'     => self::DUREE_MINUTES,
+            'expire_le' => $fin,
+        ];
+        if ( $modele ) {
+            $criteres['modele_id']  = (int) $modele['id'];
+            $criteres['modele_nom'] = $modele['nom'];
+        } else {
+            $criteres['ponderation'] = self::PONDERATION_PECB;
+        }
+
         $wpdb->insert( "{$p}tentative", [
             'utilisateur_id'   => $fiche['id'],
-            'examen_modele_id' => null,
+            // On renseigne le modèle quand il y en a un : la colonne existe déjà
+            // et sert précisément à ça.
+            'examen_modele_id' => $modele ? (int) $modele['id'] : null,
             'mode'             => 'examen',
-            'criteres'         => wp_json_encode( [
-                'type'        => 'examen_pecb',
-                'questions'   => $ids,
-                'duree'       => self::DUREE_MINUTES,
-                'expire_le'   => $fin,   // horodatage de fin (fait foi)
-                'ponderation' => self::PONDERATION_PECB,
-            ] ),
+            'criteres'         => wp_json_encode( $criteres ),
             'date_debut'       => current_time( 'mysql' ),
         ] );
         $tentative_id = $wpdb->insert_id;
@@ -454,13 +483,27 @@ class NPQ_Examen {
         self::rediriger_vers( $tentative_id, 0 );
     }
 
-    /** Certification active (la première publiée). */
-    private static function certification_courante() {
+    /**
+     * Charge un modèle d'examen s'il est utilisable : actif, de type
+     * « scenarios », rattaché à la certification donnée. Renvoie null sinon.
+     */
+    private static function charger_modele_actif( $modele_id, $certification_id ) {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
-        return (int) $wpdb->get_var(
-            "SELECT id FROM {$p}certification WHERE actif = 1 ORDER BY id ASC LIMIT 1"
-        );
+
+        return $wpdb->get_row( $wpdb->prepare(
+            "SELECT id, nom, type, nombre_questions
+             FROM {$p}examen_modele
+             WHERE id = %d AND actif = 1 AND type = 'scenarios'
+               AND ( certification_id = %d OR certification_id IS NULL )",
+            (int) $modele_id,
+            (int) $certification_id
+        ), ARRAY_A );
+    }
+
+    /** Certification active — délègue à la résolution centralisée. */
+    private static function certification_courante() {
+        return NPQ_Certification::id();
     }
 
     /**
@@ -656,6 +699,88 @@ class NPQ_Examen {
                 <?php wp_nonce_field( 'npq_examen', 'npq_nonce' ); ?>
                 <button type="submit" class="npq-btn">Démarrer l'examen</button>
             </form>
+        </div>
+
+        <?php
+        // Examens thématiques administrables (par scénarios), s'il y en a.
+        // Placé HORS de .npq-examen-accueil (bridé à 760px) pour que la grille
+        // s'étale sur toute la largeur, comme les parcours de /revisions/.
+        echo self::liste_examens_administrables( $certification_id, $duree, $seuil );
+        ?>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
+     * Affiche les examens administrables actifs (type « scenarios ») de la
+     * certification, chacun avec son bouton de démarrage. Renvoie une chaîne
+     * vide s'il n'y en a aucun d'utilisable, pour ne rien afficher.
+     *
+     * Un examen n'est proposé que si ses scénarios rattachés fournissent au
+     * moins une question : un examen vide ne sert à rien et dérouterait.
+     */
+    private static function liste_examens_administrables( $certification_id, $duree, $seuil ) {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $examens = (array) $wpdb->get_results( $wpdb->prepare(
+            "SELECT id, nom, description, nombre_questions
+             FROM {$p}examen_modele
+             WHERE actif = 1 AND type = 'scenarios'
+               AND ( certification_id = %d OR certification_id IS NULL )
+             ORDER BY nom ASC",
+            $certification_id
+        ), ARRAY_A );
+
+        if ( empty( $examens ) ) {
+            return '';
+        }
+
+        ob_start();
+        ?>
+        <div class="npq-exam-modeles">
+            <h3>Examens thématiques</h3>
+            <p class="npq-exam-intro">
+                Des examens ciblés sur certains scénarios. Mêmes conditions que
+                l'examen blanc (<?php echo (int) ( $duree / 60 ); ?> h,
+                seuil <?php echo (int) $seuil; ?> %).
+            </p>
+
+            <div class="npq-exam-modeles-grille">
+            <?php foreach ( $examens as $ex ) :
+                // Nombre de questions réellement disponibles dans les scénarios
+                // rattachés : on borne l'affichage et on masque les examens vides.
+                $dispo = (int) $wpdb->get_var( $wpdb->prepare(
+                    "SELECT COUNT(*)
+                     FROM {$p}question q
+                     INNER JOIN {$p}examen_scenario es ON es.scenario_id = q.scenario_id
+                     WHERE es.examen_modele_id = %d AND q.statut = 'publie'",
+                    (int) $ex['id']
+                ) );
+
+                if ( $dispo < 1 ) {
+                    continue; // examen sans question : on ne le propose pas
+                }
+
+                $cible   = (int) $ex['nombre_questions'];
+                $effectif = min( $cible, $dispo ); // ce que le candidat aura vraiment
+            ?>
+                <div class="npq-exam-modele-carte">
+                    <h3><?php echo esc_html( $ex['nom'] ); ?></h3>
+                    <?php if ( ! empty( $ex['description'] ) ) : ?>
+                        <p class="npq-exam-modele-desc"><?php echo esc_html( $ex['description'] ); ?></p>
+                    <?php endif; ?>
+                    <p class="npq-exam-modele-nb"><?php echo (int) $effectif; ?> questions</p>
+                    <form method="post" class="npq-exam-lancer"
+                          onsubmit="return confirm('Le chronomètre va démarrer. Prêt(e) à commencer ?');">
+                        <input type="hidden" name="npq_examen_action" value="demarrer">
+                        <input type="hidden" name="npq_examen_modele" value="<?php echo (int) $ex['id']; ?>">
+                        <?php wp_nonce_field( 'npq_examen', 'npq_nonce' ); ?>
+                        <button type="submit" class="npq-btn">Démarrer</button>
+                    </form>
+                </div>
+            <?php endforeach; ?>
+            </div>
         </div>
         <?php
         return ob_get_clean();

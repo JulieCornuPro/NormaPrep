@@ -27,10 +27,18 @@ class NPQ_Admin {
         // Traitement des actions (enregistrer, supprimer) avant tout affichage :
         // on peut ainsi rediriger proprement après l'opération.
         add_action( 'admin_init', [ __CLASS__, 'traiter_actions' ] );
+        // Modification par drag & drop
+        add_action( 'admin_enqueue_scripts', [ __CLASS__, 'charger_script_parcours' ] );
     }
 
     /** Aiguille les actions vers les classes qui les gèrent. */
     public static function traiter_actions() {
+        require_once NPQ_PATH . 'admin/class-npq-certification-form.php';
+        NPQ_Certification_Form::traiter();
+
+        require_once NPQ_PATH . 'admin/class-npq-examen-form.php';
+        NPQ_Examen_Form::traiter();
+
         require_once NPQ_PATH . 'admin/class-npq-scenario-form.php';
         NPQ_Scenario_Form::traiter();
 
@@ -39,6 +47,9 @@ class NPQ_Admin {
 
         require_once NPQ_PATH . 'admin/class-npq-flashcard-form.php';
         NPQ_Flashcard_Form::traiter();
+
+        require_once NPQ_PATH . 'admin/class-npq-parcours-form.php';
+        NPQ_Parcours_Form::traiter();
     }
 
     /**
@@ -70,6 +81,24 @@ class NPQ_Admin {
 
         add_submenu_page(
             'normaprep-quiz',
+            'Certifications',
+            'Certifications',
+            'manage_options',
+            'normaprep-certifications',
+            [ __CLASS__, 'page_certifications' ]
+        );
+
+        add_submenu_page(
+            'normaprep-quiz',
+            'Examens',
+            'Examens',
+            'manage_options',
+            'normaprep-examens',
+            [ __CLASS__, 'page_examens' ]
+        );
+
+        add_submenu_page(
+            'normaprep-quiz',
             'Scénarios',
             'Scénarios',
             'manage_options',
@@ -84,6 +113,15 @@ class NPQ_Admin {
             'manage_options',
             'normaprep-questions',
             [ __CLASS__, 'page_questions' ]
+        );
+
+        add_submenu_page(
+            'normaprep-quiz',
+            'Parcours de révision',
+            'Parcours de révision',
+            'manage_options',
+            'normaprep-parcours',
+            [ __CLASS__, 'page_parcours' ]
         );
 
         add_submenu_page(
@@ -103,6 +141,108 @@ class NPQ_Admin {
             'normaprep-import',
             [ 'NPQ_Importer', 'afficher_page' ]
         );
+    }
+
+    /* =====================================================================
+     * PAGE : CERTIFICATIONS
+     * ===================================================================== */
+
+    public static function page_certifications() {
+        require_once NPQ_PATH . 'admin/class-npq-table-certifications.php';
+        require_once NPQ_PATH . 'admin/class-npq-certification-form.php';
+
+        $table = new NPQ_Table_Certifications();
+        $table->prepare_items();
+
+        $message = get_transient( 'npq_certif_message' );
+        delete_transient( 'npq_certif_message' );
+        ?>
+        <div class="wrap">
+            <h1>Certifications</h1>
+
+            <?php if ( $message ) : ?>
+                <div class="notice notice-<?php echo $message['type'] === 'error' ? 'error' : 'success'; ?> is-dismissible">
+                    <p><?php echo esc_html( $message['texte'] ); ?></p>
+                </div>
+            <?php endif; ?>
+
+            <p class="description" style="max-width:820px">
+                La certification <strong>active</strong> est celle sur laquelle porte votre
+                travail : import de contenu, création de questions, scénarios, parcours et
+                examens s'y rattachent. Une seule peut être active à la fois.
+            </p>
+
+            <?php
+            $table->display();
+            NPQ_Certification_Form::afficher_formulaire();
+            ?>
+        </div>
+        <?php
+    }
+
+
+    /* =====================================================================
+     * PAGE : PARCOURS DE RÉVISION
+     * ===================================================================== */
+
+    public static function page_parcours() {
+        require_once NPQ_PATH . 'admin/class-npq-parcours-form.php';
+
+        $vue = isset( $_GET['npq_vue'] ) ? sanitize_key( $_GET['npq_vue'] ) : 'liste';
+
+        if ( $vue === 'form' ) {
+            NPQ_Parcours_Form::afficher_formulaire();
+            return;
+        }
+
+        require_once NPQ_PATH . 'admin/class-npq-table-parcours.php';
+
+        $table = new NPQ_Table_Parcours();
+        $table->prepare_items();
+
+        $message = get_transient( 'npq_parcours_message' );
+        delete_transient( 'npq_parcours_message' );
+
+        $erreurs = get_transient( 'npq_parcours_erreurs' );
+        delete_transient( 'npq_parcours_erreurs' );
+
+        $url_nouveau = admin_url( 'admin.php?page=normaprep-parcours&npq_vue=form' );
+        ?>
+        <div class="wrap">
+            <h1 class="wp-heading-inline">Parcours de révision</h1>
+            <a href="<?php echo esc_url( $url_nouveau ); ?>" class="page-title-action">Ajouter</a>
+            <hr class="wp-header-end">
+
+            <?php if ( $message ) : ?>
+                <div class="notice notice-success is-dismissible">
+                    <p><?php echo esc_html( $message ); ?></p>
+                </div>
+            <?php endif; ?>
+
+            <?php if ( ! empty( $erreurs ) ) : ?>
+                <div class="notice notice-error">
+                    <?php foreach ( (array) $erreurs as $e ) : ?>
+                        <p><?php echo esc_html( $e ); ?></p>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+
+            <p class="description" style="max-width:820px">
+                Les parcours sont les compositions préprogrammées proposées sur la
+                page <strong>Révisions</strong>. Chacun pioche un nombre de questions
+                dans les domaines choisis. Laissez tous les domaines décochés pour
+                puiser dans l'ensemble du programme.
+            </p>
+
+            <form method="get">
+                <input type="hidden" name="page" value="normaprep-parcours">
+                <?php
+                $table->search_box( 'Rechercher', 'npq-recherche-parcours' );
+                $table->display();
+                ?>
+            </form>
+        </div>
+        <?php
     }
 
     /* =====================================================================
@@ -564,6 +704,49 @@ class NPQ_Admin {
     }
 
     /* =====================================================================
+     * EXAMENS
+     * ===================================================================== */
+    public static function page_examens() {
+        require_once NPQ_PATH . 'admin/class-npq-examen-form.php';
+
+        $vue = isset( $_GET['npq_vue'] ) ? sanitize_key( $_GET['npq_vue'] ) : 'liste';
+
+        if ( $vue === 'form' ) {
+            NPQ_Examen_Form::afficher_formulaire();
+            return;
+        }
+
+        require_once NPQ_PATH . 'admin/class-npq-table-examens.php';
+
+        $table = new NPQ_Table_Examens();
+        $table->prepare_items();
+
+        $message = get_transient( 'npq_examen_message' );
+        delete_transient( 'npq_examen_message' );
+
+        $url_nouveau = admin_url( 'admin.php?page=normaprep-examens&npq_vue=form' );
+        ?>
+        <div class="wrap">
+            <h1 class="wp-heading-inline">Examens</h1>
+            <a href="<?php echo esc_url( $url_nouveau ); ?>" class="page-title-action">Ajouter</a>
+            <hr class="wp-header-end">
+
+            <?php if ( $message ) : ?>
+                <div class="notice notice-success is-dismissible"><p><?php echo esc_html( $message ); ?></p></div>
+            <?php endif; ?>
+
+            <p class="description" style="max-width:820px">
+                Un examen de type « par scénarios » tire ses questions parmi celles des
+                scénarios rattachés, à chaque passage. Rattachez assez de scénarios pour
+                atteindre le nombre de questions visé (80 pour une simulation complète).
+            </p>
+
+            <?php $table->display(); ?>
+        </div>
+        <?php
+    }
+
+    /* =====================================================================
      * DONNÉES
      * ===================================================================== */
 
@@ -750,5 +933,69 @@ class NPQ_Admin {
              ORDER BY s.nom ASC",
             ARRAY_A
         );
+    }
+
+    /**
+     * Charge le sélecteur de questions (glisser-déposer) uniquement sur
+     * l'écran du formulaire de parcours. Passe au JavaScript la liste des
+     * questions publiées et la sélection courante.
+     */
+    public static function charger_script_parcours( $hook ) {
+        // On ne cible que notre page parcours, en vue « form ».
+        $page = isset( $_GET['page'] ) ? sanitize_key( $_GET['page'] ) : '';
+        $vue  = isset( $_GET['npq_vue'] ) ? sanitize_key( $_GET['npq_vue'] ) : '';
+        if ( $page !== 'normaprep-parcours' || $vue !== 'form' ) {
+            return;
+        }
+
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $certification_id = (int) $wpdb->get_var(
+            "SELECT id FROM {$p}certification WHERE actif = 1 ORDER BY id ASC LIMIT 1"
+        );
+
+        // Toutes les questions publiées (id, énoncé, domaine, scénario).
+        $questions = (array) $wpdb->get_results( $wpdb->prepare(
+            "SELECT id, enonce, domaine, scenario_id
+             FROM {$p}question
+             WHERE certification_id = %d AND statut = 'publie'
+             ORDER BY domaine ASC, id ASC",
+            $certification_id
+        ), ARRAY_A );
+
+        // Normalisation en types simples pour le JSON.
+        $liste = array_map( function ( $q ) {
+            return [
+                'id'       => (int) $q['id'],
+                'enonce'   => (string) $q['enonce'],
+                'domaine'  => (string) $q['domaine'],
+                'scenario' => (int) $q['scenario_id'], // 0 si la question n'a pas de scénario
+            ];
+        }, $questions );
+
+        // Sélection courante (si on édite un parcours existant), dans l'ordre.
+        $choisies = [];
+        $parcours_id = isset( $_GET['id'] ) ? (int) $_GET['id'] : 0;
+        if ( $parcours_id > 0 ) {
+            $choisies = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare(
+                "SELECT question_id FROM {$p}parcours_question
+                 WHERE parcours_id = %d ORDER BY position ASC",
+                $parcours_id
+            ) ) );
+        }
+
+        wp_enqueue_script(
+            'npq-admin-parcours',
+            NPQ_URL . 'assets/npq-admin-parcours.js',
+            [ 'jquery', 'jquery-ui-sortable' ], // dépendances fournies par WordPress
+            NPQ_VERSION,
+            true
+        );
+
+        wp_localize_script( 'npq-admin-parcours', 'NPQ_PARCOURS', [
+            'questions' => $liste,
+            'choisies'  => array_values( $choisies ),
+        ] );
     }
 }

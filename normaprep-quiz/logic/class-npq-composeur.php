@@ -65,6 +65,45 @@ class NPQ_Composeur {
     }
 
     /**
+     * Compose un examen depuis les scénarios rattachés à un modèle.
+     *
+     * @param int $examen_modele_id  Le modèle d'examen (type « scenarios »).
+     * @return array Questions assemblées (mélangées), au plus « nombre_questions ».
+     */
+    public static function par_scenarios( $examen_modele_id ) {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        // Nombre cible enregistré sur le modèle (défaut 80 si absent).
+        $cible = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT nombre_questions FROM {$p}examen_modele WHERE id = %d",
+            $examen_modele_id
+        ) );
+        if ( $cible < 1 ) {
+            $cible = 80;
+        }
+
+        // Tirage aléatoire des ids parmi les questions publiées des scénarios
+        // rattachés. DISTINCT par sécurité (une question n'appartient qu'à un
+        // scénario, mais on reste robuste).
+        $ids = $wpdb->get_col( $wpdb->prepare(
+            "SELECT DISTINCT q.id
+             FROM {$p}question q
+             INNER JOIN {$p}examen_scenario es ON es.scenario_id = q.scenario_id
+             WHERE es.examen_modele_id = %d AND q.statut = 'publie'
+             ORDER BY RAND()
+             LIMIT %d",
+            $examen_modele_id,
+            $cible
+        ) );
+
+        // melanger = false : l'ordre est déjà aléatoire (RAND), inutile de le
+        // refaire. assembler() récupère le contenu complet des questions.
+        return self::assembler( $ids, false );
+    }
+
+
+    /**
      * Compose par TAG : toutes les questions portant un tag donné.
      * Le tag est identifié par son type (ex. 'annexA_controls') et sa valeur (ex. '5.23').
      *
@@ -118,6 +157,31 @@ class NPQ_Composeur {
             $ids = array_slice( $ids, 0, $nombre );
         }
 
+        return self::assembler( $ids, false );
+    }
+
+    /**
+     * Compose depuis un PARCOURS à questions choisies : la liste figée des
+     * questions du parcours, dans l'ordre de position. Même principe que
+     * par_modele(), appliqué à la table de liaison parcours_question.
+     *
+     * @param int $parcours_id
+     * @return array Questions assemblées, dans l'ordre choisi.
+     */
+    public static function par_parcours( $parcours_id ) {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $ids = $wpdb->get_col( $wpdb->prepare(
+            "SELECT pq.question_id
+             FROM {$p}parcours_question pq
+             INNER JOIN {$p}question q ON q.id = pq.question_id
+             WHERE pq.parcours_id = %d AND q.statut = 'publie'
+             ORDER BY pq.position ASC",
+            $parcours_id
+        ) );
+
+        // melanger = false : on respecte l'ordre choisi en admin.
         return self::assembler( $ids, false );
     }
 

@@ -3,7 +3,7 @@
  * Plugin Name:       NormaPrep Quiz
  * Plugin URI:        https://github.com/【votre-compte】/normaprep-quiz
  * Description:       Module d'examens blancs pour la certification ISO/IEC 27001 Lead Implementer : scénarios, questions à choix multiples, composition d'examens par thèmes, correction détaillée et suivi de progression.
- * Version:           2.18.1
+ * Version:           2.22.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            NormaPrep
@@ -32,7 +32,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Version courante. IMPORTANT : cette valeur doit rester synchronisée avec
 // la ligne « Version: » de l'en-tête ci-dessus.
-define( 'NPQ_VERSION', '2.18.1' );
+define( 'NPQ_VERSION', '2.22.0' );
 
 // Chemin absolu vers le dossier du plugin sur le serveur (pour charger des fichiers PHP).
 define( 'NPQ_PATH', plugin_dir_path( __FILE__ ) );
@@ -111,6 +111,18 @@ register_deactivation_hook( __FILE__, 'npq_desactivation' );
  * et prête à accueillir la suite.
  */
 function npq_init() {
+
+    require_once NPQ_PATH . 'includes/class-npq-certification.php';
+
+    // Migration de schéma : si la version de schéma enregistrée diffère de la
+    // version courante, on rejoue dbDelta (qui ne touche pas aux données
+    // existantes et se contente d'ajouter ce qui manque, ex. la table parcours).
+    // Cela évite d'avoir à désactiver puis réactiver le plugin après une mise à jour.
+    if ( get_option( 'npq_db_version' ) !== NPQ_VERSION ) {
+        require_once NPQ_PATH . 'includes/class-npq-installer.php';
+        NPQ_Installer::creer_tables();
+    }
+
     // Logique de composition et de correction (disponible partout).
     require_once NPQ_PATH . 'logic/class-npq-composeur.php';
     require_once NPQ_PATH . 'logic/class-npq-correcteur.php';
@@ -156,7 +168,10 @@ function npq_init() {
     // Chargement de l'import de contenu (uniquement dans l'administration).
     if ( is_admin() ) {
         require_once NPQ_PATH . 'database/class-npq-importer.php';
+        require_once NPQ_PATH . 'database/class-npq-exporter.php'; // nouveau
         NPQ_Importer::init();
+        NPQ_Exporter::init(); // nouveau
+        // … (autres classes admin déjà présentes : NPQ_Admin, formulaires, etc.)
     }
 }
 add_action( 'plugins_loaded', 'npq_init' );

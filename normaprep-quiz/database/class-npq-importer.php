@@ -76,6 +76,32 @@ class NPQ_Importer {
                     </button>
                 </p>
             </form>
+            <hr style="margin:28px 0">
+
+            <h2>Exporter le contenu</h2>
+            <p>
+                Télécharge le contenu au format JSON. Le fichier obtenu est
+                <strong>ré-importable</strong> (sauvegarde, transfert vers un autre site).
+            </p>
+            <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+                <input type="hidden" name="action" value="npq_exporter">
+                <?php wp_nonce_field( 'npq_exporter_action', 'npq_nonce' ); ?>
+                <p>
+                    <label>
+                        <input type="radio" name="npq_portee" value="tout" checked>
+                        Tout le contenu (scénarios, questions et flashcards)
+                    </label><br>
+                    <label>
+                        <input type="radio" name="npq_portee" value="flashcards">
+                        Flashcards uniquement
+                    </label>
+                </p>
+                <p>
+                    <button type="submit" class="button button-secondary">
+                        Télécharger le JSON
+                    </button>
+                </p>
+            </form>
         </div>
         <?php
     }
@@ -106,9 +132,23 @@ class NPQ_Importer {
 
         // La certification cible de cet import. À terme, ce couple code/nom
         // pourra provenir du fichier JSON lui-même pour gérer plusieurs certifs.
-        $cert_code = 'LI27001';
-        $cert_nom  = 'ISO/IEC 27001 Lead Implementer';
+        // $cert_code = 'LI27001';
+        // $cert_nom  = 'ISO/IEC 27001 Lead Implementer';
+        // $certification_id = self::obtenir_ou_creer_certification( $cert_code, $cert_nom );
+
+        $cert_active = NPQ_Certification::courante();
+        if ( $cert_active ) {
+            $cert_code = $cert_active['code'];
+            $cert_nom  = $cert_active['nom'];
+        } else {
+            $cert_code = 'LI27001';
+            $cert_nom  = 'ISO/IEC 27001 Lead Implementer';
+        }
         $certification_id = self::obtenir_ou_creer_certification( $cert_code, $cert_nom );
+
+        // Si l'import vient de créer la toute première certification, le cache
+        // de résolution doit être rafraîchi pour les appels suivants.
+        NPQ_Certification::vider_cache();
 
         // On mémorise la correspondance « référence externe » -> « id en base »
         // pour rattacher ensuite les questions à leurs scénarios.
@@ -226,9 +266,50 @@ class NPQ_Importer {
             }
         }
 
+        /* ---- 3. Flashcards (optionnel : présentes seulement dans les
+         * fichiers qui en contiennent). Rejouable via ref_externe. ---- */
+        $nb_flashcards = 0;
+        if ( ! empty( $data['flashcards'] ) ) {
+            foreach ( $data['flashcards'] as $index => $fc ) {
+                // Référence : celle du fichier si fournie, sinon on en fabrique
+                // une stable à partir du code de certification et du rang.
+                $ref = ! empty( $fc['id'] )
+                    ? (string) $fc['id']
+                    : sprintf( '%s-FC-%04d', $cert_code, $index + 1 );
+
+                // Enregistre le domaine si le fichier fournit son libellé.
+                if ( ! empty( $fc['domain'] ) && ! empty( $fc['domain_label'] ) ) {
+                    self::assurer_domaine( $certification_id, $fc['domain'], $fc['domain_label'] );
+                }
+
+                $statut = ( isset( $fc['status'] ) && $fc['status'] === 'brouillon' )
+                    ? 'brouillon' : 'publie';
+
+                $donnees = [
+                    'certification_id' => $certification_id,
+                    'ref_externe'      => $ref,
+                    'domaine'          => isset( $fc['domain'] ) ? $fc['domain'] : '',
+                    'recto'            => isset( $fc['recto'] ) ? $fc['recto'] : '',
+                    'verso'            => isset( $fc['verso'] ) ? $fc['verso'] : '',
+                    'statut'           => $statut,
+                ];
+
+                $existante = $wpdb->get_var( $wpdb->prepare(
+                    "SELECT id FROM {$p}flashcard WHERE ref_externe = %s", $ref
+                ) );
+
+                if ( $existante ) {
+                    $wpdb->update( "{$p}flashcard", $donnees, [ 'id' => $existante ] );
+                } else {
+                    $wpdb->insert( "{$p}flashcard", $donnees );
+                    $nb_flashcards++;
+                }
+            }
+        }
+
         self::rediriger( sprintf(
-            'Import terminé : %d scénario(s) et %d question(s) ajouté(s). Les éléments déjà présents ont été mis à jour.',
-            $nb_scenarios, $nb_questions
+            'Import terminé : %d scénario(s), %d question(s) et %d flashcard(s) ajouté(s). Les éléments déjà présents ont été mis à jour.',
+            $nb_scenarios, $nb_questions, $nb_flashcards
         ) );
     }
 
@@ -243,8 +324,24 @@ class NPQ_Importer {
             "SELECT id FROM {$p}certification WHERE code = %s", $code
         ) );
         if ( ! $id ) {
-            $wpdb->insert( "{$p}certification", [ 'code' => $code, 'nom' => $nom ] );
+            // actif = 0 : la création ne doit jamais basculer silencieusement
+            // la certification de travail. L'activation est un geste explicite
+            // depuis la page Certifications.
+            $wpdb->insert( "{$p}certification", [
+                'code'  => $code,
+                'nom'   => $nom,
+                'actif' => 0,
+            ] );
             $id = $wpdb->insert_id;
+
+            // Cas de la toute première certification : sans active, l'appli
+            // n'aurait pas de certification courante. On l'active.
+            $nb_actives = (int) $wpdb->get_var(
+                "SELECT COUNT(*) FROM {$p}certification WHERE actif = 1"
+            );
+            if ( $nb_actives === 0 ) {
+                NPQ_Certification::definir_active( (int) $id );
+            }
         }
         return $id;
     }

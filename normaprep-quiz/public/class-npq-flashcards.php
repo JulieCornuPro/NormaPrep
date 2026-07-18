@@ -211,12 +211,8 @@ class NPQ_Flashcards {
         ), ARRAY_A );
     }
 
+    /** Certification active — délègue à la résolution centralisée. */
     private static function certification_courante() {
-        global $wpdb;
-        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
-
-        return (int) $wpdb->get_var(
-            "SELECT id FROM {$p}certification WHERE actif = 1 ORDER BY id ASC LIMIT 1"
-        );
+        return NPQ_Certification::id();
     }
 }

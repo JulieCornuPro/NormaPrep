@@ -25,34 +25,43 @@ class NPQ_Revision {
 
     const OPT_PAGE_REVISION = 'npq_page_revision_id';
 
-    /** Parcours de révision proposés par NormaPrep. */
+    /**
+     * Parcours de révision proposés, désormais lus depuis la base
+     * (administrables via NormaPrep → Parcours de révision).
+     *
+     * Renvoie un tableau indexé par id de parcours :
+     *   [ 12 => [ 'titre' => ..., 'resume' => ..., 'domaines' => [...], 'nombre' => 10 ], ... ]
+     */
     public static function parcours_proposes() {
-        return [
-            'risques' => [
-                'titre'    => 'Appréciation des risques',
-                'resume'   => 'Identifier, analyser et traiter les risques : le cœur du SMSI.',
-                'domaines' => [ 'D3' ],
-                'nombre'   => 10,
-            ],
-            'fondamentaux' => [
-                'titre'    => 'Fondamentaux et exigences',
-                'resume'   => 'Les bases de la sécurité de l\'information et les exigences de la norme.',
-                'domaines' => [ 'D1', 'D2' ],
-                'nombre'   => 12,
-            ],
-            'mise_en_oeuvre' => [
-                'titre'    => 'Mise en œuvre et surveillance',
-                'resume'   => 'Déployer le SMSI, puis mesurer et évaluer son efficacité.',
-                'domaines' => [ 'D4', 'D5' ],
-                'nombre'   => 12,
-            ],
-            'audit' => [
-                'titre'    => 'Audit et amélioration continue',
-                'resume'   => 'Préparer la certification : audit interne et boucle d\'amélioration.',
-                'domaines' => [ 'D6', 'D7' ],
-                'nombre'   => 10,
-            ],
-        ];
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $certification_id = self::certification_courante();
+
+        $lignes = (array) $wpdb->get_results( $wpdb->prepare(
+            "SELECT id, titre, resume, type, domaines, nombre
+             FROM {$p}parcours
+             WHERE statut = 'publie'
+               AND ( certification_id = %d OR certification_id IS NULL )
+             ORDER BY position ASC, id ASC",
+            $certification_id
+        ), ARRAY_A );
+
+        $parcours = [];
+        foreach ( $lignes as $ligne ) {
+            $domaines = json_decode( (string) $ligne['domaines'], true );
+            if ( ! is_array( $domaines ) ) {
+                $domaines = [];
+            }
+            $parcours[ (int) $ligne['id'] ] = [
+                'titre'    => $ligne['titre'],
+                'resume'   => $ligne['resume'],
+                'type'     => $ligne['type'],
+                'domaines' => $domaines,
+                'nombre'   => (int) $ligne['nombre'],
+            ];
+        }
+        return $parcours;
     }
 
     public static function init() {
@@ -105,10 +114,14 @@ class NPQ_Revision {
             self::lancer( $domaines, $nombre );
 
         } elseif ( $action === 'parcours' ) {
-            $cle = sanitize_key( $_POST['npq_parcours'] ?? '' );
+            $cle = (int) ( $_POST['npq_parcours'] ?? 0 );
             $parcours = self::parcours_proposes();
             if ( isset( $parcours[ $cle ] ) ) {
-                self::lancer( $parcours[ $cle ]['domaines'], $parcours[ $cle ]['nombre'] );
+                if ( ( $parcours[ $cle ]['type'] ?? 'criteres' ) === 'questions' ) {
+                    self::lancer_questions( $cle );
+                } else {
+                    self::lancer( $parcours[ $cle ]['domaines'], $parcours[ $cle ]['nombre'] );
+                }
             }
         }
     }
@@ -155,6 +168,46 @@ class NPQ_Revision {
 
         // Le déroulé se fait SUR LA PAGE RÉVISIONS : le candidat reste dans son
         // contexte (barre latérale « Révisions », URL /revisions/).
+        $page_revision = get_option( self::OPT_PAGE_REVISION );
+        $url = $page_revision ? get_permalink( $page_revision ) : home_url( '/' );
+        wp_safe_redirect( add_query_arg( [ 't' => $tentative_id, 'q' => 0 ], $url ) );
+        exit;
+    }
+
+    /**
+     * Lance une révision à partir des questions figées d'un parcours
+     * (mode « questions choisies »). Jumelle de lancer(), mais la composition
+     * vient de la table de liaison plutôt que d'un tirage par critères.
+     */
+    private static function lancer_questions( $parcours_id ) {
+        $questions = NPQ_Composeur::par_parcours( $parcours_id );
+        if ( empty( $questions ) ) {
+            return;
+        }
+
+        $fiche = NPQ_Comptes::fiche_courante();
+        if ( ! $fiche ) {
+            return;
+        }
+
+        global $wpdb;
+        $pfx = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $ids = array_map( function ( $q ) { return (int) $q['id']; }, $questions );
+
+        $wpdb->insert( "{$pfx}tentative", [
+            'utilisateur_id'   => $fiche['id'],
+            'examen_modele_id' => null,
+            'mode'             => 'revision',
+            'criteres'         => wp_json_encode( [
+                'type'         => 'revision',
+                'parcours_id'  => (int) $parcours_id,
+                'questions'    => $ids,
+            ] ),
+            'date_debut'       => current_time( 'mysql' ),
+        ] );
+        $tentative_id = $wpdb->insert_id;
+
         $page_revision = get_option( self::OPT_PAGE_REVISION );
         $url = $page_revision ? get_permalink( $page_revision ) : home_url( '/' );
         wp_safe_redirect( add_query_arg( [ 't' => $tentative_id, 'q' => 0 ], $url ) );
@@ -217,7 +270,7 @@ class NPQ_Revision {
                         </p>
                         <form method="post">
                             <input type="hidden" name="npq_revision_action" value="parcours">
-                            <input type="hidden" name="npq_parcours" value="<?php echo esc_attr( $cle ); ?>">
+                            <input type="hidden" name="npq_parcours" value="<?php echo (int) $cle; ?>">
                             <?php wp_nonce_field( 'npq_revision', 'npq_nonce' ); ?>
                             <button type="submit" class="npq-btn" <?php disabled( $dispo === 0 ); ?>>
                                 Réviser
@@ -290,12 +343,8 @@ class NPQ_Revision {
         ), ARRAY_A );
     }
 
-    /** Certification active (la première publiée, en attendant le multi-certifications). */
+    /** Certification active — délègue à la résolution centralisée. */
     private static function certification_courante() {
-        global $wpdb;
-        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
-        return (int) $wpdb->get_var(
-            "SELECT id FROM {$p}certification WHERE actif = 1 ORDER BY id ASC LIMIT 1"
-        );
+        return NPQ_Certification::id();
     }
 }

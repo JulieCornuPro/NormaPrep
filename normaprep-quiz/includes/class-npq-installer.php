@@ -109,6 +109,7 @@ class NPQ_Installer {
         $sql[] = "CREATE TABLE {$p}flashcard (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             certification_id BIGINT UNSIGNED NULL,
+            ref_externe VARCHAR(50) NULL,
             domaine VARCHAR(20) NOT NULL,
             recto LONGTEXT NOT NULL,
             verso LONGTEXT NOT NULL,
@@ -116,7 +117,8 @@ class NPQ_Installer {
             date_creation DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             KEY certification_id (certification_id),
-            KEY domaine (domaine)
+            KEY domaine (domaine),
+            KEY ref_externe (ref_externe)
         ) $charset;";
 
         $sql[] = "CREATE TABLE {$p}question (
@@ -168,10 +170,20 @@ class NPQ_Installer {
             nom VARCHAR(190) NOT NULL,
             description TEXT NULL,
             type VARCHAR(20) NOT NULL DEFAULT 'fige',
+            nombre_questions SMALLINT UNSIGNED NOT NULL DEFAULT 80,
             actif TINYINT(1) NOT NULL DEFAULT 1,
             date_creation DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             KEY certification_id (certification_id)
+        ) $charset;";
+
+        // --- Liaison modèle d'examen <-> scénarios (pour les modèles « scenarios ») ---
+        // L'examen pioche ses questions parmi celles des scénarios rattachés.
+        $sql[] = "CREATE TABLE {$p}examen_scenario (
+            examen_modele_id BIGINT UNSIGNED NOT NULL,
+            scenario_id BIGINT UNSIGNED NOT NULL,
+            PRIMARY KEY  (examen_modele_id, scenario_id),
+            KEY scenario_id (scenario_id)
         ) $charset;";
 
         // --- Liaison modèle d'examen <-> questions (pour les modèles figés) ---
@@ -255,13 +267,110 @@ class NPQ_Installer {
             KEY option_id (option_id)
         ) $charset;";
 
+        // --- Parcours de révision : compositions préprogrammées proposées
+        // sur la page « Révisions ». Auparavant figées dans le code, elles sont
+        // désormais administrables. Les domaines sont stockés en JSON (une
+        // courte liste, toujours lue en bloc — comme la colonne « criteres »
+        // de la table tentative).
+        $sql[] = "CREATE TABLE {$p}parcours (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            certification_id BIGINT UNSIGNED NULL,
+            titre VARCHAR(190) NOT NULL,
+            resume TEXT NULL,
+            type VARCHAR(20) NOT NULL DEFAULT 'criteres',
+            domaines TEXT NULL,
+            nombre SMALLINT UNSIGNED NOT NULL DEFAULT 10,
+            statut VARCHAR(20) NOT NULL DEFAULT 'publie',
+            position SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+            date_creation DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY certification_id (certification_id)
+        ) $charset;";
+
+        // --- Liaison parcours <-> questions (pour les parcours à questions
+        // choisies). La position fixe l'ordre de présentation. Prépare aussi
+        // une future réorganisation par glisser-déposer.
+        $sql[] = "CREATE TABLE {$p}parcours_question (
+            parcours_id BIGINT UNSIGNED NOT NULL,
+            question_id BIGINT UNSIGNED NOT NULL,
+            position SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+            PRIMARY KEY  (parcours_id, question_id),
+            KEY question_id (question_id)
+        ) $charset;";
+
         // Exécution : dbDelta traite chaque CREATE TABLE.
         foreach ( $sql as $requete ) {
             dbDelta( $requete );
         }
 
+        // Amorçage : recrée une seule fois les 4 parcours qui étaient figés
+        // dans le code, pour ne pas partir d'une page Révisions vide. Ne
+        // s'exécute que si la table est vide (idempotent : pas de doublons si
+        // creer_tables est rappelée).
+        self::amorcer_parcours();
+
         // On mémorise la version de schéma installée. Utile plus tard pour gérer
         // les migrations d'une version à l'autre.
         update_option( 'npq_db_version', NPQ_VERSION );
+    }
+
+    /**
+     * Insère les parcours de révision d'origine, une seule fois.
+     * Rattachés à la certification active. Idempotent : ne fait rien si la
+     * table contient déjà des parcours.
+     */
+    private static function amorcer_parcours() {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $deja = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}parcours" );
+        if ( $deja > 0 ) {
+            return;
+        }
+
+        $certification_id = (int) $wpdb->get_var(
+            "SELECT id FROM {$p}certification WHERE actif = 1 ORDER BY id ASC LIMIT 1"
+        );
+
+        $parcours = [
+            [
+                'titre'    => 'Appréciation des risques',
+                'resume'   => 'Identifier, analyser et traiter les risques : le cœur du SMSI.',
+                'domaines' => [ 'D3' ],
+                'nombre'   => 10,
+            ],
+            [
+                'titre'    => 'Fondamentaux et exigences',
+                'resume'   => "Les bases de la sécurité de l'information et les exigences de la norme.",
+                'domaines' => [ 'D1', 'D2' ],
+                'nombre'   => 12,
+            ],
+            [
+                'titre'    => 'Mise en œuvre et surveillance',
+                'resume'   => 'Déployer le SMSI, puis mesurer et évaluer son efficacité.',
+                'domaines' => [ 'D4', 'D5' ],
+                'nombre'   => 12,
+            ],
+            [
+                'titre'    => 'Audit et amélioration continue',
+                'resume'   => "Préparer la certification : audit interne et boucle d'amélioration.",
+                'domaines' => [ 'D6', 'D7' ],
+                'nombre'   => 10,
+            ],
+        ];
+
+        $position = 1;
+        foreach ( $parcours as $par ) {
+            $wpdb->insert( "{$p}parcours", [
+                'certification_id' => $certification_id ?: null,
+                'titre'            => $par['titre'],
+                'resume'           => $par['resume'],
+                'domaines'         => wp_json_encode( $par['domaines'] ),
+                'nombre'           => $par['nombre'],
+                'statut'           => 'publie',
+                'position'         => $position++,
+                'date_creation'    => current_time( 'mysql' ),
+            ] );
+        }
     }
 }
