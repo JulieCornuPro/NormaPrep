@@ -5,6 +5,11 @@
  * Une flashcard est simple : un recto (la question), un verso (la réponse),
  * un domaine. Pas de scénario — c'est une carte générale de mémorisation.
  *
+ * La carte appartient à une CERTIFICATION, choisie à la création (pré-remplie
+ * sur la certification active). En modification, la certification est affichée
+ * mais verrouillée : la déplacer laisserait son domaine incohérent, puisque les
+ * domaines sont propres à chaque certification.
+ *
  * @package NormaPrep_Quiz
  */
 
@@ -43,6 +48,22 @@ class NPQ_Flashcard_Form {
         $verso   = sanitize_textarea_field( wp_unslash( $_POST['npq_verso'] ?? '' ) );
         $statut  = ( ( $_POST['npq_statut'] ?? '' ) === 'brouillon' ) ? 'brouillon' : 'publie';
 
+        // Certification cible : uniquement à la CRÉATION. En modification, elle
+        // est verrouillée (le champ est affiché en lecture seule), donc on ne
+        // touche pas à la valeur déjà en base.
+        $certification_id = isset( $_POST['npq_certification'] ) ? (int) $_POST['npq_certification'] : 0;
+        if ( ! self::certification_valide( $certification_id ) ) {
+            $certification_id = NPQ_Certification::id();
+        }
+
+        // Le domaine doit appartenir à la certification retenue (liste blanche).
+        if ( $domaine !== '' && $id === 0 ) {
+            $codes_valides = self::codes_domaines_de( $certification_id );
+            if ( ! in_array( $domaine, $codes_valides, true ) ) {
+                $domaine = '';
+            }
+        }
+
         // Validation.
         $erreurs = [];
         if ( $recto === '' ) {
@@ -74,7 +95,7 @@ class NPQ_Flashcard_Form {
             $wpdb->update( "{$p}flashcard", $donnees, [ 'id' => $id ] );
             $message = 'Flashcard mise à jour.';
         } else {
-            $donnees['certification_id'] = self::certification_courante();
+            $donnees['certification_id'] = $certification_id;
             $donnees['date_creation']    = current_time( 'mysql' );
 
             $wpdb->insert( "{$p}flashcard", $donnees );
@@ -125,6 +146,18 @@ class NPQ_Flashcard_Form {
         $verso   = $modification ? $carte['verso'] : '';
         $statut  = $modification ? $carte['statut'] : 'publie';
 
+        // Certification : celle de la carte en modification, sinon l'active.
+        $certification_id = $modification
+            ? (int) $carte['certification_id']
+            : NPQ_Certification::id();
+
+        $certifications = NPQ_Certification::toutes();
+
+        // TOUS les domaines, toutes certifications : le JavaScript n'affiche que
+        // ceux de la certification choisie (à la création). Charger l'ensemble
+        // évite un aller-retour serveur au changement de certification.
+        $domaines_tous = self::domaines();
+
         $erreurs = get_transient( 'npq_flashcard_erreurs' );
         delete_transient( 'npq_flashcard_erreurs' );
         ?>
@@ -153,13 +186,59 @@ class NPQ_Flashcard_Form {
                 <table class="form-table" role="presentation">
                     <tr>
                         <th scope="row">
+                            <label for="npq_certification">Certification <span style="color:#d63638">*</span></label>
+                        </th>
+                        <td>
+                            <?php if ( $modification ) : ?>
+                                <?php
+                                // Verrouillée : déplacer une carte laisserait son
+                                // domaine incohérent (les domaines sont propres à
+                                // chaque certification).
+                                $c_nom = '';
+                                foreach ( $certifications as $c ) {
+                                    if ( (int) $c['id'] === $certification_id ) {
+                                        $c_nom = $c['nom'];
+                                        break;
+                                    }
+                                }
+                                ?>
+                                <strong><?php echo esc_html( $c_nom ); ?></strong>
+                                <p class="description">
+                                    La certification d'une carte existante ne peut pas être
+                                    changée : son domaine n'aurait plus de sens ailleurs.
+                                </p>
+                            <?php else : ?>
+                                <select name="npq_certification" id="npq_certification">
+                                    <?php foreach ( $certifications as $c ) : ?>
+                                        <option value="<?php echo (int) $c['id']; ?>"
+                                            <?php selected( $certification_id, (int) $c['id'] ); ?>>
+                                            <?php
+                                            echo esc_html( $c['nom'] );
+                                            if ( (int) $c['id'] === NPQ_Certification::id() ) {
+                                                echo ' (active)';
+                                            }
+                                            ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <p class="description">
+                                    Choisissez la certification avant le domaine : la liste des
+                                    domaines en dépend.
+                                </p>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th scope="row">
                             <label for="npq_domaine">Domaine <span style="color:#d63638">*</span></label>
                         </th>
                         <td>
                             <select name="npq_domaine" id="npq_domaine" required>
                                 <option value="">— Choisir —</option>
-                                <?php foreach ( self::domaines() as $d ) : ?>
+                                <?php foreach ( $domaines_tous as $d ) : ?>
                                     <option value="<?php echo esc_attr( $d['code'] ); ?>"
+                                        data-certification="<?php echo (int) $d['certification_id']; ?>"
                                         <?php selected( $domaine, $d['code'] ); ?>>
                                         <?php echo esc_html( $d['code'] . ' — ' . $d['libelle'] ); ?>
                                         (<?php echo (int) $d['nb']; ?> carte<?php echo $d['nb'] > 1 ? 's' : ''; ?>)
@@ -226,6 +305,52 @@ class NPQ_Flashcard_Form {
                 </p>
             </form>
         </div>
+
+        <?php if ( ! $modification ) : ?>
+        <script>
+        /* À la création, n'affiche que les domaines de la certification choisie.
+           Les <option> masquées sont retirées du DOM puis réinjectées : c'est le
+           moyen le plus fiable, « display:none » sur une <option> n'étant pas
+           traité de la même façon par tous les navigateurs.
+           (Le serveur revalide de toute façon à l'enregistrement.) */
+        ( function () {
+            var selectCertif  = document.getElementById( 'npq_certification' );
+            var selectDomaine = document.getElementById( 'npq_domaine' );
+
+            if ( ! selectCertif || ! selectDomaine ) { return; }
+
+            // Mémorise toutes les options une fois pour toutes.
+            var toutes = Array.prototype.slice.call( selectDomaine.options ).map( function ( o ) {
+                return {
+                    value: o.value,
+                    text: o.text,
+                    certif: parseInt( o.getAttribute( 'data-certification' ), 10 ) || 0
+                };
+            } );
+
+            function filtrerDomaines() {
+                var certif = parseInt( selectCertif.value, 10 ) || 0;
+                var valeurCourante = selectDomaine.value;
+
+                selectDomaine.innerHTML = '';
+
+                toutes.forEach( function ( o ) {
+                    // L'option vide (« — Choisir — ») est toujours conservée.
+                    if ( o.value !== '' && o.certif !== certif ) { return; }
+
+                    var opt = document.createElement( 'option' );
+                    opt.value = o.value;
+                    opt.text  = o.text;
+                    if ( o.value === valeurCourante ) { opt.selected = true; }
+                    selectDomaine.appendChild( opt );
+                } );
+            }
+
+            selectCertif.addEventListener( 'change', filtrerDomaines );
+            filtrerDomaines();
+        } )();
+        </script>
+        <?php endif; ?>
         <?php
     }
 
@@ -238,33 +363,61 @@ class NPQ_Flashcard_Form {
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
         return $wpdb->get_row( $wpdb->prepare(
-            "SELECT id, domaine, recto, verso, statut
+            "SELECT id, certification_id, domaine, recto, verso, statut
              FROM {$p}flashcard WHERE id = %d",
             $id
         ), ARRAY_A );
     }
 
+    /**
+     * TOUS les domaines, toutes certifications, avec le nombre de cartes de
+     * chacun.
+     *
+     * Le comptage joint sur la CERTIFICATION en plus du code : sans cela, deux
+     * certifications ayant toutes deux un domaine « D1 » verraient leurs cartes
+     * additionnées, et les compteurs seraient faux.
+     */
     private static function domaines() {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
         return (array) $wpdb->get_results(
-            "SELECT d.code, d.libelle, COUNT(f.id) AS nb
+            "SELECT d.code, d.libelle, d.certification_id,
+                    COUNT(f.id) AS nb
              FROM {$p}domaine d
-             LEFT JOIN {$p}flashcard f ON f.domaine = d.code AND f.statut = 'publie'
-             GROUP BY d.code, d.libelle
-             ORDER BY d.code ASC",
+             LEFT JOIN {$p}flashcard f
+                    ON f.domaine = d.code
+                   AND f.certification_id = d.certification_id
+                   AND f.statut = 'publie'
+             GROUP BY d.code, d.libelle, d.certification_id
+             ORDER BY d.certification_id ASC, d.code ASC",
             ARRAY_A
         );
     }
 
-    private static function certification_courante() {
+    /** Codes de domaine d'une certification donnée (liste blanche). */
+    private static function codes_domaines_de( $certification_id ) {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
-        return (int) $wpdb->get_var(
-            "SELECT id FROM {$p}certification WHERE actif = 1 ORDER BY id ASC LIMIT 1"
-        );
+        return (array) $wpdb->get_col( $wpdb->prepare(
+            "SELECT code FROM {$p}domaine WHERE certification_id = %d",
+            (int) $certification_id
+        ) );
+    }
+
+    /** La certification existe-t-elle ? */
+    private static function certification_valide( $certification_id ) {
+        if ( ! $certification_id ) {
+            return false;
+        }
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        return (bool) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$p}certification WHERE id = %d",
+            (int) $certification_id
+        ) );
     }
 
     private static function rediriger_formulaire( $id ) {

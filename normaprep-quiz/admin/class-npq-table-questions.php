@@ -19,6 +19,9 @@ if ( ! class_exists( 'WP_List_Table' ) ) {
 
 class NPQ_Table_Questions extends WP_List_Table {
 
+    /** Id de la certification active, résolu une fois pour tout le rendu. */
+    private $active_id = 0;
+
     public function __construct() {
         parent::__construct( [
             'singular' => 'question',
@@ -29,11 +32,12 @@ class NPQ_Table_Questions extends WP_List_Table {
 
     public function get_columns() {
         return [
-            'enonce'      => 'Question',
-            'domaine'     => 'Domaine',
-            'scenario'    => 'Scénario',
-            'difficulte'  => 'Difficulté',
-            'ref_externe' => 'Origine',
+            'enonce'        => 'Question',
+            'certification' => 'Certification',
+            'domaine'       => 'Domaine',
+            'scenario'      => 'Scénario',
+            'difficulte'    => 'Difficulté',
+            'ref_externe'   => 'Origine',
         ];
     }
 
@@ -42,6 +46,26 @@ class NPQ_Table_Questions extends WP_List_Table {
             'domaine'    => [ 'domaine', false ],
             'difficulte' => [ 'difficulte', false ],
         ];
+    }
+
+    /**
+     * Colonne « Certification » : à quelle certification appartient la question.
+     * Un point vert signale la certification active.
+     */
+    public function column_certification( $item ) {
+        $code = (string) $item['certification_code'];
+
+        if ( $code === '' ) {
+            return '<span style="color:#b32d2e" title="Question rattachée à aucune certification">—</span>';
+        }
+
+        $libelle = '<code>' . esc_html( $code ) . '</code>';
+
+        if ( (int) $item['certification_id'] === $this->active_id ) {
+            $libelle .= ' <span style="color:#00a32a" title="Certification active">●</span>';
+        }
+
+        return $libelle;
     }
 
     public function column_default( $item, $nom_colonne ) {
@@ -139,13 +163,38 @@ class NPQ_Table_Questions extends WP_List_Table {
         $origine_active = isset( $_REQUEST['npq_origine'] ) ? sanitize_key( $_REQUEST['npq_origine'] ) : '';
         $recherche      = isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['s'] ) ) : '';
 
+        $certif_filtre = isset( $_REQUEST['npq_certif'] ) ? (int) $_REQUEST['npq_certif'] : 0;
+
         // Un filtre (ou une recherche) est-il actif ?
         $filtre_actif = ( $domaine_actif !== '' )
                      || ( $scenario_actif > 0 )
                      || ( $origine_active !== '' )
+                     || ( $certif_filtre > 0 )
                      || ( $recherche !== '' );
+
+        $certifications = NPQ_Certification::toutes();
+        // Inutile de proposer le filtre s'il n'y a qu'une certification.
+        $afficher_certif = ( count( $certifications ) > 1 );
         ?>
         <div class="alignleft actions">
+            <?php if ( $afficher_certif ) : ?>
+                <label class="screen-reader-text" for="npq-filtre-certif">Filtrer par certification</label>
+                <select name="npq_certif" id="npq-filtre-certif">
+                    <option value="0">Toutes les certifications</option>
+                    <?php foreach ( $certifications as $c ) : ?>
+                        <option value="<?php echo (int) $c['id']; ?>"
+                            <?php selected( $certif_filtre, (int) $c['id'] ); ?>>
+                            <?php
+                            echo esc_html( $c['nom'] );
+                            if ( (int) $c['id'] === $this->active_id ) {
+                                echo ' (active)';
+                            }
+                            ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            <?php endif; ?>
+
             <select name="npq_domaine">
                 <option value="">Tous les domaines</option>
                 <?php foreach ( self::domaines() as $d ) : ?>
@@ -198,6 +247,10 @@ class NPQ_Table_Questions extends WP_List_Table {
         $domaine   = isset( $_REQUEST['npq_domaine'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['npq_domaine'] ) ) : '';
         $scenario  = isset( $_REQUEST['npq_scenario'] ) ? (int) $_REQUEST['npq_scenario'] : 0;
         $origine   = isset( $_REQUEST['npq_origine'] ) ? sanitize_key( $_REQUEST['npq_origine'] ) : '';
+        $certif_filtre = isset( $_REQUEST['npq_certif'] ) ? (int) $_REQUEST['npq_certif'] : 0;
+
+        // Certification active : sert à signaler la ligne correspondante.
+        $this->active_id = NPQ_Certification::id();
 
         // Tri : liste blanche stricte (jamais de colonne venue de l'URL dans le SQL).
         $tri_autorise = [ 'domaine' => 'q.domaine', 'difficulte' => 'q.difficulte' ];
@@ -226,6 +279,11 @@ class NPQ_Table_Questions extends WP_List_Table {
             $args[] = $scenario;
         }
 
+        if ( $certif_filtre > 0 ) {
+            $where .= ' AND q.certification_id = %d';
+            $args[] = $certif_filtre;
+        }
+
         if ( $origine === 'importee' ) {
             $where .= ' AND q.ref_externe IS NOT NULL';
         } elseif ( $origine === 'locale' ) {
@@ -240,11 +298,16 @@ class NPQ_Table_Questions extends WP_List_Table {
 
         // Les questions, avec leur domaine et leur scénario.
         $sql = "SELECT q.id, q.enonce, q.domaine, q.difficulte, q.ref_externe,
+                       q.certification_id,
+                       c.code    AS certification_code,
                        d.libelle AS domaine_libelle,
                        s.nom     AS scenario_nom
                 FROM {$p}question q
-                LEFT JOIN {$p}domaine  d ON d.code = q.domaine
+                LEFT JOIN {$p}domaine  d
+                       ON d.code = q.domaine
+                      AND d.certification_id = q.certification_id
                 LEFT JOIN {$p}scenario s ON s.id  = q.scenario_id
+                LEFT JOIN {$p}certification c ON c.id = q.certification_id
                 WHERE {$where}
                 ORDER BY {$orderby} {$order}, q.id ASC
                 LIMIT %d OFFSET %d";
@@ -280,7 +343,10 @@ class NPQ_Table_Questions extends WP_List_Table {
         return (array) $wpdb->get_results(
             "SELECT d.code, d.libelle, COUNT(q.id) AS nb
              FROM {$p}domaine d
-             LEFT JOIN {$p}question q ON q.domaine = d.code AND q.statut = 'publie'
+             LEFT JOIN {$p}question q
+                    ON q.domaine = d.code
+                   AND q.certification_id = d.certification_id
+                   AND q.statut = 'publie'
              GROUP BY d.code, d.libelle
              ORDER BY d.code ASC",
             ARRAY_A

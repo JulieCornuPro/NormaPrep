@@ -24,6 +24,9 @@ if ( ! class_exists( 'WP_List_Table' ) ) {
 
 class NPQ_Table_Parcours extends WP_List_Table {
 
+    /** Id de la certification active, résolu une fois pour tout le rendu. */
+    private $active_id = 0;
+
     public function __construct() {
         parent::__construct( [
             'singular' => 'parcours',
@@ -35,12 +38,12 @@ class NPQ_Table_Parcours extends WP_List_Table {
     /** Colonnes affichées. */
     public function get_columns() {
         return [
-            'titre'    => 'Parcours',
-            'resume'   => 'Résumé',
-            'type'     => 'Composition',
-            'domaines' => 'Domaines',
-            'nombre'   => 'Questions',
-            'statut'   => 'Statut',
+            'titre'         => 'Parcours',
+            'certification' => 'Certification',
+            'resume'        => 'Résumé',
+            'domaines'      => 'Domaines',
+            'nombre'        => 'Questions',
+            'statut'        => 'Statut',
         ];
     }
 
@@ -95,6 +98,26 @@ class NPQ_Table_Parcours extends WP_List_Table {
         return $titre . $this->row_actions( $actions );
     }
 
+    /**
+     * Colonne « Certification » : à quelle certification appartient le parcours.
+     * Un point vert signale la certification active.
+     */
+    public function column_certification( $item ) {
+        $code = (string) $item['certification_code'];
+
+        if ( $code === '' ) {
+            return '<span style="color:#b32d2e" title="Parcours rattaché à aucune certification">—</span>';
+        }
+
+        $libelle = '<code>' . esc_html( $code ) . '</code>';
+
+        if ( (int) $item['certification_id'] === $this->active_id ) {
+            $libelle .= ' <span style="color:#00a32a" title="Certification active">●</span>';
+        }
+
+        return $libelle;
+    }
+
     /** Colonne « Résumé » : tronqué, pour ne pas casser la mise en page. */
     public function column_resume( $item ) {
         $resume = (string) $item['resume'];
@@ -102,14 +125,6 @@ class NPQ_Table_Parcours extends WP_List_Table {
             $resume = mb_substr( $resume, 0, 90 ) . '…';
         }
         return esc_html( $resume );
-    }
-
-    /** Colonne « Composition » : par critères ou questions choisies. */
-    public function column_type( $item ) {
-        if ( ( $item['type'] ?? 'criteres' ) === 'questions' ) {
-            return 'Questions choisies';
-        }
-        return 'Par critères';
     }
 
     /**
@@ -148,14 +163,36 @@ class NPQ_Table_Parcours extends WP_List_Table {
         }
 
         $recherche = isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['s'] ) ) : '';
+        $certif_filtre = isset( $_REQUEST['npq_certif'] ) ? (int) $_REQUEST['npq_certif'] : 0;
 
-        if ( $recherche === '' ) {
-            return;
-        }
+        $certifications = NPQ_Certification::toutes();
+        // Inutile de proposer le filtre s'il n'y a qu'une certification.
+        $afficher_certif = ( count( $certifications ) > 1 );
         ?>
         <div class="alignleft actions">
-            <a href="<?php echo esc_url( admin_url( 'admin.php?page=normaprep-parcours' ) ); ?>"
-               class="button">Réinitialiser</a>
+            <?php if ( $afficher_certif ) : ?>
+                <label class="screen-reader-text" for="npq-filtre-certif">Filtrer par certification</label>
+                <select name="npq_certif" id="npq-filtre-certif">
+                    <option value="0">Toutes les certifications</option>
+                    <?php foreach ( $certifications as $c ) : ?>
+                        <option value="<?php echo (int) $c['id']; ?>"
+                            <?php selected( $certif_filtre, (int) $c['id'] ); ?>>
+                            <?php
+                            echo esc_html( $c['nom'] );
+                            if ( (int) $c['id'] === $this->active_id ) {
+                                echo ' (active)';
+                            }
+                            ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <?php submit_button( 'Filtrer', '', 'filtrer', false ); ?>
+            <?php endif; ?>
+
+            <?php if ( $recherche !== '' || $certif_filtre > 0 ) : ?>
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=normaprep-parcours' ) ); ?>"
+                   class="button">Réinitialiser</a>
+            <?php endif; ?>
         </div>
         <?php
     }
@@ -176,13 +213,17 @@ class NPQ_Table_Parcours extends WP_List_Table {
         $page     = $this->get_pagenum();
         $offset   = ( $page - 1 ) * $par_page;
 
+        // Certification active : sert à signaler la ligne correspondante.
+        $this->active_id = NPQ_Certification::id();
+
         // Recherche.
         $recherche = isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['s'] ) ) : '';
+        $certif_filtre = isset( $_REQUEST['npq_certif'] ) ? (int) $_REQUEST['npq_certif'] : 0;
 
         // Tri (avec liste blanche : on n'injecte jamais une colonne venue de l'URL).
-        $tri_autorise = [ 'titre' => 'titre', 'nombre' => 'nombre' ];
+        $tri_autorise = [ 'titre' => 'p2.titre', 'nombre' => 'p2.nombre' ];
         $orderby_brut = isset( $_REQUEST['orderby'] ) ? sanitize_key( $_REQUEST['orderby'] ) : 'position';
-        $orderby      = isset( $tri_autorise[ $orderby_brut ] ) ? $tri_autorise[ $orderby_brut ] : 'position';
+        $orderby      = isset( $tri_autorise[ $orderby_brut ] ) ? $tri_autorise[ $orderby_brut ] : 'p2.position';
 
         $order = ( isset( $_REQUEST['order'] ) && strtolower( $_REQUEST['order'] ) === 'desc' )
                ? 'DESC' : 'ASC';
@@ -193,20 +234,28 @@ class NPQ_Table_Parcours extends WP_List_Table {
 
         if ( $recherche !== '' ) {
             $like  = '%' . $wpdb->esc_like( $recherche ) . '%';
-            $where .= ' AND ( titre LIKE %s OR resume LIKE %s )';
+            $where .= ' AND ( p2.titre LIKE %s OR p2.resume LIKE %s )';
             $args[] = $like;
             $args[] = $like;
         }
 
+        if ( $certif_filtre > 0 ) {
+            $where .= ' AND p2.certification_id = %d';
+            $args[] = $certif_filtre;
+        }
+
         // Total (pour la pagination).
-        $sql_total = "SELECT COUNT(*) FROM {$p}parcours WHERE {$where}";
+        $sql_total = "SELECT COUNT(*) FROM {$p}parcours p2 WHERE {$where}";
         $total = $args
             ? (int) $wpdb->get_var( $wpdb->prepare( $sql_total, $args ) )
             : (int) $wpdb->get_var( $sql_total );
 
         // La liste.
-        $sql = "SELECT id, titre, resume, type, domaines, nombre, statut, position
-                FROM {$p}parcours
+        $sql = "SELECT p2.id, p2.titre, p2.resume, p2.domaines, p2.nombre,
+                       p2.statut, p2.position, p2.certification_id,
+                       c.code AS certification_code
+                FROM {$p}parcours p2
+                LEFT JOIN {$p}certification c ON c.id = p2.certification_id
                 WHERE {$where}
                 ORDER BY {$orderby} {$order}
                 LIMIT %d OFFSET %d";

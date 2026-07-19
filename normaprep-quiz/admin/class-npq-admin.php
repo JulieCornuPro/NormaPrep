@@ -36,6 +36,9 @@ class NPQ_Admin {
         require_once NPQ_PATH . 'admin/class-npq-certification-form.php';
         NPQ_Certification_Form::traiter();
 
+        require_once NPQ_PATH . 'admin/class-npq-domaine-form.php';
+        NPQ_Domaine_Form::traiter();
+
         require_once NPQ_PATH . 'admin/class-npq-examen-form.php';
         NPQ_Examen_Form::traiter();
 
@@ -86,6 +89,15 @@ class NPQ_Admin {
             'manage_options',
             'normaprep-certifications',
             [ __CLASS__, 'page_certifications' ]
+        );
+
+        add_submenu_page(
+            'normaprep-quiz',
+            'Domaines',
+            'Domaines',
+            'manage_options',
+            'normaprep-domaines',
+            [ __CLASS__, 'page_domaines' ]
         );
 
         add_submenu_page(
@@ -180,6 +192,63 @@ class NPQ_Admin {
         <?php
     }
 
+    /* =====================================================================
+     * PAGE : DOMAINES
+     * ===================================================================== */
+
+    public static function page_domaines() {
+        require_once NPQ_PATH . 'admin/class-npq-domaine-form.php';
+
+        $vue = isset( $_GET['npq_vue'] ) ? sanitize_key( $_GET['npq_vue'] ) : 'liste';
+
+        if ( $vue === 'form' ) {
+            NPQ_Domaine_Form::afficher_formulaire();
+            return;
+        }
+
+        require_once NPQ_PATH . 'admin/class-npq-table-domaines.php';
+
+        $table = new NPQ_Table_Domaines();
+        $table->prepare_items();
+
+        $message = get_transient( 'npq_domaine_message' );
+        delete_transient( 'npq_domaine_message' );
+
+        $url_nouveau = admin_url( 'admin.php?page=normaprep-domaines&npq_vue=form' );
+        ?>
+        <div class="wrap">
+            <h1 class="wp-heading-inline">Domaines</h1>
+            <a href="<?php echo esc_url( $url_nouveau ); ?>" class="page-title-action">Ajouter</a>
+            <hr class="wp-header-end">
+
+            <?php if ( $message ) : ?>
+                <div class="notice notice-<?php echo $message['type'] === 'error' ? 'error' : 'success'; ?> is-dismissible">
+                    <p><?php echo esc_html( $message['texte'] ); ?></p>
+                </div>
+            <?php endif; ?>
+
+            <p class="description" style="max-width:820px">
+                Les domaines découpent une certification en thèmes. Questions, flashcards
+                et parcours s'y rattachent. Deux certifications peuvent avoir chacune un
+                domaine portant le même code : ils restent distincts.
+            </p>
+
+            <form method="get">
+                <input type="hidden" name="page" value="normaprep-domaines">
+                <?php
+                // Conserve le filtre certification lors d'un tri.
+                $certif_filtre = isset( $_REQUEST['npq_certif'] ) ? (int) $_REQUEST['npq_certif'] : 0;
+                if ( $certif_filtre > 0 ) {
+                    echo '<input type="hidden" name="npq_certif" value="' . (int) $certif_filtre . '">';
+                }
+
+                $table->display();
+                ?>
+            </form>
+        </div>
+        <?php
+    }
+
 
     /* =====================================================================
      * PAGE : PARCOURS DE RÉVISION
@@ -237,7 +306,14 @@ class NPQ_Admin {
             <form method="get">
                 <input type="hidden" name="page" value="normaprep-parcours">
                 <?php
-                $table->search_box( 'Rechercher', 'npq-recherche-parcours' );
+                // Conserve le filtre certification lors d'une recherche,
+                // d'un tri ou d'un changement de page.
+                $certif_filtre = isset( $_REQUEST['npq_certif'] ) ? (int) $_REQUEST['npq_certif'] : 0;
+                if ( $certif_filtre > 0 ) {
+                    echo '<input type="hidden" name="npq_certif" value="' . (int) $certif_filtre . '">';
+                }
+
+                $table->search_box( 'Rechercher', 'npq-recherche-flashcards' );
                 $table->display();
                 ?>
             </form>
@@ -289,7 +365,14 @@ class NPQ_Admin {
             <form method="get">
                 <input type="hidden" name="page" value="normaprep-flashcards">
                 <?php
-                $table->search_box( 'Rechercher', 'npq-recherche-flashcard' );
+                // Conserve le filtre certification lors d'une recherche,
+                // d'un tri ou d'un changement de page.
+                $certif_filtre = isset( $_REQUEST['npq_certif'] ) ? (int) $_REQUEST['npq_certif'] : 0;
+                if ( $certif_filtre > 0 ) {
+                    echo '<input type="hidden" name="npq_certif" value="' . (int) $certif_filtre . '">';
+                }
+
+                $table->search_box( 'Rechercher', 'npq-recherche-flashcards' );
                 $table->display();
                 ?>
             </form>
@@ -352,7 +435,14 @@ class NPQ_Admin {
             <form method="get">
                 <input type="hidden" name="page" value="normaprep-questions">
                 <?php
-                $table->search_box( 'Rechercher', 'npq-recherche-question' );
+                // Conserve le filtre certification lors d'une recherche,
+                // d'un tri ou d'un changement de page.
+                $certif_filtre = isset( $_REQUEST['npq_certif'] ) ? (int) $_REQUEST['npq_certif'] : 0;
+                if ( $certif_filtre > 0 ) {
+                    echo '<input type="hidden" name="npq_certif" value="' . (int) $certif_filtre . '">';
+                }
+
+                $table->search_box( 'Rechercher', 'npq-recherche-flashcards' );
                 $table->display();
                 ?>
             </form>
@@ -418,12 +508,19 @@ class NPQ_Admin {
 
             <form method="get">
                 <input type="hidden" name="page" value="normaprep-scenarios">
-                <?php $table->search_box( 'Rechercher', 'npq-recherche-scenario' ); ?>
+                <?php
+                // Conserve le filtre certification lors d'une recherche
+                // ou d'un changement de page.
+                $certif_filtre = isset( $_REQUEST['npq_certif'] ) ? (int) $_REQUEST['npq_certif'] : 0;
+                if ( $certif_filtre > 0 ) {
+                    echo '<input type="hidden" name="npq_certif" value="' . (int) $certif_filtre . '">';
+                }
+
+                $table->search_box( 'Rechercher', 'npq-recherche-scenarios' );
+                $table->display();
+                ?>
             </form>
 
-            <form method="post">
-                <?php $table->display(); ?>
-            </form>
         </div>
         <?php
     }
@@ -741,7 +838,10 @@ class NPQ_Admin {
                 atteindre le nombre de questions visé (80 pour une simulation complète).
             </p>
 
-            <?php $table->display(); ?>
+            <form method="get">
+                <input type="hidden" name="page" value="normaprep-examens">
+                <?php $table->display(); ?>
+            </form>
         </div>
         <?php
     }
@@ -939,6 +1039,13 @@ class NPQ_Admin {
      * Charge le sélecteur de questions (glisser-déposer) uniquement sur
      * l'écran du formulaire de parcours. Passe au JavaScript la liste des
      * questions publiées et la sélection courante.
+     *
+     * La certification est résolue dans le même ordre que le formulaire :
+     *   1. celle du parcours édité (modification) ;
+     *   2. celle passée en URL (après changement dans le menu, qui recharge) ;
+     *   3. à défaut, la certification active.
+     * Sans cela, le panneau afficherait les questions d'une autre certification
+     * que celle choisie.
      */
     public static function charger_script_parcours( $hook ) {
         // On ne cible que notre page parcours, en vue « form ».
@@ -951,11 +1058,35 @@ class NPQ_Admin {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
-        $certification_id = (int) $wpdb->get_var(
-            "SELECT id FROM {$p}certification WHERE actif = 1 ORDER BY id ASC LIMIT 1"
-        );
+        $parcours_id = isset( $_GET['id'] ) ? (int) $_GET['id'] : 0;
 
-        // Toutes les questions publiées (id, énoncé, domaine, scénario).
+        // 1) Certification du parcours édité.
+        $certification_id = 0;
+        if ( $parcours_id > 0 ) {
+            $certification_id = (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT certification_id FROM {$p}parcours WHERE id = %d",
+                $parcours_id
+            ) );
+        }
+
+        // 2) Sinon, celle choisie dans le menu (passée en URL au rechargement).
+        if ( ! $certification_id && isset( $_GET['npq_certif'] ) ) {
+            $candidate = (int) $_GET['npq_certif'];
+            $existe = (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$p}certification WHERE id = %d",
+                $candidate
+            ) );
+            if ( $existe ) {
+                $certification_id = $candidate;
+            }
+        }
+
+        // 3) À défaut, la certification active.
+        if ( ! $certification_id ) {
+            $certification_id = NPQ_Certification::id();
+        }
+
+        // Questions publiées de cette certification.
         $questions = (array) $wpdb->get_results( $wpdb->prepare(
             "SELECT id, enonce, domaine, scenario_id
              FROM {$p}question
@@ -970,13 +1101,12 @@ class NPQ_Admin {
                 'id'       => (int) $q['id'],
                 'enonce'   => (string) $q['enonce'],
                 'domaine'  => (string) $q['domaine'],
-                'scenario' => (int) $q['scenario_id'], // 0 si la question n'a pas de scénario
+                'scenario' => (int) $q['scenario_id'], // 0 si pas de scénario
             ];
         }, $questions );
 
         // Sélection courante (si on édite un parcours existant), dans l'ordre.
         $choisies = [];
-        $parcours_id = isset( $_GET['id'] ) ? (int) $_GET['id'] : 0;
         if ( $parcours_id > 0 ) {
             $choisies = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare(
                 "SELECT question_id FROM {$p}parcours_question

@@ -5,6 +5,11 @@
  * Une question porte : un scénario, un domaine, un énoncé, 4 options dont une
  * bonne, une explication, une difficulté.
  *
+ * La CERTIFICATION se déduit du scénario choisi : un scénario appartient à une
+ * certification, et la question en hérite. Le formulaire fonctionne donc en
+ * cascade — choisir un scénario met à jour la certification affichée et filtre
+ * les domaines proposés à ceux de cette certification.
+ *
  * Les options vivent dans une table séparée (option_reponse). À l'enregistrement,
  * on les remplace entièrement : plus simple et plus sûr que de tenter une mise à
  * jour ligne par ligne.
@@ -103,6 +108,24 @@ class NPQ_Question_Form {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
+        // La certification se déduit du scénario : c'est lui qui la porte.
+        $certification_id = self::certification_du_scenario( $scenario_id );
+        if ( ! $certification_id ) {
+            $certification_id = NPQ_Certification::id();
+        }
+
+        // Le domaine doit appartenir à cette certification (liste blanche) :
+        // on ne veut pas d'une question rattachée à un domaine d'ailleurs.
+        $codes_valides = self::codes_domaines_de( $certification_id );
+        if ( $domaine !== '' && ! in_array( $domaine, $codes_valides, true ) ) {
+            set_transient(
+                'npq_question_erreurs',
+                [ 'Le domaine choisi n\'appartient pas à la certification du scénario.' ],
+                60
+            );
+            self::rediriger_formulaire( $id );
+        }
+
         $donnees = [
             'scenario_id'    => $scenario_id,
             'domaine'        => $domaine,
@@ -113,13 +136,15 @@ class NPQ_Question_Form {
             'multi_reponses' => 0,  // une seule bonne réponse (format PECB)
         ];
 
+        // La certification suit toujours le scénario, en création comme en
+        // modification : changer de scénario change de certification.
+        $donnees['certification_id'] = $certification_id;
+
         if ( $id > 0 ) {
             $wpdb->update( "{$p}question", $donnees, [ 'id' => $id ] );
             $message = 'Question mise à jour.';
         } else {
             // Pas de ref_externe : cette question ne sera jamais écrasée par l'import.
-            $donnees['certification_id'] = self::certification_courante();
-
             $wpdb->insert( "{$p}question", $donnees );
             $id = (int) $wpdb->insert_id;
             $message = 'Question créée.';
@@ -184,6 +209,17 @@ class NPQ_Question_Form {
 
         $scenario_id = $modification ? (int) $question['scenario_id'] : 0;
         $domaine     = $modification ? $question['domaine'] : '';
+
+        // Scénarios et domaines de TOUTES les certifications : le JavaScript
+        // n'affiche que ceux qui correspondent au scénario choisi.
+        $scenarios_tous = self::scenarios();
+        $domaines_tous  = self::domaines();
+        $certifications = NPQ_Certification::toutes();
+
+        // Certification déduite du scénario (ou l'active si aucun scénario).
+        $certification_id = $scenario_id
+            ? self::certification_du_scenario( $scenario_id )
+            : NPQ_Certification::id();
         $enonce      = $modification ? $question['enonce'] : '';
         $explication = $modification ? $question['explication'] : '';
         $difficulte  = $modification ? $question['difficulte'] : 'hard';
@@ -237,8 +273,9 @@ class NPQ_Question_Form {
                         <td>
                             <select name="npq_scenario_id" id="npq_scenario_id" required>
                                 <option value="">— Choisir —</option>
-                                <?php foreach ( self::scenarios() as $s ) : ?>
+                                <?php foreach ( $scenarios_tous as $s ) : ?>
                                     <option value="<?php echo (int) $s['id']; ?>"
+                                        data-certification="<?php echo (int) $s['certification_id']; ?>"
                                         <?php selected( $scenario_id, (int) $s['id'] ); ?>>
                                         <?php echo esc_html( $s['nom'] ); ?>
                                     </option>
@@ -258,14 +295,29 @@ class NPQ_Question_Form {
                         <td>
                             <select name="npq_domaine" id="npq_domaine" required>
                                 <option value="">— Choisir —</option>
-                                <?php foreach ( self::domaines() as $d ) : ?>
+                                <?php foreach ( $domaines_tous as $d ) : ?>
                                     <option value="<?php echo esc_attr( $d['code'] ); ?>"
+                                        data-certification="<?php echo (int) $d['certification_id']; ?>"
                                         <?php selected( $domaine, $d['code'] ); ?>>
                                         <?php echo esc_html( $d['code'] . ' — ' . $d['libelle'] ); ?>
                                         (<?php echo (int) $d['nb']; ?> question<?php echo $d['nb'] > 1 ? 's' : ''; ?>)
                                     </option>
                                 <?php endforeach; ?>
                             </select>
+                            <p class="description" id="npq-certif-info" style="margin-top:6px">
+                                Certification :
+                                <strong id="npq-certif-nom"><?php
+                                    $c_nom = '';
+                                    foreach ( $certifications as $c ) {
+                                        if ( (int) $c['id'] === (int) $certification_id ) {
+                                            $c_nom = $c['nom'];
+                                            break;
+                                        }
+                                    }
+                                    echo esc_html( $c_nom !== '' ? $c_nom : '— choisissez un scénario —' );
+                                ?></strong>
+                                <br>Déduite du scénario. Les domaines proposés sont les siens.
+                            </p>
                             <p class="description">
                                 Le nombre entre parenthèses indique combien de questions ce domaine
                                 contient déjà.
@@ -373,6 +425,75 @@ class NPQ_Question_Form {
                 </p>
             </form>
         </div>
+
+        <script>
+        /* Cascade : le scénario détermine la certification, qui détermine les
+           domaines proposés. Choisir un scénario met donc à jour l'affichage de
+           la certification et ne laisse que les domaines qui lui appartiennent.
+
+           Les <option> hors périmètre sont retirées du DOM puis réinjectées :
+           « display:none » sur une <option> n'est pas traité de la même façon
+           par tous les navigateurs.
+           (Le serveur revalide de toute façon à l'enregistrement.) */
+        ( function () {
+            var selectScenario = document.getElementById( 'npq_scenario_id' );
+            var selectDomaine  = document.getElementById( 'npq_domaine' );
+            var certifNom      = document.getElementById( 'npq-certif-nom' );
+
+            if ( ! selectScenario || ! selectDomaine ) { return; }
+
+            // Noms des certifications, pour l'affichage.
+            var noms = <?php
+                $map = [];
+                foreach ( $certifications as $c ) {
+                    $map[ (int) $c['id'] ] = $c['nom'];
+                }
+                echo wp_json_encode( $map );
+            ?>;
+
+            // Mémorise toutes les options de domaine une fois pour toutes.
+            var tousDomaines = Array.prototype.slice.call( selectDomaine.options ).map( function ( o ) {
+                return {
+                    value: o.value,
+                    text: o.text,
+                    certif: parseInt( o.getAttribute( 'data-certification' ), 10 ) || 0
+                };
+            } );
+
+            function certifDuScenario() {
+                var opt = selectScenario.options[ selectScenario.selectedIndex ];
+                if ( ! opt || opt.value === '' ) { return 0; }
+                return parseInt( opt.getAttribute( 'data-certification' ), 10 ) || 0;
+            }
+
+            function majCascade() {
+                var certif = certifDuScenario();
+
+                // 1) Afficher la certification déduite.
+                if ( certifNom ) {
+                    certifNom.textContent = noms[ certif ] || '— choisissez un scénario —';
+                }
+
+                // 2) Ne garder que les domaines de cette certification.
+                var valeurCourante = selectDomaine.value;
+                selectDomaine.innerHTML = '';
+
+                tousDomaines.forEach( function ( o ) {
+                    // L'option vide (« — Choisir — ») est toujours conservée.
+                    if ( o.value !== '' && o.certif !== certif ) { return; }
+
+                    var opt = document.createElement( 'option' );
+                    opt.value = o.value;
+                    opt.text  = o.text;
+                    if ( o.value === valeurCourante ) { opt.selected = true; }
+                    selectDomaine.appendChild( opt );
+                } );
+            }
+
+            selectScenario.addEventListener( 'change', majCascade );
+            majCascade();
+        } )();
+        </script>
         <?php
     }
 
@@ -403,18 +524,54 @@ class NPQ_Question_Form {
         ), ARRAY_A );
     }
 
+    /**
+     * TOUS les domaines, toutes certifications, avec leur nombre de questions.
+     *
+     * Le comptage joint sur la CERTIFICATION en plus du code : deux
+     * certifications peuvent avoir chacune un domaine « D1 », et leurs
+     * questions ne doivent pas être additionnées.
+     */
     private static function domaines() {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
         return (array) $wpdb->get_results(
-            "SELECT d.code, d.libelle, COUNT(q.id) AS nb
+            "SELECT d.code, d.libelle, d.certification_id,
+                    COUNT(q.id) AS nb
              FROM {$p}domaine d
-             LEFT JOIN {$p}question q ON q.domaine = d.code AND q.statut = 'publie'
-             GROUP BY d.code, d.libelle
-             ORDER BY d.code ASC",
+             LEFT JOIN {$p}question q
+                    ON q.domaine = d.code
+                   AND q.certification_id = d.certification_id
+                   AND q.statut = 'publie'
+             GROUP BY d.code, d.libelle, d.certification_id
+             ORDER BY d.certification_id ASC, d.code ASC",
             ARRAY_A
         );
+    }
+
+    /** Codes de domaine d'une certification donnée (liste blanche). */
+    private static function codes_domaines_de( $certification_id ) {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        return (array) $wpdb->get_col( $wpdb->prepare(
+            "SELECT code FROM {$p}domaine WHERE certification_id = %d",
+            (int) $certification_id
+        ) );
+    }
+
+    /** La certification que porte un scénario. */
+    private static function certification_du_scenario( $scenario_id ) {
+        if ( ! $scenario_id ) {
+            return 0;
+        }
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        return (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT certification_id FROM {$p}scenario WHERE id = %d",
+            (int) $scenario_id
+        ) );
     }
 
     private static function scenarios() {
@@ -422,20 +579,16 @@ class NPQ_Question_Form {
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
         return (array) $wpdb->get_results(
-            "SELECT id, nom FROM {$p}scenario
+            "SELECT id, nom, certification_id FROM {$p}scenario
              WHERE statut = 'publie'
              ORDER BY nom ASC",
             ARRAY_A
         );
     }
 
+    /** Certification active — délègue à la résolution centralisée. */
     private static function certification_courante() {
-        global $wpdb;
-        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
-
-        return (int) $wpdb->get_var(
-            "SELECT id FROM {$p}certification WHERE actif = 1 ORDER BY id ASC LIMIT 1"
-        );
+        return NPQ_Certification::id();
     }
 
     private static function rediriger_formulaire( $id ) {

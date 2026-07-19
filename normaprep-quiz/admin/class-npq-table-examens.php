@@ -24,6 +24,9 @@ if ( ! class_exists( 'WP_List_Table' ) ) {
 
 class NPQ_Table_Examens extends WP_List_Table {
 
+    /** Id de la certification active, résolu une fois pour tout le rendu. */
+    private $active_id = 0;
+
     public function __construct() {
         parent::__construct( [
             'singular' => 'examen',
@@ -34,11 +37,12 @@ class NPQ_Table_Examens extends WP_List_Table {
 
     public function get_columns() {
         return [
-            'nom'        => 'Examen',
-            'type'       => 'Composition',
-            'scenarios'  => 'Scénarios',
-            'nombre'     => 'Questions',
-            'actif'      => 'Actif',
+            'nom'           => 'Examen',
+            'certification' => 'Certification',
+            'type'          => 'Composition',
+            'scenarios'     => 'Scénarios',
+            'nombre'        => 'Questions',
+            'actif'         => 'Actif',
         ];
     }
 
@@ -80,6 +84,26 @@ class NPQ_Table_Examens extends WP_List_Table {
         ];
 
         return $nom . $this->row_actions( $actions );
+    }
+
+    /**
+     * Colonne « Certification » : à quelle certification appartient l'examen.
+     * Un point vert signale la certification active.
+     */
+    public function column_certification( $item ) {
+        $code = (string) $item['certification_code'];
+
+        if ( $code === '' ) {
+            return '<span style="color:#b32d2e" title="Examen rattaché à aucune certification">—</span>';
+        }
+
+        $libelle = '<code>' . esc_html( $code ) . '</code>';
+
+        if ( (int) $item['certification_id'] === $this->active_id ) {
+            $libelle .= ' <span style="color:#00a32a" title="Certification active">●</span>';
+        }
+
+        return $libelle;
     }
 
     /** Colonne « Composition ». */
@@ -130,6 +154,50 @@ class NPQ_Table_Examens extends WP_List_Table {
             : '<span style="color:#646970">Non</span>';
     }
 
+    /**
+     * Barre de filtres : sélection de la certification.
+     * Le filtre est un paramètre d'URL (npq_certif) qui se combine avec le tri
+     * et la pagination de WP_List_Table.
+     */
+    protected function extra_tablenav( $which ) {
+        if ( $which !== 'top' ) {
+            return;
+        }
+
+        $certif_filtre = isset( $_REQUEST['npq_certif'] ) ? (int) $_REQUEST['npq_certif'] : 0;
+
+        $certifications = NPQ_Certification::toutes();
+        // Inutile de proposer le filtre s'il n'y a qu'une certification.
+        if ( count( $certifications ) <= 1 ) {
+            return;
+        }
+        ?>
+        <div class="alignleft actions">
+            <label class="screen-reader-text" for="npq-filtre-certif">Filtrer par certification</label>
+            <select name="npq_certif" id="npq-filtre-certif">
+                <option value="0">Toutes les certifications</option>
+                <?php foreach ( $certifications as $c ) : ?>
+                    <option value="<?php echo (int) $c['id']; ?>"
+                        <?php selected( $certif_filtre, (int) $c['id'] ); ?>>
+                        <?php
+                        echo esc_html( $c['nom'] );
+                        if ( (int) $c['id'] === $this->active_id ) {
+                            echo ' (active)';
+                        }
+                        ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <?php submit_button( 'Filtrer', '', 'filtrer', false ); ?>
+
+            <?php if ( $certif_filtre > 0 ) : ?>
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=normaprep-examens' ) ); ?>"
+                   class="button">Réinitialiser</a>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+
     public function no_items() {
         echo 'Aucun examen. Créez-en un, puis rattachez-lui des scénarios.';
     }
@@ -142,23 +210,47 @@ class NPQ_Table_Examens extends WP_List_Table {
         $page     = $this->get_pagenum();
         $offset   = ( $page - 1 ) * $par_page;
 
-        $tri_autorise = [ 'nom' => 'nom' ];
+        // Certification active : sert à signaler la ligne correspondante.
+        $this->active_id = NPQ_Certification::id();
+
+        $certif_filtre = isset( $_REQUEST['npq_certif'] ) ? (int) $_REQUEST['npq_certif'] : 0;
+
+        $tri_autorise = [ 'nom' => 'm.nom' ];
         $orderby_brut = isset( $_REQUEST['orderby'] ) ? sanitize_key( $_REQUEST['orderby'] ) : 'nom';
-        $orderby      = isset( $tri_autorise[ $orderby_brut ] ) ? $tri_autorise[ $orderby_brut ] : 'nom';
+        $orderby      = isset( $tri_autorise[ $orderby_brut ] ) ? $tri_autorise[ $orderby_brut ] : 'm.nom';
         $order = ( isset( $_REQUEST['order'] ) && strtolower( $_REQUEST['order'] ) === 'desc' ) ? 'DESC' : 'ASC';
 
-        $total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}examen_modele" );
+        // Clause de filtrage (certification).
+        $where = '1=1';
+        $args  = [];
 
-        // Modèles + nombre de scénarios rattachés (sous-requête).
-        $modeles = (array) $wpdb->get_results( $wpdb->prepare(
-            "SELECT m.id, m.nom, m.type, m.nombre_questions, m.actif,
-                    ( SELECT COUNT(*) FROM {$p}examen_scenario es
-                      WHERE es.examen_modele_id = m.id ) AS nb_scenarios
-             FROM {$p}examen_modele m
-             ORDER BY {$orderby} {$order}
-             LIMIT %d OFFSET %d",
-            $par_page, $offset
-        ), ARRAY_A );
+        if ( $certif_filtre > 0 ) {
+            $where .= ' AND m.certification_id = %d';
+            $args[] = $certif_filtre;
+        }
+
+        $sql_total = "SELECT COUNT(*) FROM {$p}examen_modele m WHERE {$where}";
+        $total = $args
+            ? (int) $wpdb->get_var( $wpdb->prepare( $sql_total, $args ) )
+            : (int) $wpdb->get_var( $sql_total );
+
+        // Modèles + nombre de scénarios rattachés (sous-requête) + certification.
+        $sql = "SELECT m.id, m.nom, m.type, m.nombre_questions, m.actif,
+                       m.certification_id,
+                       c.code AS certification_code,
+                       ( SELECT COUNT(*) FROM {$p}examen_scenario es
+                         WHERE es.examen_modele_id = m.id ) AS nb_scenarios
+                FROM {$p}examen_modele m
+                LEFT JOIN {$p}certification c ON c.id = m.certification_id
+                WHERE {$where}
+                ORDER BY {$orderby} {$order}
+                LIMIT %d OFFSET %d";
+
+        $args_liste = array_merge( $args, [ $par_page, $offset ] );
+        $modeles = (array) $wpdb->get_results(
+            $wpdb->prepare( $sql, $args_liste ),
+            ARRAY_A
+        );
 
         // Pour chaque modèle « scenarios », combien de questions sont réellement
         // disponibles dans les scénarios rattachés (pour l'alerte « < cible »).

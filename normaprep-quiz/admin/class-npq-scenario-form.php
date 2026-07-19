@@ -63,6 +63,15 @@ class NPQ_Scenario_Form {
             $erreurs[] = 'Le contexte est obligatoire : c\'est le texte que le candidat lit.';
         }
 
+        // Certification cible : uniquement à la CRÉATION. En modification, elle
+        // est verrouillée (affichée en lecture seule), donc on ne touche pas à
+        // la valeur déjà en base — déplacer un scénario laisserait ses questions
+        // rattachées à l'ancienne certification.
+        $certification_id = isset( $_POST['npq_certification'] ) ? (int) $_POST['npq_certification'] : 0;
+        if ( ! self::certification_valide( $certification_id ) ) {
+            $certification_id = NPQ_Certification::id();
+        }
+
         if ( ! empty( $erreurs ) ) {
             set_transient( 'npq_scenario_erreurs', $erreurs, 60 );
             self::rediriger_formulaire( $id );
@@ -85,7 +94,7 @@ class NPQ_Scenario_Form {
         } else {
             // Création : rattachée à la certification active.
             // Pas de ref_externe -> ce scénario ne sera jamais touché par l'import.
-            $donnees['certification_id'] = self::certification_courante();
+            $donnees['certification_id'] = $certification_id;
             $donnees['date_creation']    = current_time( 'mysql' );
 
             $wpdb->insert( "{$p}scenario", $donnees );
@@ -161,6 +170,13 @@ class NPQ_Scenario_Form {
         $statut   = $modification ? $scenario['statut'] : 'publie';
         $importe  = $modification && ! empty( $scenario['ref_externe'] );
 
+        // Certification : celle du scénario en modification, sinon l'active.
+        $certification_id = $modification
+            ? (int) $scenario['certification_id']
+            : NPQ_Certification::id();
+
+        $certifications = NPQ_Certification::toutes();
+
         // Messages d'erreur éventuels.
         $erreurs = get_transient( 'npq_scenario_erreurs' );
         delete_transient( 'npq_scenario_erreurs' );
@@ -193,6 +209,50 @@ class NPQ_Scenario_Form {
                 <?php wp_nonce_field( 'npq_scenario_form', 'npq_nonce' ); ?>
 
                 <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row">
+                            <label for="npq_certification">Certification <span style="color:#d63638">*</span></label>
+                        </th>
+                        <td>
+                            <?php if ( $modification ) : ?>
+                                <?php
+                                // Verrouillée : déplacer un scénario laisserait ses
+                                // questions rattachées à l'ancienne certification.
+                                $c_nom = '';
+                                foreach ( $certifications as $c ) {
+                                    if ( (int) $c['id'] === $certification_id ) {
+                                        $c_nom = $c['nom'];
+                                        break;
+                                    }
+                                }
+                                ?>
+                                <strong><?php echo esc_html( $c_nom ); ?></strong>
+                                <p class="description">
+                                    La certification d'un scénario existant ne peut pas être
+                                    changée : ses questions resteraient rattachées à l'ancienne.
+                                </p>
+                            <?php else : ?>
+                                <select name="npq_certification" id="npq_certification">
+                                    <?php foreach ( $certifications as $c ) : ?>
+                                        <option value="<?php echo (int) $c['id']; ?>"
+                                            <?php selected( $certification_id, (int) $c['id'] ); ?>>
+                                            <?php
+                                            echo esc_html( $c['nom'] );
+                                            if ( (int) $c['id'] === NPQ_Certification::id() ) {
+                                                echo ' (active)';
+                                            }
+                                            ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <p class="description">
+                                    Le scénario et ses futures questions appartiendront à cette
+                                    certification.
+                                </p>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+
                     <tr>
                         <th scope="row">
                             <label for="npq_nom">Nom <span style="color:#d63638">*</span></label>
@@ -267,19 +327,24 @@ class NPQ_Scenario_Form {
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
         return $wpdb->get_row( $wpdb->prepare(
-            "SELECT id, nom, resume, contexte, statut, ref_externe
+            "SELECT id, certification_id, nom, resume, contexte, statut, ref_externe
              FROM {$p}scenario WHERE id = %d",
             $id
         ), ARRAY_A );
     }
 
-    private static function certification_courante() {
+    /** La certification existe-t-elle ? */
+    private static function certification_valide( $certification_id ) {
+        if ( ! $certification_id ) {
+            return false;
+        }
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
-        return (int) $wpdb->get_var(
-            "SELECT id FROM {$p}certification WHERE actif = 1 ORDER BY id ASC LIMIT 1"
-        );
+        return (bool) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$p}certification WHERE id = %d",
+            (int) $certification_id
+        ) );
     }
 
     private static function rediriger_formulaire( $id ) {

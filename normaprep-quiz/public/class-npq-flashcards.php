@@ -163,11 +163,19 @@ class NPQ_Flashcards {
 
         // On joint le domaine pour avoir son libellé : « D1 » seul ne dit rien
         // au candidat, il faut « D1 — Fondamentaux et principes… ».
+        //
+        // La jointure porte sur le COUPLE code + certification : un même code de
+        // domaine (« D1 ») peut exister dans plusieurs certifications. Joindre
+        // sur le seul code ferait correspondre chaque carte à autant de lignes
+        // qu'il y a de certifications possédant ce code — et la carte
+        // apparaîtrait en double, voire en triple, dans le paquet.
         $lignes = (array) $wpdb->get_results( $wpdb->prepare(
             "SELECT f.id, f.domaine, f.recto, f.verso,
                     d.libelle AS domaine_libelle
              FROM {$p}flashcard f
-             LEFT JOIN {$p}domaine d ON d.code = f.domaine
+             LEFT JOIN {$p}domaine d
+                    ON d.code = f.domaine
+                   AND d.certification_id = f.certification_id
              WHERE f.certification_id = %d
                AND f.statut = 'publie'",
             $certification_id

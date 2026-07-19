@@ -19,6 +19,9 @@ if ( ! class_exists( 'WP_List_Table' ) ) {
 
 class NPQ_Table_Flashcards extends WP_List_Table {
 
+    /** Id de la certification active, résolu une fois pour tout le rendu. */
+    private $active_id = 0;
+
     public function __construct() {
         parent::__construct( [
             'singular' => 'flashcard',
@@ -29,10 +32,11 @@ class NPQ_Table_Flashcards extends WP_List_Table {
 
     public function get_columns() {
         return [
-            'recto'   => 'Recto (la question)',
-            'verso'   => 'Verso (la réponse)',
-            'domaine' => 'Domaine',
-            'statut'  => 'Statut',
+            'recto'         => 'Recto (la question)',
+            'verso'         => 'Verso (la réponse)',
+            'certification' => 'Certification',
+            'domaine'       => 'Domaine',
+            'statut'        => 'Statut',
         ];
     }
 
@@ -40,6 +44,26 @@ class NPQ_Table_Flashcards extends WP_List_Table {
         return [
             'domaine' => [ 'domaine', false ],
         ];
+    }
+
+    /**
+     * Colonne « Certification » : à quelle certification appartient la carte.
+     * Un point vert signale la certification active.
+     */
+    public function column_certification( $item ) {
+        $code = (string) $item['certification_code'];
+
+        if ( $code === '' ) {
+            return '<span style="color:#b32d2e" title="Carte rattachée à aucune certification">—</span>';
+        }
+
+        $libelle = '<code>' . esc_html( $code ) . '</code>';
+
+        if ( (int) $item['certification_id'] === $this->active_id ) {
+            $libelle .= ' <span style="color:#00a32a" title="Certification active">●</span>';
+        }
+
+        return $libelle;
     }
 
     public function column_default( $item, $nom_colonne ) {
@@ -129,9 +153,33 @@ class NPQ_Table_Flashcards extends WP_List_Table {
         $domaine_actif = isset( $_REQUEST['npq_domaine'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['npq_domaine'] ) ) : '';
         $recherche     = isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['s'] ) ) : '';
 
-        $filtre_actif = ( $domaine_actif !== '' ) || ( $recherche !== '' );
+        $certif_filtre = isset( $_REQUEST['npq_certif'] ) ? (int) $_REQUEST['npq_certif'] : 0;
+
+        $filtre_actif = ( $domaine_actif !== '' ) || ( $recherche !== '' ) || ( $certif_filtre > 0 );
+
+        $certifications = NPQ_Certification::toutes();
+        // Inutile de proposer le filtre s'il n'y a qu'une certification.
+        $afficher_certif = ( count( $certifications ) > 1 );
         ?>
         <div class="alignleft actions">
+            <?php if ( $afficher_certif ) : ?>
+                <label class="screen-reader-text" for="npq-filtre-certif">Filtrer par certification</label>
+                <select name="npq_certif" id="npq-filtre-certif">
+                    <option value="0">Toutes les certifications</option>
+                    <?php foreach ( $certifications as $c ) : ?>
+                        <option value="<?php echo (int) $c['id']; ?>"
+                            <?php selected( $certif_filtre, (int) $c['id'] ); ?>>
+                            <?php
+                            echo esc_html( $c['nom'] );
+                            if ( (int) $c['id'] === $this->active_id ) {
+                                echo ' (active)';
+                            }
+                            ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            <?php endif; ?>
+
             <select name="npq_domaine">
                 <option value="">Tous les domaines</option>
                 <?php foreach ( self::domaines() as $d ) : ?>
@@ -161,8 +209,12 @@ class NPQ_Table_Flashcards extends WP_List_Table {
         $page     = $this->get_pagenum();
         $offset   = ( $page - 1 ) * $par_page;
 
+        // Certification active : sert à signaler la ligne correspondante.
+        $this->active_id = NPQ_Certification::id();
+
         $recherche = isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['s'] ) ) : '';
         $domaine   = isset( $_REQUEST['npq_domaine'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['npq_domaine'] ) ) : '';
+        $certif_filtre = isset( $_REQUEST['npq_certif'] ) ? (int) $_REQUEST['npq_certif'] : 0;
 
         // Tri : liste blanche stricte.
         $tri_autorise = [ 'domaine' => 'f.domaine' ];
@@ -185,15 +237,25 @@ class NPQ_Table_Flashcards extends WP_List_Table {
             $args[] = $domaine;
         }
 
+        if ( $certif_filtre > 0 ) {
+            $where .= ' AND f.certification_id = %d';
+            $args[] = $certif_filtre;
+        }
+
         $sql_total = "SELECT COUNT(*) FROM {$p}flashcard f WHERE {$where}";
         $total = $args
             ? (int) $wpdb->get_var( $wpdb->prepare( $sql_total, $args ) )
             : (int) $wpdb->get_var( $sql_total );
 
         $sql = "SELECT f.id, f.recto, f.verso, f.domaine, f.statut,
+                       f.certification_id,
+                       c.code AS certification_code,
                        d.libelle AS domaine_libelle
                 FROM {$p}flashcard f
-                LEFT JOIN {$p}domaine d ON d.code = f.domaine
+                LEFT JOIN {$p}domaine d
+                       ON d.code = f.domaine
+                      AND d.certification_id = f.certification_id
+                LEFT JOIN {$p}certification c ON c.id = f.certification_id
                 WHERE {$where}
                 ORDER BY {$orderby} {$order}, f.id ASC
                 LIMIT %d OFFSET %d";
@@ -225,7 +287,10 @@ class NPQ_Table_Flashcards extends WP_List_Table {
         return (array) $wpdb->get_results(
             "SELECT d.code, d.libelle, COUNT(f.id) AS nb
              FROM {$p}domaine d
-             LEFT JOIN {$p}flashcard f ON f.domaine = d.code AND f.statut = 'publie'
+             LEFT JOIN {$p}flashcard f
+                    ON f.domaine = d.code
+                   AND f.certification_id = d.certification_id
+                   AND f.statut = 'publie'
              GROUP BY d.code, d.libelle
              ORDER BY d.code ASC",
             ARRAY_A

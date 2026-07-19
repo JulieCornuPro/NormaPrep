@@ -17,6 +17,12 @@
  * directement dans ce formulaire : toutes les questions publiées sont affichées,
  * groupées par domaine, avec un compteur de sélection tenu à jour en JavaScript.
  *
+ * Le parcours appartient à une CERTIFICATION, choisie à la création
+ * (pré-remplie sur la certification active). En modification elle est
+ * verrouillée : la déplacer laisserait ses domaines et ses questions choisies
+ * incohérents, puisque les uns comme les autres sont propres à une
+ * certification.
+ *
  * Calqué sur NPQ_Scenario_Form pour rester cohérent avec le reste de l'admin.
  *
  * @package NormaPrep_Quiz
@@ -63,8 +69,20 @@ class NPQ_Parcours_Form {
         // Mode de composition : 'criteres' (par défaut) ou 'questions'.
         $type = ( ( $_POST['npq_type'] ?? '' ) === 'questions' ) ? 'questions' : 'criteres';
 
+        // Certification cible. À la CRÉATION seulement : en modification elle
+        // est verrouillée, on reprend celle déjà enregistrée.
+        if ( $id > 0 ) {
+            $existant = self::charger( $id );
+            $certification_id = $existant ? (int) $existant['certification_id'] : NPQ_Certification::id();
+        } else {
+            $certification_id = isset( $_POST['npq_certification'] ) ? (int) $_POST['npq_certification'] : 0;
+            if ( ! self::certification_valide( $certification_id ) ) {
+                $certification_id = NPQ_Certification::id();
+            }
+        }
+
         // --- Champs du mode « critères » ---
-        $domaines_valides = self::codes_domaines_valides();
+        $domaines_valides = self::codes_domaines_de( $certification_id );
         $domaines = isset( $_POST['npq_domaines'] )
             ? array_map( 'sanitize_text_field', (array) wp_unslash( $_POST['npq_domaines'] ) )
             : [];
@@ -125,7 +143,7 @@ class NPQ_Parcours_Form {
             $wpdb->update( "{$p}parcours", $donnees, [ 'id' => $id ] );
             $message = 'Parcours mis à jour.';
         } else {
-            $donnees['certification_id'] = self::certification_courante();
+            $donnees['certification_id'] = $certification_id;
             $donnees['position']         = self::prochaine_position();
             $donnees['date_creation']    = current_time( 'mysql' );
 
@@ -137,7 +155,11 @@ class NPQ_Parcours_Form {
         // Synchronise la liste des questions choisies (mode « questions »).
         // En mode « critères », on vide la liaison : le parcours ne pointe plus
         // aucune question figée, il repart sur des critères.
-        self::enregistrer_liaison( $id, $type === 'questions' ? $questions_choisies : [] );
+        self::enregistrer_liaison(
+            $id,
+            $type === 'questions' ? $questions_choisies : [],
+            $certification_id
+        );
 
         set_transient( 'npq_parcours_message', $message, 60 );
 
@@ -151,7 +173,7 @@ class NPQ_Parcours_Form {
      * La position suit l'ordre de sélection (ordre des ids reçus), ce qui
      * prépare déjà une éventuelle réorganisation ultérieure (glisser-déposer).
      */
-    private static function enregistrer_liaison( $parcours_id, $question_ids ) {
+    private static function enregistrer_liaison( $parcours_id, $question_ids, $certification_id = 0 ) {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
@@ -161,12 +183,21 @@ class NPQ_Parcours_Form {
             return;
         }
 
-        // Ne garder que des ids de questions réellement publiées (liste blanche).
+        // Ne garder que des ids de questions réellement publiées ET appartenant
+        // à la certification du parcours (liste blanche) : un parcours ne peut
+        // pas piocher dans une autre certification.
         $placeholders = implode( ',', array_fill( 0, count( $question_ids ), '%d' ) );
         $args = $question_ids;
+
+        $clause_certif = '';
+        if ( $certification_id > 0 ) {
+            $clause_certif = ' AND certification_id = %d';
+            $args[] = $certification_id;
+        }
+
         $valides = (array) $wpdb->get_col( $wpdb->prepare(
             "SELECT id FROM {$p}question
-             WHERE id IN ( $placeholders ) AND statut = 'publie'",
+             WHERE id IN ( $placeholders ) AND statut = 'publie'{$clause_certif}",
             $args
         ) );
         $valides = array_map( 'intval', $valides );
@@ -243,9 +274,37 @@ class NPQ_Parcours_Form {
         // Questions déjà choisies (mode « questions »).
         $questions_choisies = $modification ? self::questions_du_parcours( $id ) : [];
 
-        $domaines_dispo = self::domaines_disponibles();
-        $scenarios_dispo = self::scenarios_disponibles();
-        $questions_par_domaine = self::questions_groupees_par_domaine();
+        // Certification : celle du parcours en modification ; à la création,
+        // celle passée en URL (après un changement dans le menu, qui recharge
+        // la page pour que le serveur renvoie les bons domaines et questions),
+        // sinon l'active.
+        if ( $modification ) {
+            $certification_id = (int) $parcours['certification_id'];
+        } else {
+            $certification_id = isset( $_GET['npq_certif'] ) ? (int) $_GET['npq_certif'] : 0;
+            if ( ! self::certification_valide( $certification_id ) ) {
+                $certification_id = NPQ_Certification::id();
+            }
+        }
+
+        // Champs conservés à travers le rechargement (saisie non perdue).
+        if ( ! $modification ) {
+            if ( isset( $_GET['npq_titre_tmp'] ) ) {
+                $titre = sanitize_text_field( wp_unslash( $_GET['npq_titre_tmp'] ) );
+            }
+            if ( isset( $_GET['npq_resume_tmp'] ) ) {
+                $resume = sanitize_text_field( wp_unslash( $_GET['npq_resume_tmp'] ) );
+            }
+            if ( isset( $_GET['npq_type_tmp'] ) && $_GET['npq_type_tmp'] === 'questions' ) {
+                $type = 'questions';
+            }
+        }
+
+        $certifications = NPQ_Certification::toutes();
+
+        $domaines_dispo = self::domaines_disponibles( $certification_id );
+        $scenarios_dispo = self::scenarios_disponibles( $certification_id );
+        $questions_par_domaine = self::questions_groupees_par_domaine( $certification_id );
 
         $erreurs = get_transient( 'npq_parcours_erreurs' );
         delete_transient( 'npq_parcours_erreurs' );
@@ -267,6 +326,54 @@ class NPQ_Parcours_Form {
                 <?php wp_nonce_field( 'npq_parcours_form', 'npq_nonce' ); ?>
 
                 <table class="form-table" role="presentation">
+                    <tr>
+                        <th scope="row">
+                            <label for="npq_certification">Certification <span style="color:#d63638">*</span></label>
+                        </th>
+                        <td>
+                            <?php if ( $modification ) : ?>
+                                <?php
+                                // Verrouillée : ses domaines et ses questions
+                                // choisies n'auraient plus de sens ailleurs.
+                                $c_nom = '';
+                                foreach ( $certifications as $c ) {
+                                    if ( (int) $c['id'] === $certification_id ) {
+                                        $c_nom = $c['nom'];
+                                        break;
+                                    }
+                                }
+                                ?>
+                                <strong><?php echo esc_html( $c_nom ); ?></strong>
+                                <p class="description">
+                                    La certification d'un parcours existant ne peut pas être
+                                    changée : ses domaines et ses questions lui appartiennent.
+                                </p>
+                            <?php else : ?>
+                                <select name="npq_certification" id="npq_certification">
+                                    <?php foreach ( $certifications as $c ) : ?>
+                                        <option value="<?php echo (int) $c['id']; ?>"
+                                            <?php selected( $certification_id, (int) $c['id'] ); ?>>
+                                            <?php
+                                            echo esc_html( $c['nom'] );
+                                            if ( (int) $c['id'] === NPQ_Certification::id() ) {
+                                                echo ' (active)';
+                                            }
+                                            ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <span id="npq-certif-chargement"
+                                      style="display:none;margin-left:8px;color:#646970">
+                                    Chargement…
+                                </span>
+                                <p class="description">
+                                    Domaines et questions proposés dépendent de ce choix : changer
+                                    de certification recharge la page (votre saisie est conservée).
+                                </p>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+
                     <tr>
                         <th scope="row">
                             <label for="npq_titre">Titre <span style="color:#d63638">*</span></label>
@@ -510,6 +617,44 @@ class NPQ_Parcours_Form {
 
             choix.forEach( function ( r ) { r.addEventListener( 'change', majAffichage ); } );
             majAffichage();
+
+            /* Changement de certification : on recharge la page pour que le
+               serveur renvoie les domaines et les questions de la certification
+               choisie. Un simple filtrage côté navigateur ne suffirait pas —
+               les données ne sont pas chargées.
+
+               La saisie en cours (titre, résumé, mode) est passée en URL pour
+               ne pas être perdue. Uniquement à la création : en modification,
+               la certification est verrouillée. */
+            var selectCertif = document.getElementById( 'npq_certification' );
+            var indicateur   = document.getElementById( 'npq-certif-chargement' );
+
+            if ( selectCertif ) {
+                selectCertif.addEventListener( 'change', function () {
+                    if ( indicateur ) { indicateur.style.display = 'inline'; }
+
+                    var champTitre  = document.getElementById( 'npq_titre' );
+                    var champResume = document.getElementById( 'npq_resume' );
+                    var modeCoche   = document.querySelector( '.npq-type-choix:checked' );
+
+                    var params = new URLSearchParams();
+                    params.set( 'page', 'normaprep-parcours' );
+                    params.set( 'npq_vue', 'form' );
+                    params.set( 'npq_certif', selectCertif.value );
+
+                    if ( champTitre && champTitre.value ) {
+                        params.set( 'npq_titre_tmp', champTitre.value );
+                    }
+                    if ( champResume && champResume.value ) {
+                        params.set( 'npq_resume_tmp', champResume.value );
+                    }
+                    if ( modeCoche ) {
+                        params.set( 'npq_type_tmp', modeCoche.value );
+                    }
+
+                    window.location.href = 'admin.php?' + params.toString();
+                } );
+            }
         } )();
         </script>
         <?php
@@ -524,7 +669,7 @@ class NPQ_Parcours_Form {
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
         return $wpdb->get_row( $wpdb->prepare(
-            "SELECT id, titre, resume, type, domaines, nombre, statut
+            "SELECT id, certification_id, titre, resume, type, domaines, nombre, statut
              FROM {$p}parcours WHERE id = %d",
             $id
         ), ARRAY_A );
@@ -543,8 +688,10 @@ class NPQ_Parcours_Form {
     }
 
     /** Domaines disponibles (code + libellé) pour la certification courante. */
-    private static function domaines_disponibles() {
-        $certification_id = self::certification_courante();
+    private static function domaines_disponibles( $certification_id = 0 ) {
+        if ( ! $certification_id ) {
+            $certification_id = NPQ_Certification::id();
+        }
         if ( ! $certification_id ) {
             return [];
         }
@@ -558,24 +705,36 @@ class NPQ_Parcours_Form {
         ), ARRAY_A );
     }
 
-    private static function codes_domaines_valides() {
+    /** Codes de domaine d'une certification donnée (liste blanche). */
+    private static function codes_domaines_de( $certification_id ) {
         return array_map(
             function ( $d ) { return $d['code']; },
-            self::domaines_disponibles()
+            self::domaines_disponibles( $certification_id )
         );
     }
 
-    /** Scénarios publiés, pour le filtre de la colonne de gauche. */
-    private static function scenarios_disponibles() {
+    /**
+     * Scénarios publiés de la certification, pour le filtre de la colonne de
+     * gauche. Filtrer ici évite de proposer des scénarios d'une autre
+     * certification, dont aucune question n'apparaîtrait dans la liste.
+     */
+    private static function scenarios_disponibles( $certification_id = 0 ) {
+        if ( ! $certification_id ) {
+            $certification_id = NPQ_Certification::id();
+        }
+        if ( ! $certification_id ) {
+            return [];
+        }
+
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
-        return (array) $wpdb->get_results(
+        return (array) $wpdb->get_results( $wpdb->prepare(
             "SELECT id, nom FROM {$p}scenario
-             WHERE statut = 'publie'
+             WHERE certification_id = %d AND statut = 'publie'
              ORDER BY nom ASC",
-            ARRAY_A
-        );
+            (int) $certification_id
+        ), ARRAY_A );
     }
 
     /**
@@ -583,8 +742,10 @@ class NPQ_Parcours_Form {
      * en cases à cocher. À l'échelle du plugin (≈130 questions), on peut tout
      * charger d'un coup sans souci de performance.
      */
-    private static function questions_groupees_par_domaine() {
-        $certification_id = self::certification_courante();
+    private static function questions_groupees_par_domaine( $certification_id = 0 ) {
+        if ( ! $certification_id ) {
+            $certification_id = NPQ_Certification::id();
+        }
         if ( ! $certification_id ) {
             return [];
         }
@@ -621,8 +782,18 @@ class NPQ_Parcours_Form {
         return 1 + (int) $wpdb->get_var( "SELECT MAX(position) FROM {$p}parcours" );
     }
 
-    private static function certification_courante() {
-        return NPQ_Certification::id();
+    /** La certification existe-t-elle ? */
+    private static function certification_valide( $certification_id ) {
+        if ( ! $certification_id ) {
+            return false;
+        }
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        return (bool) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$p}certification WHERE id = %d",
+            (int) $certification_id
+        ) );
     }
 
     private static function rediriger_formulaire( $id ) {
