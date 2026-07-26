@@ -226,6 +226,20 @@ class NPQ_Installer {
             KEY utilisateur_id (utilisateur_id)
         ) $charset;";
 
+        // --- Bibliothèque : certifications acquises par un utilisateur ---
+        // La présence d'une ligne vaut droit d'accès. fin_acces à NULL =
+        // accès permanent ; une date = accès temporaire (prévu pour plus tard).
+        $sql[] = "CREATE TABLE {$p}utilisateur_certification (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            utilisateur_id BIGINT UNSIGNED NOT NULL,
+            certification_id BIGINT UNSIGNED NOT NULL,
+            date_acquisition DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            fin_acces DATE NULL,
+            PRIMARY KEY  (id),
+            UNIQUE KEY lien ( utilisateur_id, certification_id ),
+            KEY certification_id ( certification_id )
+        ) $charset;";
+
         /* =====================================================================
          * ACTIVITÉ (tentatives d'examen et réponses)
          * ===================================================================== */

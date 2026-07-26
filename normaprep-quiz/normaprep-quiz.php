@@ -3,7 +3,7 @@
  * Plugin Name:       NormaPrep Quiz
  * Plugin URI:        https://github.com/【votre-compte】/normaprep-quiz
  * Description:       Module d'examens blancs pour la certification ISO/IEC 27001 Lead Implementer : scénarios, questions à choix multiples, composition d'examens par thèmes, correction détaillée et suivi de progression.
- * Version:           2.22.7
+ * Version:           2.23.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            NormaPrep
@@ -32,7 +32,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Version courante. IMPORTANT : cette valeur doit rester synchronisée avec
 // la ligne « Version: » de l'en-tête ci-dessus.
-define( 'NPQ_VERSION', '2.22.7' );
+define( 'NPQ_VERSION', '2.23.0' );
 
 // Chemin absolu vers le dossier du plugin sur le serveur (pour charger des fichiers PHP).
 define( 'NPQ_PATH', plugin_dir_path( __FILE__ ) );
@@ -121,6 +121,15 @@ function npq_init() {
     if ( get_option( 'npq_db_version' ) !== NPQ_VERSION ) {
         require_once NPQ_PATH . 'includes/class-npq-installer.php';
         NPQ_Installer::creer_tables();
+    }
+
+    require_once NPQ_PATH . 'includes/class-npq-bibliotheque.php';
+
+    // Garantit que les comptes existants gardent l'accès à la certification
+    // active quand la bibliothèque entre en service. Idempotent : sans effet
+    // une fois les accès en place.
+    if ( class_exists( 'NPQ_Bibliotheque' ) ) {
+        NPQ_Bibliotheque::migration_douce();
     }
 
     // Logique de composition et de correction (disponible partout).

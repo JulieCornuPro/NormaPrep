@@ -36,6 +36,9 @@ class NPQ_Admin {
         require_once NPQ_PATH . 'admin/class-npq-certification-form.php';
         NPQ_Certification_Form::traiter();
 
+        require_once NPQ_PATH . 'admin/class-npq-acces-form.php';
+        NPQ_Acces_Form::traiter();
+
         require_once NPQ_PATH . 'admin/class-npq-domaine-form.php';
         NPQ_Domaine_Form::traiter();
 
@@ -89,6 +92,15 @@ class NPQ_Admin {
             'manage_options',
             'normaprep-certifications',
             [ __CLASS__, 'page_certifications' ]
+        );
+
+        add_submenu_page(
+            'normaprep-quiz',
+            'Accès des utilisateurs',
+            'Accès',
+            'manage_options',
+            'normaprep-acces',
+            [ __CLASS__, 'page_acces' ]
         );
 
         add_submenu_page(
@@ -188,6 +200,44 @@ class NPQ_Admin {
             $table->display();
             NPQ_Certification_Form::afficher_formulaire();
             ?>
+        </div>
+        <?php
+    }
+
+    /* =====================================================================
+     * PAGE : ACCES DES USERS
+     * ===================================================================== */
+
+    public static function page_acces() {
+        require_once NPQ_PATH . 'admin/class-npq-acces-form.php';
+
+        $vue = isset( $_GET['npq_vue'] ) ? sanitize_key( $_GET['npq_vue'] ) : 'liste';
+
+        if ( $vue === 'form' ) {
+            NPQ_Acces_Form::afficher_formulaire();
+            return;
+        }
+
+        require_once NPQ_PATH . 'admin/class-npq-table-acces.php';
+
+        $table = new NPQ_Table_Acces();
+        $table->prepare_items();
+        ?>
+        <div class="wrap">
+            <h1>Accès des utilisateurs</h1>
+            <p class="description" style="max-width:820px">
+                Chaque utilisateur possède une « bibliothèque » de certifications.
+                La présence d'une certification dans sa bibliothèque lui en donne
+                l'accès. Cliquez sur un utilisateur pour gérer ses accès.
+            </p>
+
+            <form method="get">
+                <input type="hidden" name="page" value="normaprep-acces">
+                <?php
+                $table->search_box( 'Rechercher un utilisateur', 'npq-recherche-acces' );
+                $table->display();
+                ?>
+            </form>
         </div>
         <?php
     }
