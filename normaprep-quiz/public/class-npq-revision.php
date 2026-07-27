@@ -32,11 +32,13 @@ class NPQ_Revision {
      * Renvoie un tableau indexé par id de parcours :
      *   [ 12 => [ 'titre' => ..., 'resume' => ..., 'domaines' => [...], 'nombre' => 10 ], ... ]
      */
-    public static function parcours_proposes() {
+    public static function parcours_proposes( $certification_id = 0 ) {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
-        $certification_id = self::certification_courante();
+        if ( ! $certification_id ) {
+            $certification_id = self::certification_courante();
+        }
 
         $lignes = (array) $wpdb->get_results( $wpdb->prepare(
             "SELECT id, titre, resume, type, domaines, nombre
@@ -62,6 +64,49 @@ class NPQ_Revision {
             ];
         }
         return $parcours;
+    }
+
+    /**
+     * Charge un parcours publié par son id, quelle que soit sa certification.
+     * Sert au traitement d'une action « parcours » : on doit connaître la
+     * certification et le mode du parcours avant de vérifier l'accès.
+     *
+     * @param int $parcours_id
+     * @return array|null
+     */
+    private static function parcours_par_id( $parcours_id ) {
+        $parcours_id = (int) $parcours_id;
+        if ( ! $parcours_id ) {
+            return null;
+        }
+
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $ligne = $wpdb->get_row( $wpdb->prepare(
+            "SELECT id, certification_id, titre, type, domaines, nombre
+             FROM {$p}parcours
+             WHERE id = %d AND statut = 'publie'",
+            $parcours_id
+        ), ARRAY_A );
+
+        if ( ! $ligne ) {
+            return null;
+        }
+
+        $domaines = json_decode( (string) $ligne['domaines'], true );
+        if ( ! is_array( $domaines ) ) {
+            $domaines = [];
+        }
+
+        return [
+            'id'               => (int) $ligne['id'],
+            'certification_id' => (int) $ligne['certification_id'],
+            'titre'            => $ligne['titre'],
+            'type'             => $ligne['type'],
+            'domaines'         => $domaines,
+            'nombre'           => (int) $ligne['nombre'],
+        ];
     }
 
     public static function init() {
@@ -111,17 +156,42 @@ class NPQ_Revision {
                 ? array_map( 'sanitize_text_field', (array) wp_unslash( $_POST['npq_domaines'] ) )
                 : [];
             $nombre = isset( $_POST['npq_nombre'] ) ? (int) $_POST['npq_nombre'] : 10;
-            self::lancer( $domaines, $nombre );
+
+            // Certification choisie dans le sélecteur de composition libre.
+            $certification_id = isset( $_POST['npq_certification'] ) ? (int) $_POST['npq_certification'] : 0;
+            if ( ! $certification_id ) {
+                $certification_id = self::certification_courante();
+            }
+            // Garde-fou : l'utilisateur doit avoir accès à cette certification.
+            if ( ! self::peut_acceder( $certification_id ) ) {
+                return;
+            }
+            self::lancer( $domaines, $nombre, $certification_id );
 
         } elseif ( $action === 'parcours' ) {
             $cle = (int) ( $_POST['npq_parcours'] ?? 0 );
-            $parcours = self::parcours_proposes();
-            if ( isset( $parcours[ $cle ] ) ) {
-                if ( ( $parcours[ $cle ]['type'] ?? 'criteres' ) === 'questions' ) {
-                    self::lancer_questions( $cle );
-                } else {
-                    self::lancer( $parcours[ $cle ]['domaines'], $parcours[ $cle ]['nombre'] );
-                }
+
+            // On recharge le parcours par son id (toutes certifications de la
+            // bibliothèque), pour connaître sa certification et son mode.
+            $parcours = self::parcours_par_id( $cle );
+            if ( ! $parcours ) {
+                return;
+            }
+
+            // Garde-fou d'accès : la certification du parcours doit être dans
+            // la bibliothèque de l'utilisateur.
+            if ( ! self::peut_acceder( (int) $parcours['certification_id'] ) ) {
+                return;
+            }
+
+            if ( ( $parcours['type'] ?? 'criteres' ) === 'questions' ) {
+                self::lancer_questions( $cle );
+            } else {
+                self::lancer(
+                    $parcours['domaines'],
+                    $parcours['nombre'],
+                    (int) $parcours['certification_id']
+                );
             }
         }
     }
@@ -129,8 +199,10 @@ class NPQ_Revision {
     /**
      * Crée une tentative en mode « revision » et lance le déroulé.
      */
-    private static function lancer( $domaines, $nombre ) {
-        $certification_id = self::certification_courante();
+    private static function lancer( $domaines, $nombre, $certification_id = 0 ) {
+        if ( ! $certification_id ) {
+            $certification_id = self::certification_courante();
+        }
         if ( ! $certification_id ) {
             return;
         }
@@ -243,9 +315,9 @@ class NPQ_Revision {
      * Écran de choix : parcours proposés + composition libre.
      */
     private static function ecran_choix() {
-        $domaines         = self::domaines_disponibles();
-        $parcours         = self::parcours_proposes();
-        $certification_id = self::certification_courante();
+        // Certifications de la bibliothèque de l'utilisateur.
+        $certifs = self::certifications_utilisateur();
+        $plusieurs = ( count( $certifs ) > 1 );
 
         ob_start();
         ?>
@@ -256,35 +328,73 @@ class NPQ_Revision {
                 après chaque réponse, pour comprendre au fur et à mesure.
             </p>
 
-            <!-- Parcours proposés par NormaPrep -->
-            <div class="sec-title">Parcours proposés</div>
-            <div class="npq-parcours-grille">
-                <?php foreach ( $parcours as $cle => $par ) :
-                    $dispo = NPQ_Composeur::compter_domaines( $certification_id, $par['domaines'] );
-                ?>
-                    <div class="npq-parcours-carte">
-                        <h3><?php echo esc_html( $par['titre'] ); ?></h3>
-                        <p class="npq-parcours-resume"><?php echo esc_html( $par['resume'] ); ?></p>
-                        <p class="npq-parcours-nb">
-                            <?php echo (int) min( $par['nombre'], $dispo ); ?> question(s)
-                        </p>
-                        <form method="post">
-                            <input type="hidden" name="npq_revision_action" value="parcours">
-                            <input type="hidden" name="npq_parcours" value="<?php echo (int) $cle; ?>">
-                            <?php wp_nonce_field( 'npq_revision', 'npq_nonce' ); ?>
-                            <button type="submit" class="npq-btn" <?php disabled( $dispo === 0 ); ?>>
-                                Réviser
-                            </button>
-                        </form>
-                    </div>
-                <?php endforeach; ?>
-            </div>
+            <?php
+            // --- Parcours proposés, groupés par certification ---
+            // Avec une seule certification, pas de titre de groupe : l'affichage
+            // reste identique à avant. Avec plusieurs, chaque certification a sa
+            // propre section.
+            foreach ( $certifs as $certif ) :
+                $cid      = (int) $certif['id'];
+                $parcours = self::parcours_proposes( $cid );
 
-            <!-- Composition libre -->
+                if ( empty( $parcours ) ) {
+                    continue;
+                }
+                ?>
+                <div class="sec-title">
+                    Parcours proposés
+                    <?php if ( $plusieurs ) : ?>
+                        <span class="npq-sec-certif">— <?php echo esc_html( $certif['nom'] ); ?></span>
+                    <?php endif; ?>
+                </div>
+                <div class="npq-parcours-grille">
+                    <?php foreach ( $parcours as $cle => $par ) :
+                        if ( ( $par['type'] ?? 'criteres' ) === 'questions' ) {
+                            $dispo = NPQ_Composeur::compter_parcours_questions( $cle );
+                            $affiche = $dispo;
+                        } else {
+                            $dispo = NPQ_Composeur::compter_domaines( $cid, $par['domaines'] );
+                            $affiche = (int) min( $par['nombre'], $dispo );
+                        }
+                    ?>
+                        <div class="npq-parcours-carte">
+                            <h3><?php echo esc_html( $par['titre'] ); ?></h3>
+                            <p class="npq-parcours-resume"><?php echo esc_html( $par['resume'] ); ?></p>
+                            <p class="npq-parcours-nb">
+                                <?php echo (int) $affiche; ?> question(s)
+                            </p>
+                            <form method="post">
+                                <input type="hidden" name="npq_revision_action" value="parcours">
+                                <input type="hidden" name="npq_parcours" value="<?php echo (int) $cle; ?>">
+                                <?php wp_nonce_field( 'npq_revision', 'npq_nonce' ); ?>
+                                <button type="submit" class="npq-btn" <?php disabled( $dispo === 0 ); ?>>
+                                    Réviser
+                                </button>
+                            </form>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endforeach; ?>
+
+            <!-- Composition libre : une seule, avec choix de la certification -->
             <div class="sec-title">Composer ma révision</div>
             <form method="post" class="npq-composer">
                 <input type="hidden" name="npq_revision_action" value="composer">
                 <?php wp_nonce_field( 'npq_revision', 'npq_nonce' ); ?>
+
+                <?php if ( $plusieurs ) : ?>
+                    <p class="npq-champ-label">Certification</p>
+                    <select name="npq_certification" id="npq-compo-certif" class="npq-compo-select">
+                        <?php foreach ( $certifs as $certif ) : ?>
+                            <option value="<?php echo (int) $certif['id']; ?>">
+                                <?php echo esc_html( $certif['nom'] ); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                <?php else : ?>
+                    <input type="hidden" name="npq_certification"
+                           value="<?php echo (int) $certifs[0]['id']; ?>">
+                <?php endif; ?>
 
                 <p class="npq-champ-label">Domaines à réviser</p>
                 <p class="npq-champ-aide">
@@ -292,15 +402,24 @@ class NPQ_Revision {
                 </p>
 
                 <div class="npq-domaines-liste">
-                    <?php foreach ( $domaines as $d ) :
-                        $nb = NPQ_Composeur::compter_domaines( $certification_id, [ $d['code'] ] );
+                    <?php
+                    // Tous les domaines de toutes les certifications de la
+                    // bibliothèque, marqués de leur certification. Le JavaScript
+                    // n'affiche que ceux de la certification choisie.
+                    foreach ( $certifs as $certif ) :
+                        $cid = (int) $certif['id'];
+                        foreach ( self::domaines_disponibles( $cid ) as $d ) :
+                            $nb = NPQ_Composeur::compter_domaines( $cid, [ $d['code'] ] );
                     ?>
-                        <label class="npq-domaine-case">
+                        <label class="npq-domaine-case" data-certification="<?php echo $cid; ?>">
                             <input type="checkbox" name="npq_domaines[]" value="<?php echo esc_attr( $d['code'] ); ?>">
                             <span class="npq-dom-nom"><?php echo esc_html( $d['libelle'] ); ?></span>
                             <span class="npq-dom-nb"><?php echo (int) $nb; ?></span>
                         </label>
-                    <?php endforeach; ?>
+                    <?php
+                        endforeach;
+                    endforeach;
+                    ?>
                 </div>
 
                 <p class="npq-champ-label">Nombre de questions</p>
@@ -318,6 +437,34 @@ class NPQ_Revision {
                 </p>
             </form>
         </div>
+
+        <?php if ( $plusieurs ) : ?>
+        <script>
+        /* Composition libre : n'afficher que les domaines de la certification
+           choisie dans le sélecteur. Les cases masquées sont décochées pour ne
+           pas être envoyées. (Le serveur revalide l'accès de toute façon.) */
+        ( function () {
+            var select = document.getElementById( 'npq-compo-certif' );
+            var cases  = document.querySelectorAll( '.npq-domaine-case' );
+            if ( ! select ) { return; }
+
+            function filtrer() {
+                var certif = parseInt( select.value, 10 ) || 0;
+                cases.forEach( function ( c ) {
+                    var ok = ( parseInt( c.getAttribute( 'data-certification' ), 10 ) === certif );
+                    c.style.display = ok ? '' : 'none';
+                    if ( ! ok ) {
+                        var input = c.querySelector( 'input[type="checkbox"]' );
+                        if ( input ) { input.checked = false; }
+                    }
+                } );
+            }
+
+            select.addEventListener( 'change', filtrer );
+            filtrer();
+        } )();
+        </script>
+        <?php endif; ?>
         <?php
         return ob_get_clean();
     }
@@ -327,8 +474,10 @@ class NPQ_Revision {
      * ===================================================================== */
 
     /** Domaines disponibles (code + libellé) pour la certification courante. */
-    private static function domaines_disponibles() {
-        $certification_id = self::certification_courante();
+    private static function domaines_disponibles( $certification_id = 0 ) {
+        if ( ! $certification_id ) {
+            $certification_id = self::certification_courante();
+        }
         if ( ! $certification_id ) {
             return [];
         }
@@ -341,6 +490,64 @@ class NPQ_Revision {
              ORDER BY code ASC",
             $certification_id
         ), ARRAY_A );
+    }
+
+    /**
+     * Certifications à afficher pour l'utilisateur courant : celles de sa
+     * bibliothèque. S'il n'en a aucune (cas limite : compte sans accès encore
+     * enregistré), on retombe sur la certification active pour ne pas présenter
+     * une page vide.
+     *
+     * @return array Lignes de certification : id, code, nom.
+     */
+    private static function certifications_utilisateur() {
+        $fiche = NPQ_Comptes::fiche_courante();
+        $utilisateur_id = $fiche ? (int) $fiche['id'] : 0;
+
+        $certifs = $utilisateur_id
+            ? NPQ_Bibliotheque::certifications_de( $utilisateur_id )
+            : [];
+
+        if ( empty( $certifs ) ) {
+            // Repli : la certification active, si elle existe.
+            $active = NPQ_Certification::courante();
+            if ( $active ) {
+                $certifs = [ [
+                    'id'   => (int) $active['id'],
+                    'code' => $active['code'],
+                    'nom'  => $active['nom'],
+                ] ];
+            }
+        }
+
+        return $certifs;
+    }
+
+    /**
+     * L'utilisateur courant a-t-il accès à cette certification ?
+     * Garde-fou appelé avant de lancer un parcours ou une composition.
+     */
+    private static function peut_acceder( $certification_id ) {
+        $certification_id = (int) $certification_id;
+        if ( ! $certification_id ) {
+            return false;
+        }
+
+        $fiche = NPQ_Comptes::fiche_courante();
+        $utilisateur_id = $fiche ? (int) $fiche['id'] : 0;
+        if ( ! $utilisateur_id ) {
+            return false;
+        }
+
+        // Si l'utilisateur a des accès enregistrés, on s'y fie. Sinon (compte
+        // sans bibliothèque encore constituée), on tolère la certification
+        // active, cohérent avec le repli de certifications_utilisateur().
+        $ids = NPQ_Bibliotheque::ids_de( $utilisateur_id );
+        if ( ! empty( $ids ) ) {
+            return in_array( $certification_id, $ids, true );
+        }
+
+        return ( $certification_id === NPQ_Certification::id() );
     }
 
     /** Certification active — délègue à la résolution centralisée. */

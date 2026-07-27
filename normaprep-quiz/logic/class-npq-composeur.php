@@ -102,17 +102,6 @@ class NPQ_Composeur {
         return self::assembler( $ids, false );
     }
 
-
-    /**
-     * Compose par TAG : toutes les questions portant un tag donné.
-     * Le tag est identifié par son type (ex. 'annexA_controls') et sa valeur (ex. '5.23').
-     *
-     * @param string $type_nom
-     * @param string $valeur
-     * @param int    $limite   Nombre max de questions (0 = pas de limite).
-     * @param bool   $melanger
-     * @return array
-     */
     /**
      * Compose une session de révision : plusieurs domaines à la fois, nombre limité.
      *
@@ -292,6 +281,16 @@ class NPQ_Composeur {
         ];
     }
 
+    /**
+     * Compose par TAG : toutes les questions portant un tag donné.
+     * Le tag est identifié par son type (ex. 'annexA_controls') et sa valeur (ex. '5.23').
+     *
+     * @param string $type_nom
+     * @param string $valeur
+     * @param int    $limite   Nombre max de questions (0 = pas de limite).
+     * @param bool   $melanger
+     * @return array
+     */
     public static function par_tag( $type_nom, $valeur, $limite = 0, $melanger = false ) {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
@@ -459,5 +458,35 @@ class NPQ_Composeur {
         }
 
         return 0;
+    }
+
+    /**
+     * EXTRAIT — méthode à AJOUTER dans logic/class-npq-composeur.php
+     * (classe NPQ_Composeur). Ne pas créer ce fichier tel quel : copier la méthode
+     * ci-dessous dans le composeur, par exemple juste après par_parcours().
+     *
+     * Elle compte les questions publiées figées dans un parcours « questions
+     * choisies », pour afficher le bon nombre sur la carte du parcours (le compteur
+     * par domaines n'aurait pas de sens pour ce mode).
+     */
+
+    /**
+     * Nombre de questions publiées figées dans un parcours « questions
+     * choisies ».
+     *
+     * @param int $parcours_id
+     * @return int
+     */
+    public static function compter_parcours_questions( $parcours_id ) {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        return (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*)
+             FROM {$p}parcours_question pq
+             INNER JOIN {$p}question q ON q.id = pq.question_id
+             WHERE pq.parcours_id = %d AND q.statut = 'publie'",
+            (int) $parcours_id
+        ) );
     }
 }
