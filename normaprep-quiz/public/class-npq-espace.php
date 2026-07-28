@@ -323,6 +323,22 @@ class NPQ_Espace {
             NPQ_VERSION,
             true          // dans le pied de page
         );
+
+        // Chargement des éléments pour les modales
+        wp_enqueue_style(
+            'npq-confirm',
+            NPQ_URL . 'assets/npq-confirm.css',
+            [],
+            NPQ_VERSION
+        );
+
+        wp_enqueue_script(
+            'npq-confirm',
+            NPQ_URL . 'assets/npq-confirm.js',
+            [],           // vanilla JS, aucune dépendance
+            NPQ_VERSION,
+            true
+        );
     }
 
     /**

@@ -253,12 +253,13 @@ class NPQ_Profil {
             </form>
 
             <h3>Supprimer mon compte</h3>
-            <form class="npq-form" method="post" onsubmit="return confirm('Cette action est définitive. Confirmer la suppression ?');">
+            <form class="npq-form" method="post">
                 <input type="hidden" name="npq_profil_action" value="supprimer">
                 <?php wp_nonce_field( 'npq_profil', 'npq_nonce' ); ?>
                 <p><label>Mot de passe actuel<br><input type="password" name="npq_mdp_actuel" required></label></p>
                 <p><label><input type="checkbox" name="npq_confirme_suppression" value="1"> Je confirme vouloir supprimer définitivement mon compte.</label></p>
-                <p><button type="submit" class="npq-btn" style="background:#c0392b">Supprimer mon compte</button></p>
+                <p><button type="submit" data-npq-confirm="Cette action est définitive. Confirmer la suppression ?"
+                    data-npq-confirm-danger data-npq-confirm-ok="Supprimer" class="npq-btn" style="background:#c0392b">Supprimer mon compte</button></p>
                 <p style="font-size:13px;color:#94A3B8">Vos données personnelles seront effacées. Cette action est irréversible.</p>
             </form>
         </div>

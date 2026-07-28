@@ -1,0 +1,161 @@
+/* ============================================================
+   NPQ — Modale de confirmation
+   ------------------------------------------------------------
+   Remplace les confirm() natifs du navigateur par une fenêtre
+   stylisée, cohérente avec le design de l'espace membre.
+
+   Une seule modale est réutilisée pour toutes les confirmations
+   (créée à la volée par npq-confirm.js). La variante .danger
+   (bordure et icône orange) est utilisée pour les actions
+   destructrices (suppression, retrait…).
+
+   Réutilise les variables du thème. Des valeurs de repli sont
+   fournies au cas où le composant serait chargé hors de l'espace
+   membre.
+   ============================================================ */
+
+.npq-modal-overlay {
+    --npqm-surface:    var(--surface, #111827);
+    --npqm-border:     var(--border, #1F2A3D);
+    --npqm-teal:       var(--teal, #2FE1C5);
+    --npqm-teal-dim:   var(--teal-dim, rgba(47, 225, 197, 0.12));
+    --npqm-orange:     var(--orange, #FF7A50);
+    --npqm-orange-dim: var(--orange-dim, rgba(255, 122, 80, 0.12));
+    --npqm-text:       var(--text, #E7ECF5);
+    --npqm-text-lo:    var(--text-lo, #8B98B3);
+    --npqm-ease:       var(--ease, cubic-bezier(0.16, 1, 0.3, 1));
+
+    position: fixed;
+    inset: 0;
+    background: rgba(6, 9, 17, 0.72);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 24px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s var(--npqm-ease);
+}
+
+.npq-modal-overlay.is-open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.npq-modal-box {
+    width: 100%;
+    max-width: 440px;
+    background: var(--npqm-surface);
+    border: 1px solid var(--npqm-border);
+    border-top: 3px solid var(--npqm-teal);
+    padding: 32px 32px 28px;
+    transform: translateY(14px) scale(0.98);
+    transition: transform 0.22s var(--npqm-ease);
+}
+
+.npq-modal-overlay.is-open .npq-modal-box {
+    transform: none;
+}
+
+.npq-modal-box.is-danger {
+    border-top-color: var(--npqm-orange);
+}
+
+.npq-modal-icon {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--npqm-teal-dim);
+    margin-bottom: 20px;
+}
+
+.npq-modal-icon svg {
+    width: 22px;
+    height: 22px;
+    stroke: var(--npqm-teal);
+    fill: none;
+    stroke-width: 2;
+}
+
+.npq-modal-box.is-danger .npq-modal-icon {
+    background: var(--npqm-orange-dim);
+}
+
+.npq-modal-box.is-danger .npq-modal-icon svg {
+    stroke: var(--npqm-orange);
+}
+
+.npq-modal-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    text-transform: uppercase;
+    color: #fff;
+    margin-bottom: 12px;
+}
+
+.npq-modal-body {
+    font-size: 16px;
+    color: var(--npqm-text-lo);
+    line-height: 1.5;
+    margin-bottom: 28px;
+}
+
+.npq-modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+/* Boutons de la modale — autonomes, pour ne dépendre d'aucune classe externe. */
+.npq-modal-btn {
+    font-family: 'Inconsolata', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 12px 24px;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s var(--npqm-ease), box-shadow 0.2s var(--npqm-ease),
+                border-color 0.2s var(--npqm-ease), color 0.2s var(--npqm-ease);
+}
+
+/* Bouton « Annuler » : discret, contour. */
+.npq-modal-btn--ghost {
+    background: transparent;
+    color: var(--npqm-text);
+    border: 1px solid var(--npqm-border);
+}
+
+.npq-modal-btn--ghost:hover {
+    border-color: var(--npqm-teal);
+    color: var(--npqm-teal);
+    transform: translateY(-2px);
+}
+
+/* Bouton de confirmation : plein teal par défaut… */
+.npq-modal-btn--confirm {
+    background: var(--npqm-teal);
+    color: #06121f;
+}
+
+.npq-modal-btn--confirm:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(47, 225, 197, 0.28);
+}
+
+/* …et plein orange pour une action destructrice. */
+.npq-modal-box.is-danger .npq-modal-btn--confirm {
+    background: var(--npqm-orange);
+    color: #180a04;
+}
+
+.npq-modal-box.is-danger .npq-modal-btn--confirm:hover {
+    box-shadow: 0 8px 20px rgba(255, 122, 80, 0.28);
+}

@@ -507,15 +507,27 @@
         var btn = document.getElementById('npq-quitter');
         if (btn) {
             btn.addEventListener('click', function () {
-                var ok = confirm(
-                    "Quitter l'examen ?\n\n" +
-                    "Votre tentative sera ABANDONNÉE : elle n'aura pas de score et " +
-                    "apparaîtra comme abandonnée dans votre historique.\n\n" +
-                    "Cette action est définitive."
-                );
-                if (ok) {
-                    quitter();
+                // Modale stylée au lieu du confirm() natif. Repli sur le natif si
+                // le composant n'est pas chargé, pour ne jamais bloquer le bouton
+                // (contexte critique : l'utilisateur doit toujours pouvoir sortir).
+                if (!window.NPQConfirm) {
+                    if (confirm("Quitter l'examen ? Votre tentative sera abandonnée.")) {
+                        quitter();
+                    }
+                    return;
                 }
+                window.NPQConfirm.demander({
+                    title: "Quitter l'examen ?",
+                    message:
+                        "Votre tentative sera ABANDONNÉE : elle n'aura pas de score " +
+                        "et apparaîtra comme abandonnée dans votre historique. " +
+                        "Cette action est définitive.",
+                    ok: "Quitter l'examen",
+                    danger: true,
+                    onConfirm: function () {
+                        quitter();
+                    }
+                });
             });
         }
 

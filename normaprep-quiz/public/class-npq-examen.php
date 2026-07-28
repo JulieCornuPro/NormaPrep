@@ -693,11 +693,11 @@ class NPQ_Examen {
                 </ul>
             </div>
 
-            <form method="post" class="npq-exam-lancer"
-                  onsubmit="return confirm('Le chronomètre va démarrer. Prêt(e) à commencer ?');">
+            <form method="post" class="npq-exam-lancer">
                 <input type="hidden" name="npq_examen_action" value="demarrer">
                 <?php wp_nonce_field( 'npq_examen', 'npq_nonce' ); ?>
-                <button type="submit" class="npq-btn">Démarrer l'examen</button>
+                <button type="submit" data-npq-confirm="Le chronomètre va démarrer. Prêt(e) à commencer ?"
+            data-npq-confirm-ok class="npq-btn">Démarrer l'examen</button>
             </form>
         </div>
 
@@ -771,12 +771,11 @@ class NPQ_Examen {
                         <p class="npq-exam-modele-desc"><?php echo esc_html( $ex['description'] ); ?></p>
                     <?php endif; ?>
                     <p class="npq-exam-modele-nb"><?php echo (int) $effectif; ?> questions</p>
-                    <form method="post" class="npq-exam-lancer"
-                          onsubmit="return confirm('Le chronomètre va démarrer. Prêt(e) à commencer ?');">
+                    <form method="post" class="npq-exam-lancer">
                         <input type="hidden" name="npq_examen_action" value="demarrer">
                         <input type="hidden" name="npq_examen_modele" value="<?php echo (int) $ex['id']; ?>">
                         <?php wp_nonce_field( 'npq_examen', 'npq_nonce' ); ?>
-                        <button type="submit" class="npq-btn">Démarrer</button>
+                        <button type="submit" data-npq-confirm="Le chronomètre va démarrer. Prêt(e) à commencer ?" data-npq-confirm-ok class="npq-btn">Démarrer</button>
                     </form>
                 </div>
             <?php endforeach; ?>
