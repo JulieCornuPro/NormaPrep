@@ -307,6 +307,22 @@ class NPQ_Espace {
             NPQ_VERSION,
             true
         );
+
+        // Chargement des selects pour drop down et modales
+        wp_enqueue_style(
+            'npq-select',
+            NPQ_URL . 'assets/npq-select.css',
+            [],
+            NPQ_VERSION
+        );
+
+        wp_enqueue_script(
+            'npq-select',
+            NPQ_URL . 'assets/npq-select.js',
+            [],           // aucune dépendance : vanilla JS
+            NPQ_VERSION,
+            true          // dans le pied de page
+        );
     }
 
     /**

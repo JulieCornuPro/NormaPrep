@@ -384,7 +384,7 @@ class NPQ_Revision {
 
                 <?php if ( $plusieurs ) : ?>
                     <p class="npq-champ-label">Certification</p>
-                    <select name="npq_certification" id="npq-compo-certif" class="npq-compo-select">
+                    <select name="npq_certification" id="npq-compo-certif" class="npq-compo-select" data-npq-select>
                         <?php foreach ( $certifs as $certif ) : ?>
                             <option value="<?php echo (int) $certif['id']; ?>">
                                 <?php echo esc_html( $certif['nom'] ); ?>

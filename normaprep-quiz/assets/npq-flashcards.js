@@ -55,8 +55,17 @@
         var champNombre = form.querySelector('[name="npq_nombre"]:checked');
         var nombre = champNombre ? parseInt(champNombre.value, 10) : 10;
 
-        // Filtre par domaine (aucun coché = tout le programme).
+        // Certification choisie (sélecteur si plusieurs, champ caché sinon).
+        var champCertif = document.getElementById('npq-fc-certif');
+        var certif = champCertif ? (parseInt(champCertif.value, 10) || 0) : 0;
+
+        // Filtre par certification PUIS par domaine. Le filtre certification est
+        // essentiel : un même code de domaine (« D1 ») peut exister dans deux
+        // certifications, donc filtrer sur le seul code mêlerait leurs cartes.
         var candidates = toutesLesCartes.filter(function (c) {
+            if (certif && c.certif !== certif) {
+                return false;
+            }
             return domaines.length === 0 || domaines.indexOf(c.domaine) !== -1;
         });
 

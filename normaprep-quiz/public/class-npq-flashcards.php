@@ -71,13 +71,26 @@ class NPQ_Flashcards {
                  . '<a href="' . esc_url( $url ) . '">Découvrir les offres</a>.</p>';
         }
 
-        $domaines = self::domaines_disponibles();
+        // Certifications de la bibliothèque de l'utilisateur.
+        $certifs = self::certifications_utilisateur();
+        $plusieurs = ( count( $certifs ) > 1 );
 
-        // Aucune carte en base : on le dit plutôt que d'afficher un formulaire vide.
+        // Domaines et cartes de TOUTES les certifications de la bibliothèque.
+        // Le JavaScript filtrera selon la certification choisie dans le
+        // sélecteur (et selon les domaines cochés).
+        $domaines_par_certif = [];
+        $cartes_tous = [];
         $total = 0;
-        foreach ( $domaines as $d ) {
-            $total += (int) $d['nb'];
+        foreach ( $certifs as $certif ) {
+            $cid = (int) $certif['id'];
+            $domaines_par_certif[ $cid ] = self::domaines_disponibles( $cid );
+            foreach ( $domaines_par_certif[ $cid ] as $d ) {
+                $total += (int) $d['nb'];
+            }
+            $cartes_tous = array_merge( $cartes_tous, self::toutes_les_cartes( $cid ) );
         }
+
+        // Aucune carte dans toute la bibliothèque : on le dit.
         if ( $total === 0 ) {
             return '<div class="npq-flashcards"><h2>Flashcards</h2>'
                  . '<p class="empty">Aucune flashcard disponible pour le moment.</p></div>';
@@ -96,24 +109,42 @@ class NPQ_Flashcards {
                 </p>
 
                 <form class="npq-fc-form" id="npq-fc-form">
+                    <?php if ( $plusieurs ) : ?>
+                        <p class="npq-champ-label">Certification</p>
+                        <select id="npq-fc-certif" class="npq-compo-select">
+                            <?php foreach ( $certifs as $certif ) : ?>
+                                <option value="<?php echo (int) $certif['id']; ?>">
+                                    <?php echo esc_html( $certif['nom'] ); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    <?php else : ?>
+                        <input type="hidden" id="npq-fc-certif" value="<?php echo (int) $certifs[0]['id']; ?>">
+                    <?php endif; ?>
+
                     <p class="npq-champ-label">Domaines à réviser</p>
                     <p class="npq-champ-aide">
                         Laissez tout décoché pour piocher dans l'ensemble du programme.
                     </p>
 
                     <div class="npq-domaines-liste">
-                        <?php foreach ( $domaines as $d ) :
-                            if ( (int) $d['nb'] === 0 ) {
-                                continue; // domaine sans carte : inutile de le proposer
-                            }
+                        <?php foreach ( $certifs as $certif ) :
+                            $cid = (int) $certif['id'];
+                            foreach ( $domaines_par_certif[ $cid ] as $d ) :
+                                if ( (int) $d['nb'] === 0 ) {
+                                    continue; // domaine sans carte : inutile de le proposer
+                                }
                         ?>
-                            <label class="npq-domaine-case">
+                            <label class="npq-domaine-case" data-certification="<?php echo $cid; ?>">
                                 <input type="checkbox" name="npq_domaines[]"
                                        value="<?php echo esc_attr( $d['code'] ); ?>">
                                 <span class="npq-dom-nom"><?php echo esc_html( $d['libelle'] ); ?></span>
                                 <span class="npq-dom-nb"><?php echo (int) $d['nb']; ?></span>
                             </label>
-                        <?php endforeach; ?>
+                        <?php
+                            endforeach;
+                        endforeach;
+                        ?>
                     </div>
 
                     <p class="npq-champ-label">Nombre de cartes</p>
@@ -136,13 +167,44 @@ class NPQ_Flashcards {
             <!-- Écran de session (rempli par le JavaScript) -->
             <div id="npq-fc-session" style="display:none"></div>
 
-            <!-- Toutes les cartes disponibles, pour le tirage côté navigateur.
+            <!-- Toutes les cartes de la bibliothèque, pour le tirage côté
+                 navigateur. Chaque carte porte sa certification (champ certif),
+                 pour que le JavaScript ne tire que dans la certification choisie.
                  Rien à protéger ici : la réponse EST le contenu, le candidat
                  vient précisément pour la voir. -->
             <script type="application/json" id="npq-fc-donnees">
-                <?php echo wp_json_encode( self::toutes_les_cartes() ); ?>
+                <?php echo wp_json_encode( $cartes_tous ); ?>
             </script>
         </div>
+
+        <?php if ( $plusieurs ) : ?>
+        <script>
+        /* Le sélecteur de certification n'affiche que les domaines de la
+           certification choisie (et décoche les autres). Le filtrage des cartes
+           par certification, lui, est fait par le script principal des
+           flashcards, qui lit la valeur de #npq-fc-certif. */
+        ( function () {
+            var select = document.getElementById( 'npq-fc-certif' );
+            var cases  = document.querySelectorAll( '.npq-domaine-case' );
+            if ( ! select || ! select.tagName || select.tagName.toLowerCase() !== 'select' ) { return; }
+
+            function filtrer() {
+                var certif = parseInt( select.value, 10 ) || 0;
+                cases.forEach( function ( c ) {
+                    var ok = ( parseInt( c.getAttribute( 'data-certification' ), 10 ) === certif );
+                    c.style.display = ok ? '' : 'none';
+                    if ( ! ok ) {
+                        var input = c.querySelector( 'input[type="checkbox"]' );
+                        if ( input ) { input.checked = false; }
+                    }
+                } );
+            }
+
+            select.addEventListener( 'change', filtrer );
+            filtrer();
+        } )();
+        </script>
+        <?php endif; ?>
         <?php
         return ob_get_clean();
     }
@@ -152,8 +214,10 @@ class NPQ_Flashcards {
      * ===================================================================== */
 
     /** Toutes les cartes publiées, avec leur domaine (code et libellé). */
-    private static function toutes_les_cartes() {
-        $certification_id = self::certification_courante();
+    private static function toutes_les_cartes( $certification_id = 0 ) {
+        if ( ! $certification_id ) {
+            $certification_id = self::certification_courante();
+        }
         if ( ! $certification_id ) {
             return [];
         }
@@ -185,6 +249,7 @@ class NPQ_Flashcards {
         foreach ( $lignes as $l ) {
             $cartes[] = [
                 'id'      => (int) $l['id'],
+                'certif'  => (int) $certification_id,
                 'domaine' => $l['domaine'],
                 'libelle' => (string) ( $l['domaine_libelle'] ?? '' ),
                 'recto'   => $l['recto'],
@@ -195,8 +260,10 @@ class NPQ_Flashcards {
     }
 
     /** Domaines, avec le nombre de cartes de chacun. */
-    private static function domaines_disponibles() {
-        $certification_id = self::certification_courante();
+    private static function domaines_disponibles( $certification_id = 0 ) {
+        if ( ! $certification_id ) {
+            $certification_id = self::certification_courante();
+        }
         if ( ! $certification_id ) {
             return [];
         }
@@ -222,5 +289,34 @@ class NPQ_Flashcards {
     /** Certification active — délègue à la résolution centralisée. */
     private static function certification_courante() {
         return NPQ_Certification::id();
+    }
+
+    /**
+     * Certifications de la bibliothèque de l'utilisateur courant. Repli sur la
+     * certification active si aucun accès n'est encore enregistré (cohérent
+     * avec la page révisions).
+     *
+     * @return array Lignes : id, code, nom.
+     */
+    private static function certifications_utilisateur() {
+        $fiche = NPQ_Comptes::fiche_courante();
+        $utilisateur_id = $fiche ? (int) $fiche['id'] : 0;
+
+        $certifs = $utilisateur_id
+            ? NPQ_Bibliotheque::certifications_de( $utilisateur_id )
+            : [];
+
+        if ( empty( $certifs ) ) {
+            $active = NPQ_Certification::courante();
+            if ( $active ) {
+                $certifs = [ [
+                    'id'   => (int) $active['id'],
+                    'code' => $active['code'],
+                    'nom'  => $active['nom'],
+                ] ];
+            }
+        }
+
+        return $certifs;
     }
 }
