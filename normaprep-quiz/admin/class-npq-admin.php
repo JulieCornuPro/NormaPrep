@@ -36,6 +36,9 @@ class NPQ_Admin {
         require_once NPQ_PATH . 'admin/class-npq-certification-form.php';
         NPQ_Certification_Form::traiter();
 
+        require_once NPQ_PATH . 'admin/class-npq-ponderation-form.php';
+        NPQ_Ponderation_Form::traiter();
+
         require_once NPQ_PATH . 'admin/class-npq-acces-form.php';
         NPQ_Acces_Form::traiter();
 
@@ -172,6 +175,15 @@ class NPQ_Admin {
      * ===================================================================== */
 
     public static function page_certifications() {
+
+        // Vue « pondération » : édition de la répartition de l'examen blanc.
+        $vue = isset( $_GET['npq_vue'] ) ? sanitize_key( $_GET['npq_vue'] ) : 'liste';
+        if ( $vue === 'ponderation' ) {
+            require_once NPQ_PATH . 'admin/class-npq-ponderation-form.php';
+            NPQ_Ponderation_Form::afficher_formulaire();
+            return;
+        }
+
         require_once NPQ_PATH . 'admin/class-npq-table-certifications.php';
         require_once NPQ_PATH . 'admin/class-npq-certification-form.php';
 

@@ -49,6 +49,7 @@ class NPQ_Installer {
             code VARCHAR(30) NOT NULL,
             nom VARCHAR(190) NOT NULL,
             actif TINYINT(1) NOT NULL DEFAULT 1,
+            ponderation TEXT NULL,
             date_creation DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             UNIQUE KEY code (code)

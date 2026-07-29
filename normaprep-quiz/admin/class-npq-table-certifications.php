@@ -112,6 +112,16 @@ class NPQ_Table_Certifications extends WP_List_Table {
             }
         }
 
+        $url_ponderation = add_query_arg(
+            [
+                'page'    => 'normaprep-certifications',
+                'npq_vue' => 'ponderation',
+                'id'      => (int) $item['id'],
+            ],
+            admin_url( 'admin.php' )
+        );
+        $actions['ponderation'] = '<a href="' . esc_url( $url_ponderation ) . '">Pondération</a>';
+
         return $nom . $this->row_actions( $actions );
     }
 

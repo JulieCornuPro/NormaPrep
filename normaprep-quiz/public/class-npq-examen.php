@@ -28,7 +28,12 @@ class NPQ_Examen {
      * Source : guide de préparation PECB (tableau de pondération des domaines).
      */
 
-    /** Nombre de questions par domaine, tel que défini par PECB (total : 80). */
+    /**
+     * Pondération historique PECB (Lead Implementer). Conservée à titre de
+     * référence documentaire uniquement : la pondération effective est
+     * désormais lue par certification via NPQ_Ponderation::de(). Ne plus
+     * utiliser directement.
+     */
     const PONDERATION_PECB = [
         'D1' => 15,  // Principes et concepts fondamentaux du SMSI
         'D2' => 12,  // Système de management de la sécurité de l'information
@@ -424,8 +429,9 @@ class NPQ_Examen {
             $questions = NPQ_Composeur::par_scenarios( (int) $modele['id'] );
             $type_criteres = 'examen_scenarios';
         } else {
-            // Examen blanc PECB (comportement historique).
-            $questions = NPQ_Composeur::par_ponderation( $certification_id, self::PONDERATION_PECB );
+            // Examen blanc : pondération officielle de LA certification.
+            $ponderation = NPQ_Ponderation::de( $certification_id );
+            $questions = NPQ_Composeur::par_ponderation( $certification_id, $ponderation );
             $type_criteres = 'examen_pecb';
         }
 
@@ -466,7 +472,7 @@ class NPQ_Examen {
             $criteres['modele_id']  = (int) $modele['id'];
             $criteres['modele_nom'] = $modele['nom'];
         } else {
-            $criteres['ponderation'] = self::PONDERATION_PECB;
+            $criteres['ponderation'] = NPQ_Ponderation::de( $certification_id );
         }
 
         $wpdb->insert( "{$p}tentative", [
@@ -630,7 +636,10 @@ class NPQ_Examen {
         }
 
         // Vérifie que la banque permet de composer l'examen.
-        $verif = NPQ_Composeur::verifier_ponderation( $certification_id, self::PONDERATION_PECB );
+        $verif = NPQ_Composeur::verifier_ponderation(
+            $certification_id,
+            NPQ_Ponderation::de( $certification_id )
+        );
         if ( ! $verif['possible'] ) {
             return '<p class="empty">Les questions ne sont pas encore disponibles.</p>';
         }
