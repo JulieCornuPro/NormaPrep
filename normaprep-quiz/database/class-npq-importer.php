@@ -1,11 +1,40 @@
 <?php
 /**
- * Import du contenu (scénarios, questions, options, tags) depuis un fichier JSON.
+ * Import du contenu (certifications, scénarios, questions, options, tags).
  *
- * Fournit une page d'administration avec un bouton « Importer le contenu ».
- * L'import est REJOUABLE : il s'appuie sur la référence externe (SC0, Q001…)
- * pour créer les éléments absents et mettre à jour ceux déjà présents, sans
- * jamais créer de doublon.
+ * ORGANISATION DES FICHIERS
+ * -------------------------
+ * Un dossier par certification, un fichier par scénario :
+ *
+ *   data/
+ *     RM27005/
+ *       _certification.json      <- manifeste : code, nom, domaines
+ *       SC01_Novalis.json        <- un scénario + ses questions
+ *       _flashcards.json         <- optionnel : cartes (non liées à un scénario)
+ *     LI27001/
+ *       _certification.json
+ *       SC00_NovaTech.json
+ *       ...
+ *
+ * Les fichiers dont le nom commence par « _ » sont réservés (manifeste,
+ * flashcards). Tous les autres .json sont lus comme des fichiers de scénario.
+ *
+ * RÉFÉRENCES EXTERNES
+ * -------------------
+ * Elles ne dépendent plus de la position dans le tableau, mais des
+ * identifiants portés par les fichiers :
+ *
+ *   scénario : RM27005-SC01
+ *   question : RM27005-SC01-Q07
+ *
+ * C'est ce qui rend l'import rejouable ET permet d'importer les scénarios
+ * indépendamment les uns des autres sans collision de références.
+ *
+ * SUPPRESSIONS
+ * ------------
+ * Une question retirée d'un fichier est supprimée en base lors de l'import
+ * de ce fichier. Le nettoyage est strictement limité aux références
+ * commençant par le préfixe du scénario concerné.
  *
  * @package NormaPrep_Quiz
  */
@@ -16,9 +45,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class NPQ_Importer {
 
+    /** Clé du transient qui transporte le compte rendu jusqu'à l'affichage. */
+    const TRANSIENT_RAPPORT = 'npq_rapport_import';
+
     /**
      * Enregistre la page d'admin et traite l'action d'import.
-     * Appelée au chargement du plugin (côté admin).
      */
     public static function init() {
         add_action( 'admin_menu', [ __CLASS__, 'ajouter_page_admin' ] );
@@ -26,46 +57,104 @@ class NPQ_Importer {
     }
 
     /**
-     * Ajoute une entrée « NormaPrep » dans le menu d'administration.
-     */
-    /**
-     * Crée le menu « NormaPrep » dans l'administration.
-     *
-     * Le CONTENU des pages est défini par NPQ_Admin (accueil, état du contenu,
-     * import). Ici on ne fait que déclarer le menu parent : la fonction de rendu
-     * passée est neutre, car NPQ_Admin redéfinit le premier sous-menu.
+     * Déclare le menu parent « NormaPrep ».
+     * Le contenu des pages est défini par NPQ_Admin.
      */
     public static function ajouter_page_admin() {
         add_menu_page(
-            'NormaPrep',                 // titre de la page
-            'NormaPrep',                 // libellé du menu
-            'manage_options',            // capacité requise (administrateur)
-            'normaprep-quiz',            // identifiant de la page
-            '__return_null',             // rendu défini par NPQ_Admin
+            'NormaPrep',
+            'NormaPrep',
+            'manage_options',
+            'normaprep-quiz',
+            '__return_null',
             'dashicons-welcome-learn-more',
             30
         );
     }
 
+    /* =====================================================================
+     * PAGE D'ADMINISTRATION
+     * ===================================================================== */
+
     /**
-     * Affiche la page d'admin : un bouton pour lancer l'import.
+     * Affiche l'inventaire des fichiers détectés et le bouton d'import.
+     *
+     * On liste le contenu du dossier data/ AVANT d'importer : l'utilisateur
+     * voit ce qui va être traité, et repère immédiatement un dossier mal formé
+     * (manifeste manquant, par exemple).
      */
     public static function afficher_page() {
-        // Message de retour éventuel (après un import).
-        $message = '';
-        if ( isset( $_GET['npq_resultat'] ) ) {
-            $r = sanitize_text_field( wp_unslash( $_GET['npq_resultat'] ) );
-            $message = '<div class="notice notice-success"><p>' . esc_html( $r ) . '</p></div>';
+        $rapport = get_transient( self::TRANSIENT_RAPPORT );
+        if ( $rapport ) {
+            delete_transient( self::TRANSIENT_RAPPORT );
         }
+
+        $inventaire = self::inventorier();
         ?>
         <div class="wrap">
             <h1>NormaPrep Quiz</h1>
-            <?php echo $message; ?>
-            <h2>Importer le contenu</h2>
+
+            <?php if ( $rapport ) : ?>
+                <h2>Résultat du dernier import</h2>
+                <?php foreach ( $rapport as $ligne ) :
+                    $classe = ( $ligne['statut'] === 'ok' ) ? 'notice-success' : 'notice-error';
+                    ?>
+                    <div class="notice <?php echo esc_attr( $classe ); ?>">
+                        <p>
+                            <strong><?php echo esc_html( $ligne['fichier'] ); ?></strong> —
+                            <?php echo esc_html( $ligne['message'] ); ?>
+                        </p>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+
+            <h2>Contenu détecté</h2>
+
+            <?php if ( empty( $inventaire ) ) : ?>
+                <p>
+                    Aucune certification trouvée. Créez un dossier par certification
+                    dans <code>data/</code>, contenant un fichier
+                    <code>_certification.json</code>.
+                </p>
+            <?php else : ?>
+                <table class="widefat striped" style="max-width:900px">
+                    <thead>
+                        <tr>
+                            <th>Certification</th>
+                            <th>Dossier</th>
+                            <th>Fichiers de scénario</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ( $inventaire as $cert ) : ?>
+                        <tr>
+                            <td>
+                                <?php if ( $cert['erreur'] ) : ?>
+                                    <span style="color:#d63638">⚠ <?php echo esc_html( $cert['erreur'] ); ?></span>
+                                <?php else : ?>
+                                    <strong><?php echo esc_html( $cert['code'] ); ?></strong><br>
+                                    <?php echo esc_html( $cert['nom'] ); ?>
+                                <?php endif; ?>
+                            </td>
+                            <td><code>data/<?php echo esc_html( $cert['dossier'] ); ?>/</code></td>
+                            <td>
+                                <?php if ( empty( $cert['fichiers'] ) ) : ?>
+                                    <em>aucun</em>
+                                <?php else : ?>
+                                    <?php echo esc_html( implode( ', ', $cert['fichiers'] ) ); ?>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+
+            <h2>Importer</h2>
             <p>
-                Importe les scénarios et questions depuis le fichier
-                <code>data/question_bank.json</code> du plugin.
-                L'opération peut être relancée sans créer de doublon.
+                L'opération peut être relancée sans créer de doublon. Les éléments
+                déjà présents sont mis à jour ; les questions retirées d'un fichier
+                sont supprimées de la base.
             </p>
             <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
                 <input type="hidden" name="action" value="npq_importer">
@@ -76,172 +165,298 @@ class NPQ_Importer {
                     </button>
                 </p>
             </form>
-            <hr style="margin:28px 0">
-
-            <h2>Exporter le contenu</h2>
-            <p>
-                Télécharge le contenu au format JSON. Le fichier obtenu est
-                <strong>ré-importable</strong> (sauvegarde, transfert vers un autre site).
-            </p>
-            <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-                <input type="hidden" name="action" value="npq_exporter">
-                <?php wp_nonce_field( 'npq_exporter_action', 'npq_nonce' ); ?>
-                <p>
-                    <label>
-                        <input type="radio" name="npq_portee" value="tout" checked>
-                        Tout le contenu (scénarios, questions et flashcards)
-                    </label><br>
-                    <label>
-                        <input type="radio" name="npq_portee" value="flashcards">
-                        Flashcards uniquement
-                    </label>
-                </p>
-                <p>
-                    <button type="submit" class="button button-secondary">
-                        Télécharger le JSON
-                    </button>
-                </p>
-            </form>
         </div>
         <?php
     }
 
     /**
-     * Traite le clic sur le bouton : lit le JSON et remplit les tables.
+     * Parcourt data/ et décrit ce qui s'y trouve, sans rien importer.
+     *
+     * @return array Une entrée par dossier de certification.
+     */
+    private static function inventorier() {
+        $racine = NPQ_PATH . 'data';
+        if ( ! is_dir( $racine ) ) {
+            return [];
+        }
+
+        $resultat = [];
+        foreach ( scandir( $racine ) as $entree ) {
+            if ( $entree === '.' || $entree === '..' ) {
+                continue;
+            }
+            $chemin = $racine . '/' . $entree;
+            if ( ! is_dir( $chemin ) ) {
+                continue;
+            }
+
+            $ligne = [
+                'dossier'  => $entree,
+                'code'     => '',
+                'nom'      => '',
+                'fichiers' => [],
+                'erreur'   => '',
+            ];
+
+            $manifeste = self::lire_json( $chemin . '/_certification.json' );
+            if ( ! $manifeste || empty( $manifeste['certification']['code'] ) ) {
+                $ligne['erreur'] = 'Manifeste _certification.json manquant ou illisible';
+            } else {
+                $ligne['code'] = $manifeste['certification']['code'];
+                $ligne['nom']  = $manifeste['certification']['name'] ?? '';
+            }
+
+            foreach ( self::fichiers_scenarios( $chemin ) as $f ) {
+                $ligne['fichiers'][] = basename( $f );
+            }
+
+            $resultat[] = $ligne;
+        }
+
+        return $resultat;
+    }
+
+    /* =====================================================================
+     * IMPORT
+     * ===================================================================== */
+
+    /**
+     * Point d'entrée de l'import : parcourt les dossiers de certification.
      */
     public static function traiter_import() {
-        // Sécurité : vérifier le droit et le jeton anti-CSRF.
         if ( ! current_user_can( 'manage_options' ) ) {
             wp_die( 'Accès refusé.' );
         }
         check_admin_referer( 'npq_importer_action', 'npq_nonce' );
 
-        $chemin = NPQ_PATH . 'data/question_bank.json';
-        if ( ! file_exists( $chemin ) ) {
-            self::rediriger( 'Fichier question_bank.json introuvable dans le dossier data/.' );
+        $racine  = NPQ_PATH . 'data';
+        $rapport = [];
+
+        if ( ! is_dir( $racine ) ) {
+            self::rediriger( [ [
+                'fichier' => 'data/',
+                'statut'  => 'erreur',
+                'message' => 'Dossier data/ introuvable dans le plugin.',
+            ] ] );
         }
 
-        $json = file_get_contents( $chemin );
-        $data = json_decode( $json, true );
-        if ( ! $data || empty( $data['questions'] ) ) {
-            self::rediriger( 'Le fichier JSON est vide ou illisible.' );
+        foreach ( scandir( $racine ) as $entree ) {
+            if ( $entree === '.' || $entree === '..' ) {
+                continue;
+            }
+            $dossier = $racine . '/' . $entree;
+            if ( ! is_dir( $dossier ) ) {
+                continue;
+            }
+            $rapport = array_merge( $rapport, self::importer_certification( $dossier, $entree ) );
         }
 
+        if ( empty( $rapport ) ) {
+            $rapport[] = [
+                'fichier' => 'data/',
+                'statut'  => 'erreur',
+                'message' => 'Aucun dossier de certification trouvé.',
+            ];
+        }
+
+        self::rediriger( $rapport );
+    }
+
+    /**
+     * Importe un dossier de certification : manifeste, puis chaque scénario.
+     *
+     * @param string $dossier Chemin absolu du dossier.
+     * @param string $nom_dossier Nom du dossier (pour les messages).
+     * @return array Lignes de compte rendu.
+     */
+    private static function importer_certification( $dossier, $nom_dossier ) {
+        $rapport = [];
+
+        /* ---- Manifeste ---- */
+        $manifeste = self::lire_json( $dossier . '/_certification.json' );
+        if ( ! $manifeste || empty( $manifeste['certification']['code'] ) ) {
+            return [ [
+                'fichier' => 'data/' . $nom_dossier . '/_certification.json',
+                'statut'  => 'erreur',
+                'message' => 'Manifeste manquant, illisible, ou sans code de certification. Dossier ignoré.',
+            ] ];
+        }
+
+        $cert_code = (string) $manifeste['certification']['code'];
+        $cert_nom  = (string) ( $manifeste['certification']['name'] ?? $cert_code );
+
+        // Le manifeste fait autorité. On avertit seulement si le nom de dossier
+        // diverge, car un renommage ne doit jamais changer silencieusement la
+        // certification cible.
+        if ( $nom_dossier !== $cert_code ) {
+            $rapport[] = [
+                'fichier' => 'data/' . $nom_dossier . '/',
+                'statut'  => 'erreur',
+                'message' => sprintf(
+                    'Avertissement : le dossier s\'appelle « %s » mais le manifeste déclare le code « %s ». C\'est le manifeste qui est appliqué.',
+                    $nom_dossier, $cert_code
+                ),
+            ];
+        }
+
+        $certification_id = self::obtenir_ou_creer_certification( $cert_code, $cert_nom );
+
+        /* ---- Domaines (déclarés une seule fois, dans le manifeste) ---- */
+        $domaines_connus = [];
+        if ( ! empty( $manifeste['domains'] ) && is_array( $manifeste['domains'] ) ) {
+            foreach ( $manifeste['domains'] as $code => $d ) {
+                $libelle = is_array( $d ) ? ( $d['label'] ?? $code ) : (string) $d;
+                self::assurer_domaine( $certification_id, $code, $libelle );
+                $domaines_connus[ $code ] = true;
+            }
+        }
+
+        $rapport[] = [
+            'fichier' => 'data/' . $nom_dossier . '/_certification.json',
+            'statut'  => 'ok',
+            'message' => sprintf(
+                'Certification « %s » (%s) — %d domaine(s).',
+                $cert_nom, $cert_code, count( $domaines_connus )
+            ),
+        ];
+
+        /* ---- Scénarios ---- */
+        foreach ( self::fichiers_scenarios( $dossier ) as $fichier ) {
+            $rapport[] = self::importer_scenario(
+                $fichier,
+                'data/' . $nom_dossier . '/' . basename( $fichier ),
+                $certification_id,
+                $cert_code,
+                $domaines_connus
+            );
+        }
+
+        return $rapport;
+    }
+
+    /**
+     * Importe un fichier de scénario : le scénario, ses questions, options et tags.
+     *
+     * @return array Une ligne de compte rendu.
+     */
+    private static function importer_scenario( $chemin, $libelle, $certification_id, $cert_code, $domaines_connus ) {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
-        // La certification cible de cet import. À terme, ce couple code/nom
-        // pourra provenir du fichier JSON lui-même pour gérer plusieurs certifs.
-        // $cert_code = 'LI27001';
-        // $cert_nom  = 'ISO/IEC 27001 Lead Implementer';
-        // $certification_id = self::obtenir_ou_creer_certification( $cert_code, $cert_nom );
-
-        $cert_active = NPQ_Certification::courante();
-        if ( $cert_active ) {
-            $cert_code = $cert_active['code'];
-            $cert_nom  = $cert_active['nom'];
-        } else {
-            $cert_code = 'LI27001';
-            $cert_nom  = 'ISO/IEC 27001 Lead Implementer';
+        $data = self::lire_json( $chemin );
+        if ( ! $data ) {
+            return [ 'fichier' => $libelle, 'statut' => 'erreur',
+                     'message' => 'Fichier illisible ou JSON invalide.' ];
         }
-        $certification_id = self::obtenir_ou_creer_certification( $cert_code, $cert_nom );
 
-        // Si l'import vient de créer la toute première certification, le cache
-        // de résolution doit être rafraîchi pour les appels suivants.
-        NPQ_Certification::vider_cache();
+        $s = $data['scenario'] ?? null;
+        if ( ! $s || empty( $s['id'] ) || empty( $s['name'] ) || empty( $s['context'] ) ) {
+            return [ 'fichier' => $libelle, 'statut' => 'erreur',
+                     'message' => 'Bloc « scenario » incomplet (id, name et context sont obligatoires).' ];
+        }
 
-        // On mémorise la correspondance « référence externe » -> « id en base »
-        // pour rattacher ensuite les questions à leurs scénarios.
-        $map_scenarios = [];
-        $nb_scenarios = 0;
-        $nb_questions = 0;
+        $questions = $data['questions'] ?? [];
+        if ( ! is_array( $questions ) ) {
+            $questions = [];
+        }
 
-        /* ---- 1. Scénarios ---- */
-        foreach ( $data['scenarios'] as $index => $s ) {
-            // Nouvelle référence au format multi-certif : LI27001-SC-0001
-            $ref = sprintf( '%s-SC-%04d', $cert_code, $index + 1 );
+        /* ---- Contrôle de cohérence AVANT toute écriture ----
+         * Un fichier partiellement importé est pire qu'un fichier rejeté :
+         * on valide tout d'abord, et on n'écrit que si tout est bon. */
+        $erreurs = self::valider_questions( $questions, $domaines_connus );
+        if ( ! empty( $erreurs ) ) {
+            return [ 'fichier' => $libelle, 'statut' => 'erreur',
+                     'message' => 'Import annulé — ' . implode( ' | ', $erreurs ) ];
+        }
 
-            $existant = $wpdb->get_var( $wpdb->prepare(
-                "SELECT id FROM {$p}scenario WHERE ref_externe = %s", $ref
-            ) );
+        /* ---- Scénario ---- */
+        $ref_sc = sprintf( '%s-%s', $cert_code, $s['id'] );   // ex. RM27005-SC01
 
-            $donnees = [
-                'certification_id' => $certification_id,
-                'ref_externe'      => $ref,
-                'nom'              => $s['name'],
-                'resume'           => isset( $s['summary'] ) ? $s['summary'] : '',
-                'contexte'         => $s['context'],
+        // Secteur : vocabulaire fermé. Un code inconnu est refusé plutôt que
+        // créé à la volée — sinon « industrie », « industriel » et
+        // « manufacturing » coexisteraient et fausseraient les parcours.
+        $secteur   = $s['sector'] ?? 'transverse';
+        $autorises = self::secteurs_autorises();
+        if ( ! empty( $autorises ) && ! isset( $autorises[ $secteur ] ) ) {
+            return [
+                'fichier' => $libelle,
+                'statut'  => 'erreur',
+                'message' => sprintf(
+                    'Import annulé — secteur « %s » inconnu. Valeurs admises : %s.',
+                    $secteur,
+                    implode( ', ', array_keys( $autorises ) )
+                ),
             ];
-
-            if ( $existant ) {
-                $wpdb->update( "{$p}scenario", $donnees, [ 'id' => $existant ] );
-                // On garde la correspondance avec l'ancien id JSON (SC0, SC1...)
-                $map_scenarios[ $s['id'] ] = $existant;
-            } else {
-                $wpdb->insert( "{$p}scenario", $donnees );
-                $map_scenarios[ $s['id'] ] = $wpdb->insert_id;
-                $nb_scenarios++;
-            }
         }
 
-        /* ---- 2. Questions, options et tags ---- */
-        foreach ( $data['questions'] as $index => $q ) {
-            // Nouvelle référence au format multi-certif : LI27001-Q-0001
-            $ref = sprintf( '%s-Q-%04d', $cert_code, $index + 1 );
+        $donnees_sc = [
+            'certification_id' => $certification_id,
+            'ref_externe'      => $ref_sc,
+            'nom'              => $s['name'],
+            'resume'           => $s['summary'] ?? '',
+            'contexte'         => $s['context'],
+            'secteur'          => $secteur,
+        ];
+        if ( ! empty( $s['status'] ) ) {
+            $donnees_sc['statut'] = ( $s['status'] === 'draft' ) ? 'brouillon' : 'publie';
+        }
 
-            $scenario_id = isset( $map_scenarios[ $q['scenario_id'] ] )
-                ? $map_scenarios[ $q['scenario_id'] ]
-                : null;
+        $scenario_id = $wpdb->get_var( $wpdb->prepare(
+            "SELECT id FROM {$p}scenario WHERE ref_externe = %s", $ref_sc
+        ) );
 
-            // multi_reponses : le JSON actuel est à réponse unique, mais on gère
-            // le cas où plusieurs options seraient marquées correctes.
-            $nb_correctes = 0;
-            foreach ( $q['options'] as $i => $opt ) {
-                if ( $i === $q['answer_index'] ) {
-                    $nb_correctes++;
-                }
-            }
-            $multi = ( $nb_correctes > 1 ) ? 1 : 0;
+        if ( $scenario_id ) {
+            $wpdb->update( "{$p}scenario", $donnees_sc, [ 'id' => $scenario_id ] );
+        } else {
+            $wpdb->insert( "{$p}scenario", $donnees_sc );
+            $scenario_id = $wpdb->insert_id;
+        }
 
-            // Enregistre le domaine (code + libellé) s'il n'existe pas encore.
-            // Le libellé vient du champ domain_label de la banque de questions.
-            if ( ! empty( $q['domain'] ) && ! empty( $q['domain_label'] ) ) {
-                self::assurer_domaine( $certification_id, $q['domain'], $q['domain_label'] );
-            }
+        /* ---- Questions ---- */
+        $refs_vues    = [];
+        $nb_creees    = 0;
+        $nb_majs      = 0;
 
-            $donnees = [
+        foreach ( $questions as $q ) {
+            $ref_q = sprintf( '%s-%s', $ref_sc, $q['id'] );    // ex. RM27005-SC01-Q07
+            $refs_vues[] = $ref_q;
+
+            $donnees_q = [
                 'certification_id' => $certification_id,
-                'ref_externe'      => $ref,
+                'ref_externe'      => $ref_q,
                 'scenario_id'      => $scenario_id,
                 'domaine'          => $q['domain'],
                 'enonce'           => $q['question'],
-                'multi_reponses'   => $multi,
-                'explication'      => isset( $q['explanation'] ) ? $q['explanation'] : '',
-                'difficulte'       => isset( $q['difficulty'] ) ? $q['difficulty'] : 'hard',
+                'multi_reponses'   => 0,   // banque à réponse unique
+                'explication'      => $q['explanation'] ?? '',
+                'difficulte'       => $q['difficulty'] ?? 'hard',
             ];
-
-            $existante = $wpdb->get_var( $wpdb->prepare(
-                "SELECT id FROM {$p}question WHERE ref_externe = %s", $ref
-            ) );
-
-            if ( $existante ) {
-                $wpdb->update( "{$p}question", $donnees, [ 'id' => $existante ] );
-                $question_id = $existante;
-                // On efface les options existantes pour les réinsérer proprement.
-                $wpdb->delete( "{$p}option_reponse", [ 'question_id' => $question_id ] );
-                $wpdb->delete( "{$p}question_tag", [ 'question_id' => $question_id ] );
-            } else {
-                $wpdb->insert( "{$p}question", $donnees );
-                $question_id = $wpdb->insert_id;
-                $nb_questions++;
+            if ( ! empty( $q['status'] ) ) {
+                $donnees_q['statut'] = ( $q['status'] === 'draft' ) ? 'brouillon' : 'publie';
             }
 
-            // Options de réponse.
+            $question_id = $wpdb->get_var( $wpdb->prepare(
+                "SELECT id FROM {$p}question WHERE ref_externe = %s", $ref_q
+            ) );
+
+            if ( $question_id ) {
+                $wpdb->update( "{$p}question", $donnees_q, [ 'id' => $question_id ] );
+                $wpdb->delete( "{$p}option_reponse", [ 'question_id' => $question_id ] );
+                $wpdb->delete( "{$p}question_tag",   [ 'question_id' => $question_id ] );
+                $nb_majs++;
+            } else {
+                $wpdb->insert( "{$p}question", $donnees_q );
+                $question_id = $wpdb->insert_id;
+                $nb_creees++;
+            }
+
+            // Options : la bonne réponse est désignée par son identifiant (A/B/C/D),
+            // pas par sa position — ainsi une randomisation du fichier reste sûre.
             foreach ( $q['options'] as $i => $opt ) {
                 $wpdb->insert( "{$p}option_reponse", [
                     'question_id' => $question_id,
                     'texte'       => $opt['text'],
-                    'correcte'    => ( $i === $q['answer_index'] ) ? 1 : 0,
+                    'correcte'    => ( $opt['id'] === $q['answer'] ) ? 1 : 0,
                     'position'    => $i,
                 ] );
             }
@@ -249,14 +464,12 @@ class NPQ_Importer {
             // Tags : chaque famille du JSON devient un tag_type.
             if ( ! empty( $q['tags'] ) ) {
                 foreach ( $q['tags'] as $type_nom => $valeurs ) {
-                    // skill_type est une chaîne unique ; les autres sont des tableaux.
                     $liste = is_array( $valeurs ) ? $valeurs : [ $valeurs ];
                     foreach ( $liste as $valeur ) {
                         if ( $valeur === '' || $valeur === null ) {
                             continue;
                         }
                         $tag_id = self::obtenir_ou_creer_tag( $type_nom, (string) $valeur );
-                        // Liaison question <-> tag (ignore si déjà présente).
                         $wpdb->query( $wpdb->prepare(
                             "INSERT IGNORE INTO {$p}question_tag (question_id, tag_id) VALUES (%d, %d)",
                             $question_id, $tag_id
@@ -266,56 +479,145 @@ class NPQ_Importer {
             }
         }
 
-        /* ---- 3. Flashcards (optionnel : présentes seulement dans les
-         * fichiers qui en contiennent). Rejouable via ref_externe. ---- */
-        $nb_flashcards = 0;
-        if ( ! empty( $data['flashcards'] ) ) {
-            foreach ( $data['flashcards'] as $index => $fc ) {
-                // Référence : celle du fichier si fournie, sinon on en fabrique
-                // une stable à partir du code de certification et du rang.
-                $ref = ! empty( $fc['id'] )
-                    ? (string) $fc['id']
-                    : sprintf( '%s-FC-%04d', $cert_code, $index + 1 );
+        /* ---- Nettoyage : questions retirées du fichier ----
+         * Périmètre strictement limité aux références de CE scénario. */
+        $nb_supprimees = self::supprimer_questions_obsoletes( $ref_sc, $refs_vues );
 
-                // Enregistre le domaine si le fichier fournit son libellé.
-                if ( ! empty( $fc['domain'] ) && ! empty( $fc['domain_label'] ) ) {
-                    self::assurer_domaine( $certification_id, $fc['domain'], $fc['domain_label'] );
+        $message = sprintf(
+            'Scénario « %s » [%s] — %d question(s) créée(s), %d mise(s) à jour, %d supprimée(s).',
+            $s['name'], $secteur, $nb_creees, $nb_majs, $nb_supprimees
+        );
+
+        return [ 'fichier' => $libelle, 'statut' => 'ok', 'message' => $message ];
+    }
+
+    /* =====================================================================
+     * CONTRÔLES DE COHÉRENCE
+     * ===================================================================== */
+
+    /**
+     * Vérifie chaque question avant écriture.
+     *
+     * Ces trois contrôles rattrapent les erreurs les plus coûteuses :
+     * une clé de réponse qui ne correspond à aucune option, un answer_index
+     * désynchronisé de answer, et un domaine absent du manifeste (la question
+     * serait alors invisible dans les écrans de révision).
+     *
+     * @return array Messages d'erreur (vide si tout est bon).
+     */
+    private static function valider_questions( $questions, $domaines_connus ) {
+        $erreurs = [];
+        $ids_vus = [];
+
+        foreach ( $questions as $q ) {
+            $id = $q['id'] ?? '(sans id)';
+
+            if ( empty( $q['id'] ) || empty( $q['question'] ) || empty( $q['options'] ) ) {
+                $erreurs[] = sprintf( '%s : id, question ou options manquants', $id );
+                continue;
+            }
+
+            if ( isset( $ids_vus[ $q['id'] ] ) ) {
+                $erreurs[] = sprintf( '%s : identifiant en double dans le fichier', $id );
+            }
+            $ids_vus[ $q['id'] ] = true;
+
+            $ids_options = array_column( $q['options'], 'id' );
+
+            // 1. answer doit désigner une option existante.
+            if ( ! isset( $q['answer'] ) || ! in_array( $q['answer'], $ids_options, true ) ) {
+                $erreurs[] = sprintf( '%s : answer « %s » ne correspond à aucune option',
+                                      $id, $q['answer'] ?? '' );
+                continue;
+            }
+
+            // 2. answer_index doit pointer sur la même option que answer.
+            if ( isset( $q['answer_index'] ) ) {
+                $i = (int) $q['answer_index'];
+                if ( ! isset( $ids_options[ $i ] ) || $ids_options[ $i ] !== $q['answer'] ) {
+                    $erreurs[] = sprintf( '%s : answer_index (%d) ne pointe pas sur answer (%s)',
+                                          $id, $i, $q['answer'] );
                 }
+            }
 
-                $statut = ( isset( $fc['status'] ) && $fc['status'] === 'brouillon' )
-                    ? 'brouillon' : 'publie';
-
-                $donnees = [
-                    'certification_id' => $certification_id,
-                    'ref_externe'      => $ref,
-                    'domaine'          => isset( $fc['domain'] ) ? $fc['domain'] : '',
-                    'recto'            => isset( $fc['recto'] ) ? $fc['recto'] : '',
-                    'verso'            => isset( $fc['verso'] ) ? $fc['verso'] : '',
-                    'statut'           => $statut,
-                ];
-
-                $existante = $wpdb->get_var( $wpdb->prepare(
-                    "SELECT id FROM {$p}flashcard WHERE ref_externe = %s", $ref
-                ) );
-
-                if ( $existante ) {
-                    $wpdb->update( "{$p}flashcard", $donnees, [ 'id' => $existante ] );
-                } else {
-                    $wpdb->insert( "{$p}flashcard", $donnees );
-                    $nb_flashcards++;
-                }
+            // 3. Le domaine doit exister dans le manifeste.
+            if ( empty( $q['domain'] ) ) {
+                $erreurs[] = sprintf( '%s : domaine manquant', $id );
+            } elseif ( ! empty( $domaines_connus ) && ! isset( $domaines_connus[ $q['domain'] ] ) ) {
+                $erreurs[] = sprintf( '%s : domaine « %s » absent du manifeste',
+                                      $id, $q['domain'] );
             }
         }
 
-        self::rediriger( sprintf(
-            'Import terminé : %d scénario(s), %d question(s) et %d flashcard(s) ajouté(s). Les éléments déjà présents ont été mis à jour.',
-            $nb_scenarios, $nb_questions, $nb_flashcards
-        ) );
+        return $erreurs;
+    }
+
+    /* =====================================================================
+     * OUTILS
+     * ===================================================================== */
+
+    /**
+     * Supprime les questions d'un scénario absentes du fichier, ainsi que
+     * leurs options et leurs liaisons de tags.
+     *
+     * @param string $ref_sc    Préfixe du scénario (ex. RM27005-SC01).
+     * @param array  $refs_vues Références présentes dans le fichier.
+     * @return int Nombre de questions supprimées.
+     */
+    private static function supprimer_questions_obsoletes( $ref_sc, $refs_vues ) {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $like = $wpdb->esc_like( $ref_sc . '-' ) . '%';
+        $existantes = $wpdb->get_results( $wpdb->prepare(
+            "SELECT id, ref_externe FROM {$p}question WHERE ref_externe LIKE %s", $like
+        ), ARRAY_A );
+
+        $nb = 0;
+        foreach ( $existantes as $ligne ) {
+            if ( in_array( $ligne['ref_externe'], $refs_vues, true ) ) {
+                continue;
+            }
+            $id = (int) $ligne['id'];
+            $wpdb->delete( "{$p}option_reponse", [ 'question_id' => $id ] );
+            $wpdb->delete( "{$p}question_tag",   [ 'question_id' => $id ] );
+            $wpdb->delete( "{$p}question",       [ 'id' => $id ] );
+            $nb++;
+        }
+
+        return $nb;
     }
 
     /**
-     * Récupère l'id d'une certification (par son code), en la créant si besoin.
+     * Liste les fichiers de scénario d'un dossier (.json ne commençant pas par « _ »).
+     * Triés par nom : SC01_… puis SC02_…
      */
+    private static function fichiers_scenarios( $dossier ) {
+        $fichiers = [];
+        foreach ( scandir( $dossier ) as $f ) {
+            if ( $f[0] === '_' || $f[0] === '.' ) {
+                continue;
+            }
+            if ( strtolower( pathinfo( $f, PATHINFO_EXTENSION ) ) !== 'json' ) {
+                continue;
+            }
+            $fichiers[] = $dossier . '/' . $f;
+        }
+        sort( $fichiers );
+        return $fichiers;
+    }
+
+    /** Lit et décode un fichier JSON. Renvoie null en cas d'échec. */
+    private static function lire_json( $chemin ) {
+        if ( ! file_exists( $chemin ) || ! is_readable( $chemin ) ) {
+            return null;
+        }
+        $contenu = file_get_contents( $chemin );
+        $data    = json_decode( $contenu, true );
+        return ( json_last_error() === JSON_ERROR_NONE ) ? $data : null;
+    }
+
+    /** Récupère l'id d'une certification (par son code), en la créant si besoin. */
     private static function obtenir_ou_creer_certification( $code, $nom ) {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
@@ -324,37 +626,19 @@ class NPQ_Importer {
             "SELECT id FROM {$p}certification WHERE code = %s", $code
         ) );
         if ( ! $id ) {
-            // actif = 0 : la création ne doit jamais basculer silencieusement
-            // la certification de travail. L'activation est un geste explicite
-            // depuis la page Certifications.
-            $wpdb->insert( "{$p}certification", [
-                'code'  => $code,
-                'nom'   => $nom,
-                'actif' => 0,
-            ] );
+            $wpdb->insert( "{$p}certification", [ 'code' => $code, 'nom' => $nom ] );
             $id = $wpdb->insert_id;
-
-            // Cas de la toute première certification : sans active, l'appli
-            // n'aurait pas de certification courante. On l'active.
-            $nb_actives = (int) $wpdb->get_var(
-                "SELECT COUNT(*) FROM {$p}certification WHERE actif = 1"
-            );
-            if ( $nb_actives === 0 ) {
-                NPQ_Certification::definir_active( (int) $id );
-            }
+        } else {
+            $wpdb->update( "{$p}certification", [ 'nom' => $nom ], [ 'id' => $id ] );
         }
         return $id;
     }
 
-    /**
-     * Récupère l'id d'un tag (type + valeur), en le créant si nécessaire.
-     * Crée aussi le type de tag s'il n'existe pas encore.
-     */
+    /** Récupère l'id d'un tag (type + valeur), en le créant si nécessaire. */
     private static function obtenir_ou_creer_tag( $type_nom, $valeur ) {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
-        // Type de tag.
         $type_id = $wpdb->get_var( $wpdb->prepare(
             "SELECT id FROM {$p}tag_type WHERE nom = %s", $type_nom
         ) );
@@ -363,7 +647,6 @@ class NPQ_Importer {
             $type_id = $wpdb->insert_id;
         }
 
-        // Tag.
         $tag_id = $wpdb->get_var( $wpdb->prepare(
             "SELECT id FROM {$p}tag WHERE tag_type_id = %d AND valeur = %s",
             $type_id, $valeur
@@ -376,18 +659,14 @@ class NPQ_Importer {
         return $tag_id;
     }
 
-    /**
-     * Crée le domaine s'il n'existe pas, ou met à jour son libellé.
-     * Rejouable sans doublon (clé unique certification + code).
-     */
+    /** Crée le domaine s'il n'existe pas, ou met à jour son libellé. */
     private static function assurer_domaine( $certification_id, $code, $libelle ) {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
         $existant = $wpdb->get_var( $wpdb->prepare(
             "SELECT id FROM {$p}domaine WHERE certification_id = %d AND code = %s",
-            $certification_id,
-            $code
+            $certification_id, $code
         ) );
 
         if ( $existant ) {
@@ -402,14 +681,35 @@ class NPQ_Importer {
     }
 
     /**
-     * Redirige vers la page d'admin avec un message de résultat.
+     * Mémorise le compte rendu et revient sur la page d'import.
+     *
+     * Le rapport passe par un transient (stockage temporaire côté serveur)
+     * plutôt que par l'URL : il contient plusieurs lignes, et une URL a une
+     * longueur limitée.
      */
-    private static function rediriger( $message ) {
-        wp_safe_redirect( add_query_arg(
-            'npq_resultat',
-            rawurlencode( $message ),
-            admin_url( 'admin.php?page=normaprep-import' )
-        ) );
+    private static function rediriger( $rapport ) {
+        set_transient( self::TRANSIENT_RAPPORT, $rapport, 5 * MINUTE_IN_SECONDS );
+        wp_safe_redirect( admin_url( 'admin.php?page=normaprep-import' ) );
         exit;
+    }
+
+    /**
+     * Charge le vocabulaire fermé des secteurs (data/_secteurs.json).
+     *
+     * @return array Codes de secteur autorisés, en clés. Vide si le fichier
+     *               est absent : dans ce cas le contrôle est neutralisé
+     *               plutôt que bloquant, pour ne pas casser un import
+     *               existant si le fichier n'a pas encore été déployé.
+     */
+    private static function secteurs_autorises() {
+        static $cache = null;
+        if ( $cache !== null ) {
+            return $cache;
+        }
+        $data  = self::lire_json( NPQ_PATH . 'data/_secteurs.json' );
+        $cache = ( $data && ! empty( $data['secteurs'] ) )
+            ? $data['secteurs']
+            : [];
+        return $cache;
     }
 }

@@ -1,0 +1,603 @@
+{
+  "schema_version": "2.0",
+  "scenario": {
+    "id": "SC01",
+    "name": "NOVALIS",
+    "summary": "NOVALIS — fabricant de composants électroniques pour clients industriels",
+    "sector": "industrie",
+    "context": "NOVALIS fabrique des composants électroniques pour des clients industriels. Sa préoccupation stratégique est de maintenir les expéditions : un arrêt supérieur à huit heures peut interrompre les chaînes de ses clients et déclencher des pénalités. Son système d'information comprend un ERP, un portail clients, des postes bureautiques et un atelier connecté. Le registre contient notamment : R1 « serveur ERP non corrigé », R2 « absence de sauvegarde », R3 « risque de fuite de données due à une fuite de données ». Le propriétaire de ces trois risques est indiqué comme étant l'administrateur système, bien qu'il ne dispose ni du budget de traitement ni de l'autorité d'acceptation. Les risques sont acceptés lorsqu'ils sont classés au plus 'modérés' dans une matrice 4 x 4, sans définition des niveaux d'impact. Le comité affirme que 'modéré' représente deux fois 'faible'. Un rançongiciel provoquant l'indisponibilité de l'ERP est estimé à 0,4 occurrence par an, pour une perte moyenne de 450 000 euros par incident. Une solution de segmentation et de détection coûterait 70 000 euros par an, réduirait la fréquence à 0,1 occurrence par an et limiterait la perte moyenne à 240 000 euros. Une assurance couvre jusqu'à 200 000 euros de frais de restauration, avec une franchise de 50 000 euros, mais ne couvre ni les pénalités clients ni l'atteinte à la réputation. Enfin, un client stratégique exige l'authentification multifacteur sur le portail, indépendamment du niveau de risque apprécié. Le comité de direction doit décider des traitements avant le prochain renouvellement contractuel.",
+    "related_standards": [
+      "ISO 31000",
+      "ISO Guide 73"
+    ],
+    "status": "published"
+  },
+  "questions": [
+    {
+      "id": "Q01",
+      "domain": "D3",
+      "difficulty": "medium",
+      "question": "Quelle reformulation corrige le mieux l'entrée R1 « serveur ERP non corrigé » afin d'obtenir un scénario de risque exploitable pour l'analyse et le traitement ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Une interruption des expéditions provoque une interruption de l'ERP, laquelle entraîne un arrêt de l'activité et des pénalités clients, sans qu'il soit nécessaire d'identifier la source à l'origine de cet événement."
+        },
+        {
+          "id": "B",
+          "text": "L'absence de correctifs sur le serveur ERP est le risque principal ; elle doit être évaluée selon sa criticité technique, puis traitée par l'installation des mises à jour disponibles sur le système concerné."
+        },
+        {
+          "id": "C",
+          "text": "Un groupe cybercriminel exploite une vulnérabilité non corrigée du serveur ERP, chiffre les données et interrompt les expéditions, ce qui entraîne des pénalités contractuelles et une perte de chiffre d'affaires."
+        },
+        {
+          "id": "D",
+          "text": "Le serveur ERP non corrigé constitue une menace susceptible d'attaquer les processus d'expédition et de provoquer une vulnérabilité financière, notamment lorsque les correctifs disponibles ne sont pas installés assez rapidement."
+        }
+      ],
+      "answer": "C",
+      "answer_index": 2,
+      "explanation": "Un scénario exploitable articule une source de menace, l'exploitation d'une vulnérabilité, un événement et des conséquences métier : c'est ce que fait l'option C. L'option qui érige le serveur non corrigé en menace (D) intervertit les notions, la vulnérabilité devenant menace et la conséquence devenant vulnérabilité. L'option centrée sur l'absence de correctifs (B) conserve la confusion entre vulnérabilité et risque. L'option partant de l'interruption des expéditions (A) construit une causalité circulaire et omet la source de menace.",
+      "tags": {
+        "iso27005_steps": [
+          "identification"
+        ],
+        "skill_type": "identification",
+        "related_standards": [
+          "ISO 31000",
+          "ISO Guide 73"
+        ]
+      },
+      "status": "published",
+      "source": "novalis_v1"
+    },
+    {
+      "id": "Q02",
+      "domain": "D3",
+      "difficulty": "medium",
+      "question": "Les trois entrées du registre décrivent des faiblesses techniques, aucun niveau d'impact n'est défini et le propriétaire désigné ne dispose pas de l'autorité d'acceptation. Quel préalable du processus de gestion des risques a manifestement été omis chez NOVALIS ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "L'établissement du contexte : préoccupations stratégiques, exigences des parties intéressées, périmètre, rôles et autorités décisionnelles, puis critères de vraisemblance, d'impact et d'acceptation ; ces éléments conditionnent ensuite l'identification et l'appréciation des risques."
+        },
+        {
+          "id": "B",
+          "text": "Une évaluation des écarts entre les pratiques de NOVALIS et un catalogue de mesures de sécurité reconnu ; les écarts constatés fournissent directement les entrées du registre et leur niveau de priorité."
+        },
+        {
+          "id": "C",
+          "text": "Une analyse d'impact sur l'activité chiffrant pour chaque processus la durée maximale d'interruption admissible ; ce chiffrage constitue le point de départ dont découlent ensuite le périmètre, les rôles et les critères de risque."
+        },
+        {
+          "id": "D",
+          "text": "La désignation formelle d'un pilote du processus et la formalisation d'une matrice des responsabilités ; une fois ces rôles attribués, les entrées R1 à R3 peuvent être cotées en l'état par le comité."
+        }
+      ],
+      "answer": "A",
+      "answer_index": 0,
+      "explanation": "Les trois symptômes relevés renvoient à un même manque : le contexte n'a pas été établi. L'option énumérant préoccupations, périmètre, rôles et critères (A) rappelle que ces éléments conditionnent toutes les étapes suivantes. L'option fondée sur l'analyse d'impact sur l'activité (C) érige une technique particulière en point de départ : elle alimente utilement les critères d'impact, mais ne couvre ni le périmètre, ni les parties intéressées, ni les autorités de décision. L'option fondée sur l'écart à un catalogue de mesures (B) confond gestion des risques et évaluation de conformité : un écart n'est pas un risque, il ne porte ni source, ni événement, ni conséquence. L'option limitée à la désignation d'un pilote (D) réduit le préalable aux seuls rôles et valide le maintien d'entrées non exploitables.",
+      "tags": {
+        "iso27005_steps": [
+          "etablissement_contexte"
+        ],
+        "skill_type": "application",
+        "related_standards": [
+          "ISO 31000",
+          "ISO Guide 73"
+        ]
+      },
+      "status": "published",
+      "source": "novalis_v1"
+    },
+    {
+      "id": "Q03",
+      "domain": "D3",
+      "difficulty": "medium",
+      "question": "Comment corriger au mieux l'entrée R3 « risque de fuite de données due à une fuite de données » sans perdre le lien avec les préoccupations métier de NOVALIS ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Remplacer l'entrée par « risque cyber du portail clients », puis agréger les indisponibilités, erreurs humaines, fraudes, divulgations et défaillances fournisseurs afin que le comité ne gère qu'un seul scénario global."
+        },
+        {
+          "id": "B",
+          "text": "Conserver l'expression, puis lui associer une vraisemblance et un impact : la répétition est acceptable dès lors que la matrice fournit un niveau permettant au comité de comparer ce risque aux autres entrées."
+        },
+        {
+          "id": "C",
+          "text": "Préciser qu'un attaquant exploite une faiblesse du portail clients pour extraire des dossiers, entraînant notification aux personnes concernées, pénalités contractuelles, perte de confiance et éventuelle interruption des relations commerciales."
+        },
+        {
+          "id": "D",
+          "text": "Remplacer l'entrée par « absence de chiffrement du portail clients », car une vulnérabilité technique précisément nommée constitue à elle seule un risque suffisamment défini pour décider immédiatement du traitement."
+        }
+      ],
+      "answer": "C",
+      "answer_index": 2,
+      "explanation": "L'option décrivant l'attaquant qui extrait des dossiers clients (C) supprime la circularité et relie source, événement et conséquences métier. L'option qui conserve la formulation en la cotant (B) considère à tort qu'une cotation compense un énoncé circulaire. L'option remplaçant l'entrée par l'absence de chiffrement (D) substitue une vulnérabilité au risque. L'option agrégeant tous les événements du portail (A) adopte une granularité trop large pour identifier des causes, des conséquences et des traitements défendables.",
+      "tags": {
+        "iso27005_steps": [
+          "identification"
+        ],
+        "skill_type": "identification",
+        "related_standards": [
+          "ISO 31000",
+          "ISO Guide 73"
+        ]
+      },
+      "status": "published",
+      "source": "novalis_v1"
+    },
+    {
+      "id": "Q04",
+      "domain": "D3",
+      "difficulty": "hard",
+      "question": "Quelle démarche permettrait de rendre les critères d'impact et d'acceptation plus défendables pour la décision du comité de direction ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Définir “faible” comme la moitié de “modéré”, “élevé” comme le double de “modéré” et “critique” comme le double d'“élevé”, afin de transformer directement les catégories qualitatives en rapports numériques."
+        },
+        {
+          "id": "B",
+          "text": "Décrire chaque niveau par des seuils adaptés aux objectifs, par exemple durée d'arrêt, pénalités, clients touchés et atteinte à la confiance, puis établir l'acceptabilité selon l'appétence et l'autorité de décision."
+        },
+        {
+          "id": "C",
+          "text": "Conserver les quatre niveaux et attribuer à chacun un seuil monétaire, en convertissant les impacts opérationnels et réputationnels en équivalent financier documenté, afin que l'acceptabilité découle du franchissement de ce seuil chiffré."
+        },
+        {
+          "id": "D",
+          "text": "Remplacer la matrice par une échelle à cinq niveaux, car ISO/IEC 27005 impose un nombre impair de catégories pour éviter les décisions centrales et garantir une différenciation suffisante des risques."
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'option décrivant chaque niveau par des seuils multiples (B) calibre les critères sur des conséquences pertinentes et relie l'acceptation à la gouvernance. L'option monétisant tous les impacts (C) réduit des conséquences hétérogènes à un axe unique et fait découler l'acceptation d'un seuil chiffré, sans la rattacher à l'appétence ni à une autorité de décision. L'option imposant cinq niveaux (D) invente une prescription normative inexistante. L'option définissant les niveaux par rapports numériques (A) traite des catégories ordinales comme une échelle proportionnelle, ce qui est précisément l'erreur déjà commise par le comité.",
+      "tags": {
+        "iso27005_steps": [
+          "etablissement_contexte"
+        ],
+        "skill_type": "application",
+        "related_standards": [
+          "ISO 31000",
+          "ISO Guide 73"
+        ]
+      },
+      "status": "published",
+      "source": "novalis_v1"
+    },
+    {
+      "id": "Q05",
+      "domain": "D1",
+      "difficulty": "medium",
+      "question": "Le comité déclare : « Notre appétence est d'accepter tout risque modéré ». Cette déclaration assimile deux notions distinctes. Quelle formulation distingue correctement appétence au risque, tolérance au risque et critères d'acceptation ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "L'appétence désigne la matrice de risque retenue par NOVALIS ; la tolérance, le nombre de niveaux que comporte cette matrice ; les critères d'acceptation, les couleurs attribuées aux différentes cases de la grille obtenue."
+        },
+        {
+          "id": "B",
+          "text": "L'appétence et la tolérance désignent un même seuil opérationnel, la première étant définie par la direction et la seconde par l'informatique ; les critères d'acceptation, la formalisation documentaire de l'accord conclu entre ces deux fonctions."
+        },
+        {
+          "id": "C",
+          "text": "L'appétence désigne le niveau de risque que NOVALIS accepte de poursuivre pour ses objectifs ; la tolérance, sa disposition à supporter le risque subsistant après traitement ; les critères d'acceptation, les règles appliquées à chaque risque évalué."
+        },
+        {
+          "id": "D",
+          "text": "L'appétence désigne le niveau de risque subsistant que NOVALIS accepte de supporter après traitement ; la tolérance, le budget annuel disponible pour financer les mesures de traitement ; les critères d'acceptation, la vraisemblance maximale autorisée par la direction."
+        }
+      ],
+      "answer": "C",
+      "answer_index": 2,
+      "explanation": "La déclaration du comité assimile l'appétence à un critère d'acceptation. L'option distinguant orientation globale, disposition à supporter le risque subsistant et règles appliquées (C) rétablit les trois notions. L'option définissant l'appétence comme le risque subsistant après traitement (D) intervertit appétence et tolérance, puis confond la tolérance avec un budget. L'option faisant des deux notions un même seuil (B) les répartit artificiellement entre direction et informatique. L'option assimilant l'appétence à la matrice (A) confond des notions de gouvernance avec un simple outil de représentation.",
+      "tags": {
+        "iso27005_steps": [
+          "etablissement_contexte"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": [
+          "ISO 31000",
+          "ISO Guide 73"
+        ]
+      },
+      "status": "published",
+      "source": "novalis_v1"
+    },
+    {
+      "id": "Q06",
+      "domain": "D3",
+      "difficulty": "medium",
+      "question": "Pour compléter rapidement le registre, quelle articulation entre approche par les événements et approche par les actifs est la plus pertinente dans ce contexte ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Employer uniquement l'approche par les événements, car elle rend inutile l'étude de l'ERP, du portail, des identités et des dépendances techniques dès lors que les conséquences stratégiques sont déjà connues."
+        },
+        {
+          "id": "B",
+          "text": "Retenir la seule approche par les actifs : l'inventaire de l'ERP, du portail, des postes et de l'atelier est déjà disponible, et le recensement des menaces et vulnérabilités par actif couvre les préoccupations d'expédition."
+        },
+        {
+          "id": "C",
+          "text": "Partir de l'arrêt des expéditions et de la divulgation des dossiers clients, puis approfondir les actifs, dépendances, menaces et vulnérabilités contribuant à ces événements ; les deux approches peuvent ainsi se compléter."
+        },
+        {
+          "id": "D",
+          "text": "Mener séparément les deux approches et additionner leurs niveaux de risque, même lorsque les scénarios décrivent le même incident, afin d'obtenir une estimation prudente et de ne négliger aucune exposition."
+        }
+      ],
+      "answer": "C",
+      "answer_index": 2,
+      "explanation": "L'option partant de l'arrêt des expéditions et de la divulgation des dossiers (C) utilise les préoccupations stratégiques comme point d'entrée, puis les actifs pour préciser les chemins causaux. L'option retenant les seuls actifs (B) s'appuie sur un inventaire effectivement disponible, mais le recensement actif par actif ne fait apparaître ni les dépendances entre composants ni le seuil de huit heures qui fonde les conséquences. L'option retenant les seuls événements (A) supprime à tort l'analyse des dépendances techniques. L'option additionnant les deux résultats (D) crée un double comptage entre évaluations redondantes.",
+      "tags": {
+        "iso27005_steps": [
+          "identification"
+        ],
+        "skill_type": "application",
+        "related_standards": [
+          "ISO 31000",
+          "ISO Guide 73"
+        ]
+      },
+      "status": "published",
+      "source": "novalis_v1"
+    },
+    {
+      "id": "Q07",
+      "domain": "D4",
+      "difficulty": "hard",
+      "question": "Sur la base des données fournies, quel est l'effet économique annuel attendu de la solution de segmentation et de détection, avant prise en compte de l'assurance ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "La perte annuelle initiale vaut 0,4 × 450 000, soit 180 000 euros ; après le coût annuel de 70 000 euros, le bénéfice net attendu s'établit à 110 000 euros, sans recalcul de la perte résiduelle."
+        },
+        {
+          "id": "B",
+          "text": "La perte annuelle passe de 450 000 à 240 000 euros, soit une réduction de 210 000 euros ; après le coût annuel de 70 000 euros, le bénéfice net attendu s'établit à 140 000 euros."
+        },
+        {
+          "id": "C",
+          "text": "La perte résiduelle vaut 0,1 × 450 000, soit 45 000 euros, pour une réduction de 135 000 euros ; après le coût annuel de 70 000 euros, le bénéfice net attendu s'établit à 65 000 euros."
+        },
+        {
+          "id": "D",
+          "text": "La perte annuelle vaut 0,4 × 450 000, soit 180 000 euros, puis 0,1 × 240 000, soit 24 000 euros ; après le coût annuel de 70 000 euros, le bénéfice net attendu s'établit à 86 000 euros."
+        }
+      ],
+      "answer": "D",
+      "answer_index": 3,
+      "explanation": "La mesure agit sur les deux paramètres : il faut donc recalculer la perte annuelle attendue avant et après traitement. Avant : 0,4 × 450 000 = 180 000 euros. Après : 0,1 × 240 000 = 24 000 euros. La réduction vaut 156 000 euros et le bénéfice net 156 000 − 70 000 = 86 000 euros, ce que retient l'option D. L'option concluant à 140 000 euros (B) raisonne sur la perte par incident et omet entièrement la fréquence. L'option concluant à 110 000 euros (A) calcule correctement la perte annuelle initiale mais oublie la perte résiduelle après traitement. L'option concluant à 65 000 euros (C) applique la nouvelle fréquence à l'ancienne perte unitaire et ignore la réduction de la conséquence.",
+      "tags": {
+        "iso27005_steps": [
+          "analyse"
+        ],
+        "skill_type": "application",
+        "related_standards": [
+          "ISO 31000",
+          "ISO Guide 73"
+        ]
+      },
+      "status": "published",
+      "source": "novalis_v1"
+    },
+    {
+      "id": "Q08",
+      "domain": "D3",
+      "difficulty": "medium",
+      "question": "Quel effet de traitement décrit le plus précisément la solution de segmentation et de détection envisagée par NOVALIS ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "La solution modifie à la fois la vraisemblance, de 0,4 à 0,1 occurrence annuelle, et les conséquences, de 450 000 à 240 000 euros par incident, sans faire disparaître le risque résiduel."
+        },
+        {
+          "id": "B",
+          "text": "La solution évite entièrement le risque, car la segmentation supprime l'activité exposée et garantit qu'aucun rançongiciel ne pourra atteindre l'ERP ou perturber les expéditions après son déploiement."
+        },
+        {
+          "id": "C",
+          "text": "La solution supprime la source de menace, car la segmentation et la détection empêchent les groupes cybercriminels d'exister ou de cibler NOVALIS, même si certaines vulnérabilités techniques demeurent."
+        },
+        {
+          "id": "D",
+          "text": "La solution partage une partie du risque avec l'éditeur de la détection, dont le contrat prévoit des engagements de niveau de service et des pénalités en cas de défaut de détection avéré."
+        }
+      ],
+      "answer": "A",
+      "answer_index": 0,
+      "explanation": "L'option décrivant la modification conjointe de la vraisemblance et des conséquences (A) reprend les deux effets estimés et reconnaît la persistance d'un risque résiduel : il s'agit d'une réduction du risque. L'option parlant d'évitement (B) confond réduction et suppression de l'activité exposée. L'option invoquant les pénalités contractuelles de l'éditeur (D) décrit un partage marginal : ces pénalités ne transfèrent ni les pénalités clients de NOVALIS, ni l'arrêt des expéditions, ni l'atteinte à la réputation. L'option prétendant supprimer la source de menace (C) attribue à la mesure un effet sur des acteurs externes qu'elle ne contrôle pas.",
+      "tags": {
+        "iso27005_steps": [
+          "traitement"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": [
+          "ISO 31000",
+          "ISO Guide 73"
+        ]
+      },
+      "status": "published",
+      "source": "novalis_v1"
+    },
+    {
+      "id": "Q09",
+      "domain": "D2",
+      "difficulty": "medium",
+      "question": "Comment le rôle de propriétaire du risque devrait-il être attribué pour le scénario d'arrêt des expéditions provoqué par un rançongiciel sur l'ERP ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Le rôle devrait revenir à un responsable métier disposant de l'autorité et des ressources pour décider du traitement ou accepter le risque ; l'administrateur système peut rester responsable d'actions techniques."
+        },
+        {
+          "id": "B",
+          "text": "Maintenir l'administrateur système comme propriétaire et porter au comité de direction les décisions dépassant son autorité : celui qui exploite l'actif au quotidien reste le mieux placé pour apprécier le risque."
+        },
+        {
+          "id": "C",
+          "text": "Le rôle devrait être attribué au fournisseur de l'ERP, car la maintenance du logiciel lui donne la responsabilité de décider des interruptions acceptables et des conséquences contractuelles pour les clients de NOVALIS."
+        },
+        {
+          "id": "D",
+          "text": "Le rôle devrait être attribué à l'assureur dès la souscription, car la prise en charge d'une partie des frais de restauration lui transfère l'autorité d'accepter le risque résiduel au nom de NOVALIS."
+        }
+      ],
+      "answer": "A",
+      "answer_index": 0,
+      "explanation": "Le propriétaire du risque se définit par l'autorité d'accepter le risque et de mobiliser les ressources, non par la connaissance technique de l'actif : l'option désignant un responsable métier (A) sépare correctement la décision de l'exécution. L'option maintenant l'administrateur avec escalade (B) est la plus séduisante, mais un mécanisme d'escalade ne confère pas l'autorité manquante : il déplace la décision sans attribuer la propriété du risque. L'option désignant l'assureur (D) transforme à tort un partage financier en transfert d'autorité. L'option désignant le fournisseur de l'ERP (C) confie à un tiers une décision métier qui demeure sous la responsabilité de NOVALIS.",
+      "tags": {
+        "iso27005_steps": [
+          "etablissement_contexte"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": [
+          "ISO 31000",
+          "ISO Guide 73"
+        ]
+      },
+      "status": "published",
+      "source": "novalis_v1"
+    },
+    {
+      "id": "Q10",
+      "domain": "D3",
+      "difficulty": "hard",
+      "question": "Le comité estime que l'assurance et un classement “modéré” permettent de reporter l'authentification multifacteur. Quelle décision est méthodologiquement la plus défendable ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Négocier avec le client stratégique un report de l'authentification multifacteur, en lui communiquant le niveau de risque apprécié et la couverture d'assurance, puis décider selon le résultat de cette négociation."
+        },
+        {
+          "id": "B",
+          "text": "Mettre en œuvre l'authentification multifacteur pour respecter l'exigence contractuelle, tout en documentant son effet sur le risque ; l'assurance ne couvre qu'une partie des conséquences et ne supprime pas la responsabilité."
+        },
+        {
+          "id": "C",
+          "text": "Accepter le risque sans autre analyse, car l'assurance ramène nécessairement toutes les conséquences sous le seuil d'acceptation, y compris les pénalités, la réputation et la perte de confiance des clients industriels."
+        },
+        {
+          "id": "D",
+          "text": "Reporter l'authentification multifacteur, car tout risque classé modéré est automatiquement acceptable et une exigence client ne doit être prise en compte que si elle réduit suffisamment l'espérance de perte annuelle."
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "Une exigence contractuelle d'une partie intéressée s'impose indépendamment du niveau de risque apprécié : l'option qui met en œuvre la mesure tout en documentant son effet (B) respecte l'obligation sans renoncer à l'évaluation. L'option reportant la mesure (D) fait primer un classement issu d'une matrice non calibrée sur une exigence externe. L'option acceptant le risque sans analyse (C) prête à l'assurance une couverture des pénalités et de la réputation que le contrat exclut explicitement. L'option proposant de renégocier (A) est défendable dans son principe, mais elle subordonne une obligation existante à l'issue incertaine d'une négociation, à la veille du renouvellement contractuel, et ne mesure aucun effet sur le risque.",
+      "tags": {
+        "iso27005_steps": [
+          "traitement",
+          "acceptation"
+        ],
+        "skill_type": "application",
+        "related_standards": [
+          "ISO 31000",
+          "ISO Guide 73"
+        ]
+      },
+      "status": "published",
+      "source": "novalis_v1"
+    },
+    {
+      "id": "Q11",
+      "domain": "D1",
+      "difficulty": "medium",
+      "question": "NOVALIS doit consigner dans son registre, pour le scénario de rançongiciel sur l'ERP, le niveau de risque avant traitement (également appelé risque inhérent) et le risque résiduel attendu de la solution de segmentation et de détection. Quelle distinction est correcte ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Le risque avant traitement correspond au coût annuel de la mesure, soit 70 000 euros, tandis que le risque résiduel correspond à la perte moyenne de 240 000 euros supportée si un incident survient malgré le traitement."
+        },
+        {
+          "id": "B",
+          "text": "Le risque avant traitement décrit le scénario technique touchant l'ERP, tandis que le risque résiduel en décrit les conséquences métier, telles que les pénalités, l'arrêt des expéditions et la perte de confiance des clients industriels."
+        },
+        {
+          "id": "C",
+          "text": "Le risque avant traitement est évalué avec l'assurance mais sans la segmentation, tandis que le risque résiduel est évalué avec la segmentation mais sans l'assurance, afin d'attribuer à chaque traitement retenu un niveau de risque distinct."
+        },
+        {
+          "id": "D",
+          "text": "Le risque avant traitement est estimé à 0,4 occurrence annuelle et 450 000 euros par incident ; le risque résiduel attendu de la segmentation et de la détection est estimé à 0,1 occurrence et 240 000 euros par incident."
+        }
+      ],
+      "answer": "D",
+      "answer_index": 3,
+      "explanation": "Les deux niveaux portent sur un même scénario, évalué avant puis après prise en compte de l'effet du traitement : l'option retenant 0,4 et 450 000 euros d'un côté, 0,1 et 240 000 euros de l'autre (D) respecte cette logique. L'option assimilant le risque avant traitement au coût de la mesure (A) confond un niveau de risque avec une dépense, et réduit le résiduel à une perte unitaire au lieu d'une perte annuelle attendue. L'option répartissant les traitements entre les deux niveaux (C) est arbitraire : le risque avant traitement s'évalue sans aucun des traitements envisagés. L'option opposant scénario technique et conséquences métier (B) confond deux états d'évaluation avec deux composantes d'un même scénario.",
+      "tags": {
+        "iso27005_steps": [
+          "evaluation"
+        ],
+        "skill_type": "connaissance",
+        "related_standards": [
+          "ISO 31000",
+          "ISO Guide 73"
+        ]
+      },
+      "status": "published",
+      "source": "novalis_v1"
+    },
+    {
+      "id": "Q12",
+      "domain": "D3",
+      "difficulty": "hard",
+      "question": "Pour apprécier l'effet de l'assurance sur le scénario de rançongiciel, quelle méthode d'analyse est la plus défendable ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Retirer uniquement la franchise de 50 000 euros de la perte moyenne, car elle constitue la part transférée à l'assureur, tandis que le plafond de 200 000 euros reste supporté directement par NOVALIS."
+        },
+        {
+          "id": "B",
+          "text": "Ramener la vraisemblance du rançongiciel à zéro dès la prise d'effet du contrat, car le partage du risque neutralise l'exposition de NOVALIS même si l'incident et l'arrêt des expéditions surviennent."
+        },
+        {
+          "id": "C",
+          "text": "Retrancher de la perte moyenne les frais de restauration couverts, dans la limite du plafond de 200 000 euros, puis retenir le solde obtenu comme risque résiduel du scénario de rançongiciel."
+        },
+        {
+          "id": "D",
+          "text": "Ventiler la perte entre frais de restauration assurables, franchise, dépassement du plafond et conséquences exclues, puis évaluer ce que l'assurance partage réellement sans modifier la fréquence de l'incident."
+        }
+      ],
+      "answer": "D",
+      "answer_index": 3,
+      "explanation": "L'option ventilant la perte par nature (D) tient compte du périmètre couvert, du plafond, de la franchise et des exclusions avant d'estimer l'effet financier réel de l'assurance. L'option retranchant les frais couverts dans la limite du plafond (C) va dans le bon sens, mais omet la franchise de 50 000 euros et surtout les conséquences exclues — pénalités clients et réputation — qui dominent ce scénario. L'option ramenant la vraisemblance à zéro (B) confond partage financier et réduction de la fréquence. L'option retirant la seule franchise (A) inverse son rôle : la franchise reste à la charge de l'assuré.",
+      "tags": {
+        "iso27005_steps": [
+          "traitement"
+        ],
+        "skill_type": "application",
+        "related_standards": [
+          "ISO 31000",
+          "ISO Guide 73"
+        ]
+      },
+      "status": "published",
+      "source": "novalis_v1"
+    },
+    {
+      "id": "Q13",
+      "domain": "D3",
+      "difficulty": "hard",
+      "question": "Un rançongiciel atteint NOVALIS juste avant l'activation de la segmentation, puis la vulnérabilité exploitée est corrigée. Comment la vraisemblance devrait-elle être réévaluée ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Réexaminer les causes, l'exposition et l'efficacité des mesures après l'incident ; sa survenue apporte une information nouvelle, mais ne justifie pas à elle seule de placer automatiquement la vraisemblance au maximum."
+        },
+        {
+          "id": "B",
+          "text": "Conserver l'estimation de 0,4 occurrence annuelle jusqu'à la revue périodique planifiée, un événement isolé constituant une donnée trop peu significative pour modifier à lui seul une fréquence déjà estimée."
+        },
+        {
+          "id": "C",
+          "text": "Ramener immédiatement la vraisemblance à zéro, car la correction de la vulnérabilité observée supprime le scénario de rançongiciel, y compris les chemins d'attaque et défaillances qui n'ont pas encore été étudiés."
+        },
+        {
+          "id": "D",
+          "text": "Porter immédiatement la vraisemblance au niveau maximal, car la survenue d'un événement démontre que le scénario est désormais certain, même lorsque la vulnérabilité exploitée vient d'être corrigée."
+        }
+      ],
+      "answer": "A",
+      "answer_index": 0,
+      "explanation": "L'option réexaminant causes, exposition et efficacité des mesures (A) traite l'incident comme une information nouvelle sans en tirer de conclusion mécanique. L'option différant la réévaluation à la revue périodique (B) invoque une prudence statistique réelle, mais deux changements significatifs sont intervenus — un incident survenu et une vulnérabilité corrigée — qui justifient une réappréciation sans attendre l'échéance. L'option portant la vraisemblance au maximum (D) confond une survenue passée avec une certitude future. L'option la ramenant à zéro (C) suppose que corriger une vulnérabilité élimine tous les chemins d'attaque du scénario.",
+      "tags": {
+        "iso27005_steps": [
+          "surveillance_revue"
+        ],
+        "skill_type": "application",
+        "related_standards": [
+          "ISO 31000",
+          "ISO Guide 73"
+        ]
+      },
+      "status": "published",
+      "source": "novalis_v1"
+    },
+    {
+      "id": "Q14",
+      "domain": "D3",
+      "difficulty": "medium",
+      "question": "Le registre contient un seul risque intitulé « cyberattaque affectant NOVALIS », couvrant l'ERP, le portail, l'atelier et les postes. Quelle correction de granularité est la plus utile ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Conserver ce risque global et lui attribuer la conséquence maximale observée sur tous les actifs, car l'agrégation évite les doublons et permet de sélectionner une mesure unique applicable à l'ensemble du système."
+        },
+        {
+          "id": "B",
+          "text": "Créer quatre risques correspondant seulement aux quatre catégories d'actifs, sans préciser les sources, événements ou conséquences, car le découpage par actif suffit à déterminer le traitement approprié."
+        },
+        {
+          "id": "C",
+          "text": "Créer un scénario par actif majeur et par type de conséquence, en déclinant indisponibilité, divulgation et altération pour l'ERP, le portail, l'atelier et les postes, afin d'obtenir une couverture homogène."
+        },
+        {
+          "id": "D",
+          "text": "Décomposer l'entrée en scénarios cohérents selon les événements, chemins d'attaque et conséquences décisionnelles, tout en conservant les dépendances communes afin d'éviter le double comptage lors de l'agrégation."
+        }
+      ],
+      "answer": "D",
+      "answer_index": 3,
+      "explanation": "L'option décomposant selon les événements et chemins d'attaque (D) recherche une granularité permettant de comprendre et de traiter chaque scénario sans perdre les dépendances communes. L'option conservant l'entrée globale (A) suppose qu'un traitement unique conviendra à des événements de natures différentes. L'option croisant chaque actif avec chaque type de conséquence (C) produit une matrice mécanique : la couverture est homogène, mais les scénarios obtenus restent dépourvus de sources et de chemins causaux. L'option créant quatre risques par catégorie d'actif (B) améliore le classement des actifs sans construire de scénarios de risque.",
+      "tags": {
+        "iso27005_steps": [
+          "identification"
+        ],
+        "skill_type": "identification",
+        "related_standards": [
+          "ISO 31000",
+          "ISO Guide 73"
+        ]
+      },
+      "status": "published",
+      "source": "novalis_v1"
+    },
+    {
+      "id": "Q15",
+      "domain": "D3",
+      "difficulty": "hard",
+      "question": "Après approbation du plan de traitement, quel dispositif de surveillance permet le mieux de vérifier l'efficacité de la segmentation et de la détection ?",
+      "options": [
+        {
+          "id": "A",
+          "text": "Surveiller seulement le nombre total d'alertes générées, car une augmentation des alertes démontre une meilleure détection et permet de conclure directement à une diminution proportionnelle du risque."
+        },
+        {
+          "id": "B",
+          "text": "Suivre des indicateurs liés aux hypothèses du traitement, comme les tentatives de propagation bloquées, la couverture de détection et les temps de réaction, puis réévaluer périodiquement le risque résiduel."
+        },
+        {
+          "id": "C",
+          "text": "Suivre l'avancement du déploiement — budget engagé, zones segmentées, sondes installées — et clôturer la mesure dans le plan de traitement une fois la couverture cible atteinte sur le périmètre prévu."
+        },
+        {
+          "id": "D",
+          "text": "Attendre le prochain rançongiciel pour mesurer la durée réelle d'interruption, car les indicateurs intermédiaires ne permettent pas d'établir si la mesure modifie effectivement la vraisemblance ou les conséquences."
+        }
+      ],
+      "answer": "B",
+      "answer_index": 1,
+      "explanation": "L'option suivant des indicateurs liés aux hypothèses du traitement (B) vérifie ce sur quoi repose la réduction estimée : propagation bloquée, couverture de détection, temps de réaction, puis réévaluation périodique du risque résiduel. L'option suivant l'avancement du déploiement (C) mesure la mise en œuvre et non l'efficacité, et clôture la mesure sans jamais réévaluer le risque. L'option attendant le prochain incident (D) subordonne la vérification à la survenue d'un sinistre majeur. L'option comptant les alertes (A) interprète un volume brut comme une réduction proportionnelle du risque, sans examiner leur pertinence.",
+      "tags": {
+        "iso27005_steps": [
+          "surveillance_revue"
+        ],
+        "skill_type": "application",
+        "related_standards": [
+          "ISO 31000",
+          "ISO Guide 73"
+        ]
+      },
+      "status": "published",
+      "source": "novalis_v1"
+    }
+  ]
+}

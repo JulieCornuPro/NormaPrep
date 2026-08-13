@@ -17,6 +17,21 @@ if ( ! defined( 'ABSPATH' ) ) {
 class NPQ_Installer {
 
     /**
+     * Compare la version de schéma enregistrée à la version du plugin et
+     * rejoue creer_tables() si elles diffèrent.
+     *
+     * dbDelta() est non destructif : il ajoute les colonnes et index
+     * manquants sans toucher aux données existantes. C'est ce qui permet
+     * de faire évoluer le schéma sans désactiver puis réactiver le plugin.
+     */
+    public static function verifier_schema() {
+        if ( get_option( 'npq_db_version' ) === NPQ_VERSION ) {
+            return;
+        }
+        self::creer_tables();   // met à jour le schéma et réenregistre la version
+    }
+
+    /**
      * Crée l'ensemble des tables du plugin.
      * Appelée une seule fois, à l'activation.
      */
@@ -63,11 +78,13 @@ class NPQ_Installer {
             nom VARCHAR(190) NOT NULL,
             resume TEXT NULL,
             contexte LONGTEXT NOT NULL,
+            secteur VARCHAR(30) NOT NULL DEFAULT 'transverse',
             statut VARCHAR(20) NOT NULL DEFAULT 'publie',
             date_creation DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             UNIQUE KEY ref_externe (ref_externe),
-            KEY certification_id (certification_id)
+            KEY certification_id (certification_id),
+            KEY secteur (secteur)
         ) $charset;";
 
         // --- Types de tags : article ISO, domaine, phase, compétence... ---
