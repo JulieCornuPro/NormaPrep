@@ -54,6 +54,15 @@ class NPQ_Scenario_Form {
         $contexte = sanitize_textarea_field( wp_unslash( $_POST['npq_contexte'] ?? '' ) );
         $statut   = ( ( $_POST['npq_statut'] ?? '' ) === 'brouillon' ) ? 'brouillon' : 'publie';
 
+        // Secteur : on ne fait confiance qu'aux valeurs du vocabulaire.
+        // sanitize_key() ne suffirait pas — il nettoie la chaîne mais
+        // n'empêche pas une valeur hors liste d'entrer en base.
+        $secteur   = sanitize_key( wp_unslash( $_POST['npq_secteur'] ?? '' ) );
+        $secteurs  = self::secteurs_disponibles();
+        if ( ! isset( $secteurs[ $secteur ] ) ) {
+            $secteur = 'transverse';
+        }
+
         // Validation.
         $erreurs = [];
         if ( $nom === '' ) {
@@ -84,6 +93,7 @@ class NPQ_Scenario_Form {
             'nom'      => $nom,
             'resume'   => $resume,
             'contexte' => $contexte,
+            'secteur'  => $secteur,
             'statut'   => $statut,
         ];
 
@@ -168,6 +178,8 @@ class NPQ_Scenario_Form {
         $resume   = $modification ? $scenario['resume'] : '';
         $contexte = $modification ? $scenario['contexte'] : '';
         $statut   = $modification ? $scenario['statut'] : 'publie';
+        $secteur  = $modification ? ( $scenario['secteur'] ?? 'transverse' ) : 'transverse';
+        $secteurs = self::secteurs_disponibles();
         $importe  = $modification && ! empty( $scenario['ref_externe'] );
 
         // Certification : celle du scénario en modification, sinon l'active.
@@ -292,6 +304,25 @@ class NPQ_Scenario_Form {
                     </tr>
 
                     <tr>
+                        <th scope="row"><label for="npq_secteur">Secteur</label></th>
+                        <td>
+                            <select name="npq_secteur" id="npq_secteur">
+                                <?php foreach ( $secteurs as $code => $s ) : ?>
+                                    <option value="<?php echo esc_attr( $code ); ?>"
+                                        <?php selected( $secteur, $code ); ?>>
+                                        <?php echo esc_html( $s['libelle'] ?? $code ); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <p class="description">
+                                Détermine les parcours sectoriels dans lesquels ce scénario
+                                apparaît. Choisir « Transverse » pour un cas volontairement
+                                non sectoriel (gouvernance, méthode).
+                            </p>
+                        </td>
+                    </tr>
+
+                    <tr>
                         <th scope="row"><label for="npq_statut">Statut</label></th>
                         <td>
                             <select name="npq_statut" id="npq_statut">
@@ -327,7 +358,7 @@ class NPQ_Scenario_Form {
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
         return $wpdb->get_row( $wpdb->prepare(
-            "SELECT id, certification_id, nom, resume, contexte, statut, ref_externe
+            "SELECT id, certification_id, nom, resume, contexte, secteur, statut, ref_externe
              FROM {$p}scenario WHERE id = %d",
             $id
         ), ARRAY_A );
@@ -354,5 +385,22 @@ class NPQ_Scenario_Form {
         }
         wp_safe_redirect( $url );
         exit;
+    }
+
+    /**
+     * Vocabulaire des secteurs, lu depuis data/_secteurs.json.
+     * Repli minimal si le fichier est absent, pour que le formulaire
+     * reste utilisable.
+     */
+    private static function secteurs_disponibles() {
+        $data = null;
+        $chemin = NPQ_PATH . 'data/_secteurs.json';
+        if ( file_exists( $chemin ) ) {
+            $data = json_decode( file_get_contents( $chemin ), true );
+        }
+        if ( ! empty( $data['secteurs'] ) ) {
+            return $data['secteurs'];
+        }
+        return [ 'transverse' => [ 'libelle' => 'Transverse' ] ];
     }
 }
