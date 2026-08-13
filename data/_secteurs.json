@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "notes": "Vocabulaire FERMÉ des secteurs d'activité des scénarios. Partagé par toutes les certifications. L'import refuse tout scénario dont le secteur ne figure pas dans cette liste. Ne jamais supprimer une clé déjà utilisée : les scénarios concernés deviendraient non importables. Pour retirer un secteur, réaffecter d'abord les scénarios qui le portent.",
+  "secteurs": {
+    "transverse": {
+      "libelle": "Transverse",
+      "description": "Scénario volontairement non sectoriel : gouvernance, programme, méthode. Inclus par défaut dans tous les parcours."
+    },
+    "industrie": {
+      "libelle": "Industrie et production",
+      "description": "Fabrication, chaînes de production, systèmes industriels et ateliers connectés."
+    },
+    "sante": {
+      "libelle": "Santé",
+      "description": "Établissements de soins, données de santé, hébergement HDS, dispositifs médicaux."
+    },
+    "finance": {
+      "libelle": "Banque, finance et assurance",
+      "description": "Établissements financiers et assureurs, incluant les contraintes DORA."
+    },
+    "secteur_public": {
+      "libelle": "Secteur public",
+      "description": "Administrations, collectivités et opérateurs publics."
+    },
+    "numerique": {
+      "libelle": "Services numériques",
+      "description": "Éditeurs de logiciels, hébergeurs, infogérance, fournisseurs cloud."
+    },
+    "commerce": {
+      "libelle": "Commerce et distribution",
+      "description": "Commerce de détail, e-commerce, logistique et moyens de paiement."
+    },
+    "energie": {
+      "libelle": "Énergie et utilities",
+      "description": "Production et distribution d'énergie, eau, réseaux critiques."
+    },
+    "transport": {
+      "libelle": "Transport et logistique",
+      "description": "Transport de personnes ou de marchandises, entreposage, chaîne d'approvisionnement."
+    },
+    "education": {
+      "libelle": "Éducation et recherche",
+      "description": "Établissements d'enseignement, organismes de formation, laboratoires."
+    }
+  }
+}

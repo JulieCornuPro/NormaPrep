@@ -1,0 +1,26 @@
+{
+  "schema_version": "2.0",
+  "certification": {
+    "code": "RM27005",
+    "name": "ISO/IEC 27005 Risk Manager"
+  },
+  "domains": {
+    "D1": {
+      "code": "D1",
+      "label": "Principes et concepts fondamentaux d'un système de gestion des risques liés à la sécurité de l'information"
+    },
+    "D2": {
+      "code": "D2",
+      "label": "Mise en œuvre d'un programme de gestion des risques en sécurité de l'information"
+    },
+    "D3": {
+      "code": "D3",
+      "label": "Cadre de gestion des risques en sécurité de l'information et des processus selon la norme ISO/IEC 27005"
+    },
+    "D4": {
+      "code": "D4",
+      "label": "Autres méthodes d'appréciation des risques liés à la sécurité de l'information"
+    }
+  },
+  "notes": "Manifeste de la certification. Porte l'identite de la certification et la grille de domaines. Les scenarios sont dans les fichiers SCxx_*.json du meme dossier. Ce fichier fait autorite : ne pas deduire le code du nom de dossier."
+}
