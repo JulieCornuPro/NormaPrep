@@ -708,6 +708,134 @@ class NPQ_Admin {
      * PAGE : ÉTAT DU CONTENU
      * ===================================================================== */
 
+    /**
+     * État de la base : la structure est-elle à jour, et les migrations
+     * ont-elles bien été appliquées ?
+     *
+     * Les migrations de schéma sont silencieuses par conception (elles se
+     * jouent au chargement du plugin, sans intervention). Silencieux ne doit
+     * pas vouloir dire invérifiable : sans ce bloc, la seule façon de savoir
+     * si une migration a eu lieu serait d'ouvrir la base avec phpMyAdmin.
+     *
+     * @return array Diagnostic prêt à afficher.
+     */
+    private static function etat_base() {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        // Version de schéma enregistrée lors de la dernière migration réussie.
+        // Si elle correspond à celle du plugin, dbDelta a bien tourné.
+        $version_schema = (string) get_option( 'npq_db_version', '' );
+        $a_jour = ( $version_schema === NPQ_VERSION );
+
+        // La colonne certification_id de la table tentative est le marqueur
+        // concret de la migration 2.23.8. On interroge la table elle-même
+        // plutôt que de deviner.
+        //
+        // SHOW COLUMNS plutôt qu'information_schema : certains hébergements
+        // mutualisés restreignent l'accès au catalogue MySQL, ce qui ferait
+        // conclure à tort que la migration n'a pas eu lieu.
+        $colonne = (bool) $wpdb->get_results( $wpdb->prepare(
+            "SHOW COLUMNS FROM {$p}tentative LIKE %s",
+            'certification_id'
+        ) );
+
+        // Combien de tentatives ont été rattachées à leur certification ?
+        $tentatives  = 0;
+        $rattachees  = 0;
+        if ( $colonne ) {
+            $tentatives = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}tentative" );
+            $rattachees = (int) $wpdb->get_var(
+                "SELECT COUNT(*) FROM {$p}tentative WHERE certification_id IS NOT NULL"
+            );
+        }
+
+        return [
+            'version_schema' => $version_schema !== '' ? $version_schema : '—',
+            'version_plugin' => NPQ_VERSION,
+            'a_jour'         => $a_jour,
+            'colonne'        => $colonne,
+            'tentatives'     => $tentatives,
+            'rattachees'     => $rattachees,
+        ];
+    }
+
+    /**
+     * Affiche le diagnostic de etat_base() sous forme de tableau lisible.
+     * Volontairement rédigé en clair : cette page doit pouvoir être lue sans
+     * connaître le schéma de la base.
+     */
+    private static function afficher_etat_base() {
+        $e = self::etat_base();
+
+        // Un vert / un rouge, comme le reste de la page.
+        $ok = static function ( $vrai, $texte_ok, $texte_ko ) {
+            $couleur = $vrai ? '#00a32a' : '#d63638';
+            $symbole = $vrai ? '&#10003;' : '&#10007;';
+            $texte   = $vrai ? $texte_ok : $texte_ko;
+            return '<span style="color:' . $couleur . ';font-weight:600">'
+                 . $symbole . ' ' . esc_html( $texte ) . '</span>';
+        };
+        ?>
+        <h2>État de la base</h2>
+        <table class="widefat" style="max-width:640px">
+            <tbody>
+                <tr>
+                    <td style="width:280px"><strong>Version du plugin</strong></td>
+                    <td><?php echo esc_html( $e['version_plugin'] ); ?></td>
+                </tr>
+                <tr>
+                    <td><strong>Structure de la base</strong></td>
+                    <td>
+                        <?php
+                        echo $ok(
+                            $e['a_jour'],
+                            'à jour (' . $e['version_schema'] . ')',
+                            'en retard (' . $e['version_schema'] . ') — rechargez une page du site'
+                        );
+                        ?>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Historique rattaché aux certifications</strong></td>
+                    <td>
+                        <?php if ( ! $e['colonne'] ) : ?>
+                            <?php echo $ok( false, '', 'migration non appliquée' ); ?>
+                        <?php elseif ( $e['tentatives'] === 0 ) : ?>
+                            <?php echo $ok( true, 'prêt (aucun examen passé pour l\'instant)', '' ); ?>
+                        <?php else : ?>
+                            <?php
+                            echo $ok(
+                                $e['rattachees'] === $e['tentatives'],
+                                sprintf(
+                                    '%d examen(s) et révision(s) sur %d',
+                                    $e['rattachees'],
+                                    $e['tentatives']
+                                ),
+                                sprintf(
+                                    '%d sur %d — le reste n\'a pas pu être rattaché',
+                                    $e['rattachees'],
+                                    $e['tentatives']
+                                )
+                            );
+                            ?>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <?php if ( $e['colonne'] && $e['tentatives'] > 0 && $e['rattachees'] < $e['tentatives'] ) : ?>
+            <p class="description" style="max-width:760px">
+                Les tentatives non rattachées sont d'anciennes sessions dont la
+                certification d'origine n'a pas pu être déterminée (questions
+                supprimées depuis, et plusieurs certifications en base). Elles
+                restent consultables, mais n'apparaîtront pas dans les
+                statistiques filtrées par certification.
+            </p>
+        <?php endif; ?>
+        <?php
+    }
+
     public static function page_contenu() {
         $stats       = self::statistiques();
         $couverture  = self::couverture_pecb();
@@ -719,6 +847,7 @@ class NPQ_Admin {
             ?>
             <div class="wrap">
                 <h1>État du contenu</h1>
+                <?php self::afficher_etat_base(); ?>
                 <div class="notice notice-warning">
                     <p>
                         Aucune question en base. Lancez l'import depuis la page
@@ -732,6 +861,8 @@ class NPQ_Admin {
         ?>
         <div class="wrap">
             <h1>État du contenu</h1>
+
+            <?php self::afficher_etat_base(); ?>
 
             <!-- Vue d'ensemble -->
             <h2>Vue d'ensemble</h2>
