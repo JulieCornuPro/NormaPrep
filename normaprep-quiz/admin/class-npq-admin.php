@@ -729,7 +729,7 @@ class NPQ_Admin {
         $a_jour = ( $version_schema === NPQ_VERSION );
 
         // La colonne certification_id de la table tentative est le marqueur
-        // concret de la migration 2.23.8. On interroge la table elle-même
+        // concret de la migration 2.23.9. On interroge la table elle-même
         // plutôt que de deviner.
         //
         // SHOW COLUMNS plutôt qu'information_schema : certains hébergements
