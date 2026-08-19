@@ -477,6 +477,10 @@ class NPQ_Examen {
 
         $wpdb->insert( "{$p}tentative", [
             'utilisateur_id'   => $fiche['id'],
+            // Certification de l'épreuve : mémorisée sur la tentative pour que
+            // l'historique et les statistiques puissent être segmentés sans
+            // avoir à remonter aux questions.
+            'certification_id' => $certification_id,
             // On renseigne le modèle quand il y en a un : la colonne existe déjà
             // et sert précisément à ça.
             'examen_modele_id' => $modele ? (int) $modele['id'] : null,

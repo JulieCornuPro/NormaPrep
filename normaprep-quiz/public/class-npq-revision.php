@@ -185,7 +185,7 @@ class NPQ_Revision {
             }
 
             if ( ( $parcours['type'] ?? 'criteres' ) === 'questions' ) {
-                self::lancer_questions( $cle );
+                self::lancer_questions( $cle, (int) $parcours['certification_id'] );
             } else {
                 self::lancer(
                     $parcours['domaines'],
@@ -227,6 +227,8 @@ class NPQ_Revision {
 
         $wpdb->insert( "{$p}tentative", [
             'utilisateur_id'   => $fiche['id'],
+            // Certification révisée : même rôle que sur une tentative d'examen.
+            'certification_id' => $certification_id,
             'examen_modele_id' => null,
             'mode'             => 'revision',
             'criteres'         => wp_json_encode( [
@@ -250,11 +252,22 @@ class NPQ_Revision {
      * Lance une révision à partir des questions figées d'un parcours
      * (mode « questions choisies »). Jumelle de lancer(), mais la composition
      * vient de la table de liaison plutôt que d'un tirage par critères.
+     *
+     * @param int $parcours_id
+     * @param int $certification_id Certification du parcours. Transmise par
+     *                              l'appelant, qui vient de la vérifier.
      */
-    private static function lancer_questions( $parcours_id ) {
+    private static function lancer_questions( $parcours_id, $certification_id = 0 ) {
         $questions = NPQ_Composeur::par_parcours( $parcours_id );
         if ( empty( $questions ) ) {
             return;
+        }
+
+        // Un parcours peut n'être rattaché à aucune certification (parcours
+        // transverse) : on retombe alors sur la certification courante.
+        $certification_id = (int) $certification_id;
+        if ( ! $certification_id ) {
+            $certification_id = self::certification_courante();
         }
 
         $fiche = NPQ_Comptes::fiche_courante();
@@ -269,6 +282,9 @@ class NPQ_Revision {
 
         $wpdb->insert( "{$pfx}tentative", [
             'utilisateur_id'   => $fiche['id'],
+            // 0 signifierait « aucune certification en base » : on écrit NULL
+            // plutôt qu'un 0 qui ressemblerait à un identifiant réel.
+            'certification_id' => $certification_id ?: null,
             'examen_modele_id' => null,
             'mode'             => 'revision',
             'criteres'         => wp_json_encode( [
