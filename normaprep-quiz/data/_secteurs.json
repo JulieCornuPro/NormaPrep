@@ -41,6 +41,10 @@
     "education": {
       "libelle": "Éducation et recherche",
       "description": "Établissements d'enseignement, organismes de formation, laboratoires."
+    },
+    "associatif": {
+      "libelle": "Associations et ONG",
+      "description": "Organisations à but non lucratif, ONG, secteur humanitaire et social."
     }
   }
 }
