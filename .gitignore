@@ -15,6 +15,11 @@ sc*_new.py
 # Flashcards
 normaprep-quiz/data/_flashcards.json
 
+# Exports HTML de relecture : ils portent les scénarios en entier
+revue/
+**/revue/
+**/SC*.html
+
 # Vocabulaire et manifestes : ce sont des règles, pas du contenu.
 # Réaffirmés ici pour survivre à un élargissement des motifs ci-dessus.
 !normaprep-quiz/data/_secteurs.json
