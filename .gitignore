@@ -1,0 +1,29 @@
+# ---------------------------------------------------------------------------
+# NormaPrep
+#
+# Règle : un scénario ne se commite pas, il se livre par téléchargement.
+# Ce fichier est un garde-fou contre l'ajout par inadvertance, pas une
+# barrière de sécurité : « git add -f » passe outre.
+# ---------------------------------------------------------------------------
+
+# Banques de scénarios, quelle que soit la certification
+normaprep-quiz/data/**/SC*.json
+
+# Modules générateurs : ils portent le texte intégral des scénarios
+sc*_new.py
+
+# Flashcards
+normaprep-quiz/data/_flashcards.json
+
+# Vocabulaire et manifestes : ce sont des règles, pas du contenu.
+# Réaffirmés ici pour survivre à un élargissement des motifs ci-dessus.
+!normaprep-quiz/data/_secteurs.json
+!normaprep-quiz/data/**/_certification.json
+
+# Sous-produits Python
+__pycache__/
+*.pyc
+
+# Systèmes de fichiers
+.DS_Store
+Thumbs.db
