@@ -161,6 +161,35 @@ class NPQ_Comptes {
     }
 
     /**
+     * Où envoyer quelqu'un qui n'a pas (ou plus) accès.
+     *
+     * Cette résolution vivait recopiée dans cinq fichiers, et retombait sur
+     * « # » quand la page « offres » n'existait pas — un lien mort au moment
+     * précis où l'on essaie de vendre.
+     *
+     * Ordre : la page « offres » si tu en as fait une, sinon la boutique
+     * WooCommerce, sinon l'accueil. Le repli sur la boutique évite d'avoir à
+     * créer une page vitrine pour commencer à vendre.
+     *
+     * @return string
+     */
+    public static function url_offres() {
+        $page = get_page_by_path( 'offres' );
+        if ( $page ) {
+            return get_permalink( $page );
+        }
+
+        if ( function_exists( 'wc_get_page_id' ) ) {
+            $boutique = wc_get_page_id( 'shop' );
+            if ( $boutique && $boutique > 0 ) {
+                return get_permalink( $boutique );
+            }
+        }
+
+        return home_url( '/' );
+    }
+
+    /**
      * L'utilisateur a-t-il le droit de passer un examen complet ?
      * Combine le contrôle de capacité (rôle) et la détention d'un accès.
      *

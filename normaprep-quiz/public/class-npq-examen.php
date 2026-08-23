@@ -1598,9 +1598,9 @@ class NPQ_Examen {
         return $map;
     }
 
+    /** Délègue à la résolution centralisée (page offres, sinon boutique). */
     private static function url_offres() {
-        $page = get_page_by_path( 'offres' );
-        return $page ? get_permalink( $page ) : home_url( '/' );
+        return NPQ_Comptes::url_offres();
     }
 
     private static function url_espace() {

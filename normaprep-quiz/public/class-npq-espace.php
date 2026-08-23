@@ -466,8 +466,7 @@ class NPQ_Espace {
         // URLs des pages (seulement celles qui existent).
         $url_examen = ( $id = get_option( 'npq_page_examen_id' ) ) ? get_permalink( $id ) : '#';
         $url_profil = ( $id = get_option( 'npq_page_profil_id' ) ) ? get_permalink( $id ) : '';
-        $page_offres = get_page_by_path( 'offres' );
-        $url_offres  = $page_offres ? get_permalink( $page_offres ) : '#';
+        $url_offres = NPQ_Comptes::url_offres();
 
         $historique_html = self::rendu_historique();
 
@@ -517,6 +516,9 @@ class NPQ_Espace {
                     <?php endif; ?>
                 </div>
 
+                <div class="npq-sec-title">Mes accès</div>
+                <?php echo self::rendu_acces( $url_offres ); ?>
+
                 <div class="npq-sec-title">Mes examens</div>
                 <?php echo $historique_html; ?>
 
@@ -527,6 +529,89 @@ class NPQ_Espace {
                 <?php endif; ?>
             </main>
         </div>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
+     * Bibliothèque du client : ce qu'il possède, et jusqu'à quand.
+     *
+     * Rien n'indiquait nulle part la date d'échéance d'un accès. Un client
+     * pouvait donc le perdre du jour au lendemain sans avoir jamais vu venir
+     * la date — et sans comprendre pourquoi le produit qu'il avait payé ne
+     * répondait plus.
+     *
+     * Les accès expirés restent affichés : c'est le seul endroit où proposer
+     * un renouvellement, et un achat qui disparaît sans laisser de trace donne
+     * l'impression d'avoir été perdu.
+     *
+     * @param string $url_offres Où acheter ou renouveler.
+     * @return string
+     */
+    private static function rendu_acces( $url_offres ) {
+        $fiche = NPQ_Comptes::fiche_courante();
+        $inventaire = $fiche ? NPQ_Bibliotheque::inventaire_de( (int) $fiche['id'] ) : [];
+
+        ob_start();
+
+        if ( empty( $inventaire ) ) : ?>
+            <p class="npq-acces-vide">
+                Vous n'avez encore accès à aucune certification.
+                <a href="<?php echo esc_url( $url_offres ); ?>">Voir les certifications disponibles</a>.
+            </p>
+            <?php
+            return ob_get_clean();
+        endif;
+        ?>
+        <div class="npq-acces-liste">
+            <?php foreach ( $inventaire as $a ) :
+                $jours = $a['jours_restants'];
+                $date  = $a['fin_acces'] ? date_i18n( 'j F Y', strtotime( $a['fin_acces'] ) ) : '';
+            ?>
+                <div class="npq-acces-ligne npq-acces-<?php echo esc_attr( $a['etat'] ); ?>">
+                    <span class="npq-acces-nom"><?php echo esc_html( $a['nom'] ); ?></span>
+
+                    <span class="npq-acces-etat">
+                        <?php
+                        switch ( $a['etat'] ) {
+                            case 'permanent':
+                                echo 'Accès définitif';
+                                break;
+
+                            case 'expire':
+                                // On dit la date : « expiré » sans date laisse
+                                // le client dans le doute sur ce qu'il a payé.
+                                printf( 'Expiré le %s', esc_html( $date ) );
+                                break;
+
+                            case 'bientot':
+                                printf(
+                                    'Se termine le %s — %s',
+                                    esc_html( $date ),
+                                    $jours === 0
+                                        ? "dernier jour"
+                                        : sprintf( 'dans %d jour%s', $jours, $jours > 1 ? 's' : '' )
+                                );
+                                break;
+
+                            default:
+                                printf( "Jusqu'au %s", esc_html( $date ) );
+                        }
+                        ?>
+                    </span>
+
+                    <?php if ( $a['etat'] === 'expire' || $a['etat'] === 'bientot' ) : ?>
+                        <a class="npq-acces-action" href="<?php echo esc_url( $url_offres ); ?>">
+                            <?php echo $a['etat'] === 'expire' ? 'Réactiver' : 'Prolonger'; ?>
+                        </a>
+                    <?php endif; ?>
+                </div>
+            <?php endforeach; ?>
+        </div>
+
+        <p class="npq-acces-plus">
+            <a href="<?php echo esc_url( $url_offres ); ?>">Ajouter une certification</a>
+        </p>
         <?php
         return ob_get_clean();
     }

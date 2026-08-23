@@ -1540,3 +1540,40 @@
   border-bottom:1px solid currentColor; padding-bottom:1px;
 }
 .npq-app .npq-res-dom-lien:hover{ color:var(--text); }
+
+/* ---- Mes accès : la bibliothèque du client ----
+   Chaque ligne dit ce qu'il possède et jusqu'à quand. Les accès expirés
+   restent visibles : c'est le seul endroit où proposer un renouvellement. */
+
+.npq-app .npq-acces-liste{
+  display:flex; flex-direction:column; gap:2px; margin-bottom:14px;
+}
+.npq-app .npq-acces-ligne{
+  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  padding:14px 16px; border-bottom:1px solid var(--border);
+}
+.npq-app .npq-acces-ligne:last-child{ border-bottom:none; }
+.npq-app .npq-acces-nom{ flex:1; min-width:200px; color:var(--text); }
+.npq-app .npq-acces-etat{
+  font-family:'Inconsolata',monospace; font-size:13px; color:var(--text-lo);
+}
+
+/* Trois états, trois lectures. Le vert n'est pas utilisé : un accès en cours
+   est la normale, il n'a pas à se féliciter. On ne colore que ce qui appelle
+   une décision. */
+.npq-app .npq-acces-permanent .npq-acces-etat{ color:var(--teal); }
+.npq-app .npq-acces-bientot .npq-acces-etat{ color:var(--orange); }
+.npq-app .npq-acces-expire{ opacity:.7; }
+.npq-app .npq-acces-expire .npq-acces-nom{ color:var(--text-lo); }
+
+.npq-app .npq-acces-action{
+  font-family:'Inconsolata',monospace; font-size:12px; font-weight:700;
+  letter-spacing:0.06em; text-transform:uppercase;
+  color:var(--teal); text-decoration:none;
+  border-bottom:1px solid currentColor; padding-bottom:1px;
+}
+.npq-app .npq-acces-action:hover{ color:var(--text); }
+
+.npq-app .npq-acces-vide, .npq-app .npq-acces-plus{
+  color:var(--text-lo); font-size:14px; margin:0 0 14px;
+}

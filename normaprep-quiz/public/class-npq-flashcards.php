@@ -65,8 +65,7 @@ class NPQ_Flashcards {
 
     public static function rendu() {
         if ( ! NPQ_Comptes::peut_passer_examen_complet() ) {
-            $page = get_page_by_path( 'offres' );
-            $url  = $page ? get_permalink( $page ) : home_url( '/' );
+            $url = NPQ_Comptes::url_offres();
             return '<p class="empty">Les flashcards sont réservées aux abonnés. '
                  . '<a href="' . esc_url( $url ) . '">Découvrir les offres</a>.</p>';
         }

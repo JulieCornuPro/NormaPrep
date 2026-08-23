@@ -26,6 +26,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 class NPQ_Bibliotheque {
 
     /**
+     * Nombre de jours avant l'échéance à partir duquel on prévient le client.
+     *
+     * Assez tôt pour qu'il ait le temps de décider, assez tard pour que
+     * l'avertissement garde du poids : prévenir trois mois à l'avance revient
+     * à ne pas prévenir, l'alerte devient un décor.
+     */
+    const PREAVIS_JOURS = 30;
+
+    /**
      * L'utilisateur a-t-il accès à cette certification ?
      * Un accès expiré (fin_acces dépassée) ne compte pas.
      *
@@ -81,6 +90,70 @@ class NPQ_Bibliotheque {
              ORDER BY uc.date_acquisition ASC, c.nom ASC",
             $utilisateur_id
         ), ARRAY_A );
+    }
+
+    /**
+     * TOUTES les certifications d'un utilisateur, expirées comprises, avec
+     * leur état lisible.
+     *
+     * certifications_de() écarte volontairement les accès expirés : c'est ce
+     * qu'il faut pour décider d'un droit. Mais pour AFFICHER sa bibliothèque à
+     * un client, l'expiré compte autant que l'actif — c'est même le seul
+     * endroit où on peut lui proposer de renouveler. Un accès qui disparaît
+     * sans laisser de trace donne l'impression d'un achat perdu.
+     *
+     * @param int $utilisateur_id
+     * @return array Lignes : id, code, nom, fin_acces, etat, jours_restants.
+     *               etat : 'permanent' | 'actif' | 'bientot' | 'expire'.
+     */
+    public static function inventaire_de( $utilisateur_id ) {
+        $utilisateur_id = (int) $utilisateur_id;
+        if ( ! $utilisateur_id ) {
+            return [];
+        }
+
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $lignes = (array) $wpdb->get_results( $wpdb->prepare(
+            "SELECT c.id, c.code, c.nom, uc.date_acquisition, uc.fin_acces
+             FROM {$p}utilisateur_certification uc
+             INNER JOIN {$p}certification c ON c.id = uc.certification_id
+             WHERE uc.utilisateur_id = %d
+             ORDER BY uc.fin_acces IS NULL DESC, uc.fin_acces DESC, c.nom ASC",
+            $utilisateur_id
+        ), ARRAY_A );
+
+        $aujourdhui = current_time( 'Y-m-d' );
+
+        foreach ( $lignes as &$ligne ) {
+            if ( $ligne['fin_acces'] === null ) {
+                $ligne['etat']           = 'permanent';
+                $ligne['jours_restants'] = null;
+                continue;
+            }
+
+            // Différence en jours entiers, sans heure : deux dates au format
+            // AAAA-MM-JJ se comparent à midi UTC pour éviter qu'un changement
+            // d'heure ne décale le compte d'un jour.
+            $jours = (int) floor(
+                ( strtotime( $ligne['fin_acces'] . ' 12:00:00' )
+                - strtotime( $aujourdhui . ' 12:00:00' ) ) / DAY_IN_SECONDS
+            );
+
+            $ligne['jours_restants'] = $jours;
+
+            if ( $jours < 0 ) {
+                $ligne['etat'] = 'expire';
+            } elseif ( $jours <= self::PREAVIS_JOURS ) {
+                $ligne['etat'] = 'bientot';
+            } else {
+                $ligne['etat'] = 'actif';
+            }
+        }
+        unset( $ligne );
+
+        return $lignes;
     }
 
     /**

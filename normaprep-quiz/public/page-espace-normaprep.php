@@ -24,8 +24,7 @@ if ( $initiales === '' ) { $initiales = 'NP'; }
 
 $url_examen  = ( $id = get_option( 'npq_page_examen_id' ) ) ? get_permalink( $id ) : '#';
 $url_espace  = ( $id = get_option( 'npq_page_espace_id' ) ) ? get_permalink( $id ) : home_url( '/' );
-$page_offres = get_page_by_path( 'offres' );
-$url_offres  = $page_offres ? get_permalink( $page_offres ) : '#';
+$url_offres  = class_exists( 'NPQ_Comptes' ) ? NPQ_Comptes::url_offres() : home_url( '/' );
 
 // Vraies données : EXAMENS passés (les révisions sont exclues — ce sont des
 // entraînements, elles ne comptent ni dans l'historique ni dans les statistiques).
