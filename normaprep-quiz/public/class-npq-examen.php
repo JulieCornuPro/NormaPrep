@@ -397,7 +397,25 @@ class NPQ_Examen {
         if ( $action === 'demarrer' ) {
             // Id du modèle d'examen choisi (0 = examen blanc PECB par défaut).
             $modele_id = isset( $_POST['npq_examen_modele'] ) ? (int) $_POST['npq_examen_modele'] : 0;
-            self::demarrer( $modele_id );
+
+            // Certification sur laquelle porte l'examen, transmise par le
+            // formulaire. À défaut, celle de la bibliothèque de l'utilisateur.
+            $certification_id = isset( $_POST['npq_certification'] )
+                ? (int) $_POST['npq_certification']
+                : 0;
+            if ( ! $certification_id ) {
+                $certification_id = self::certification_par_defaut();
+            }
+
+            // Garde-fou : on ne démarre un examen que sur une certification
+            // que l'utilisateur possède. Le champ vient du navigateur, donc il
+            // se falsifie — le nonce prouve l'origine du formulaire, pas la
+            // légitimité de sa valeur.
+            if ( ! NPQ_Bibliotheque::utilisateur_peut_acceder( $certification_id ) ) {
+                return;
+            }
+
+            self::demarrer( $modele_id, $certification_id );
         } elseif ( $action === 'repondre' ) {
             self::enregistrer_reponse();
         }
@@ -412,8 +430,11 @@ class NPQ_Examen {
      *
      * Il n'y a plus de choix de scénario : un examen est aléatoire, comme le vrai.
      */
-    private static function demarrer( $modele_id = 0 ) {
-        $certification_id = self::certification_courante();
+    private static function demarrer( $modele_id = 0, $certification_id = 0 ) {
+        $certification_id = (int) $certification_id;
+        if ( ! $certification_id ) {
+            $certification_id = self::certification_par_defaut();
+        }
         if ( ! $certification_id ) {
             return;
         }
@@ -514,6 +535,34 @@ class NPQ_Examen {
     /** Certification active — délègue à la résolution centralisée. */
     private static function certification_courante() {
         return NPQ_Certification::id();
+    }
+
+    /**
+     * Certification par défaut pour cet utilisateur : la première de sa
+     * bibliothèque. Repli sur la certification active s'il n'a pas encore
+     * d'accès enregistré.
+     *
+     * Auparavant la page d'examen s'en tenait à la certification active
+     * choisie en administration — un abonné à plusieurs référentiels ne
+     * pouvait donc passer d'examen que sur celui coché côté admin.
+     */
+    private static function certification_par_defaut() {
+        $certifs = NPQ_Bibliotheque::certifications_utilisateur();
+        return ! empty( $certifs ) ? (int) $certifs[0]['id'] : self::certification_courante();
+    }
+
+    /**
+     * Certification consultée et sélecteur : mutualisés avec la page Activité,
+     * qui présente exactement le même choix. Voir NPQ_Bibliotheque.
+     */
+    private static function certification_choisie( $certifs ) {
+        return NPQ_Bibliotheque::certification_choisie( $certifs );
+    }
+
+    private static function selecteur_certification( $certifs, $actuelle ) {
+        return NPQ_Bibliotheque::selecteur_certification(
+            $certifs, $actuelle, 'npq-exam-certif-select'
+        );
     }
 
     /**
@@ -634,9 +683,25 @@ class NPQ_Examen {
      * le chronomètre tourne, quitter l'examen l'abandonne.
      */
     private static function ecran_choix() {
-        $certification_id = self::certification_courante();
+        // Les examens proposés sont ceux de la bibliothèque de l'utilisateur,
+        // et non plus ceux de la seule certification active en administration.
+        $certifs          = NPQ_Bibliotheque::certifications_utilisateur();
+        $certification_id = self::certification_choisie( $certifs );
+
         if ( ! $certification_id ) {
             return '<p class="empty">Aucune certification disponible.</p>';
+        }
+
+        $selecteur = self::selecteur_certification( $certifs, $certification_id );
+
+        // Nom du référentiel : l'intitulé était écrit en dur, ce qui annonçait
+        // « ISO/IEC 27001 Lead Implementer » quelle que soit la certification.
+        $nom_certif = '';
+        foreach ( $certifs as $c ) {
+            if ( (int) $c['id'] === $certification_id ) {
+                $nom_certif = (string) $c['nom'];
+                break;
+            }
         }
 
         // Vérifie que la banque permet de composer l'examen.
@@ -645,7 +710,14 @@ class NPQ_Examen {
             NPQ_Ponderation::de( $certification_id )
         );
         if ( ! $verif['possible'] ) {
-            return '<p class="empty">Les questions ne sont pas encore disponibles.</p>';
+            // On garde le sélecteur : sans lui, un candidat dont la première
+            // certification n'a pas encore assez de questions serait bloqué
+            // sur ce message, sans pouvoir basculer sur une autre.
+            return '<div class="npq-examen-accueil">'
+                 . '<h2>Examen blanc</h2>'
+                 . $selecteur
+                 . '<p class="empty">Les questions de cette certification ne sont '
+                 . 'pas encore disponibles.</p></div>';
         }
 
         $nb_questions = (int) $verif['total'];
@@ -656,9 +728,12 @@ class NPQ_Examen {
         ?>
         <div class="npq-examen-accueil">
             <h2>Examen blanc</h2>
+
+            <?php echo $selecteur; ?>
+
             <p class="npq-exam-intro">
-                Une simulation dans les conditions du véritable examen PECB
-                ISO/IEC 27001 Lead Implementer.
+                Une simulation dans les conditions du véritable examen
+                <?php echo $nom_certif !== '' ? esc_html( $nom_certif ) : 'de certification'; ?>.
             </p>
 
             <!-- Les conditions de l'épreuve -->
@@ -708,6 +783,7 @@ class NPQ_Examen {
 
             <form method="post" class="npq-exam-lancer">
                 <input type="hidden" name="npq_examen_action" value="demarrer">
+                <input type="hidden" name="npq_certification" value="<?php echo (int) $certification_id; ?>">
                 <?php wp_nonce_field( 'npq_examen', 'npq_nonce' ); ?>
                 <button type="submit" data-npq-confirm="Le chronomètre va démarrer. Prêt(e) à commencer ?"
             data-npq-confirm-ok class="npq-btn">Démarrer l'examen</button>
@@ -787,6 +863,7 @@ class NPQ_Examen {
                     <form method="post" class="npq-exam-lancer">
                         <input type="hidden" name="npq_examen_action" value="demarrer">
                         <input type="hidden" name="npq_examen_modele" value="<?php echo (int) $ex['id']; ?>">
+                        <input type="hidden" name="npq_certification" value="<?php echo (int) $certification_id; ?>">
                         <?php wp_nonce_field( 'npq_examen', 'npq_nonce' ); ?>
                         <button type="submit" data-npq-confirm="Le chronomètre va démarrer. Prêt(e) à commencer ?" data-npq-confirm-ok class="npq-btn">Démarrer</button>
                     </form>

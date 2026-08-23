@@ -311,68 +311,17 @@ class NPQ_Activite {
      * ===================================================================== */
 
     /**
-     * Certification dont on affiche l'activité.
-     *
-     * Lue dans l'URL (?npq_certif=…) pour que la page reste partageable et
-     * navigable avec le bouton « précédent ». La valeur est toujours vérifiée
-     * contre la bibliothèque de l'utilisateur : un identifiant bricolé à la
-     * main dans l'URL ne donne pas accès aux statistiques d'un référentiel
-     * qu'il ne possède pas. À défaut, la première de sa bibliothèque.
-     *
-     * @param array $certifs Bibliothèque de l'utilisateur.
-     * @return int 0 si l'utilisateur n'a accès à aucune certification.
+     * Certification consultée et sélecteur : mutualisés avec la page Examens,
+     * qui présente exactement le même choix. Voir NPQ_Bibliotheque.
      */
     private static function certification_choisie( $certifs ) {
-        if ( empty( $certifs ) ) {
-            return 0;
-        }
-
-        $demandee = isset( $_GET['npq_certif'] ) ? (int) $_GET['npq_certif'] : 0;
-
-        if ( $demandee ) {
-            foreach ( $certifs as $c ) {
-                if ( (int) $c['id'] === $demandee ) {
-                    return $demandee;
-                }
-            }
-        }
-
-        return (int) $certifs[0]['id'];
+        return NPQ_Bibliotheque::certification_choisie( $certifs );
     }
 
-    /**
-     * Sélecteur de certification. Chaîne vide si l'utilisateur n'en possède
-     * qu'une : lui proposer de choisir entre une seule option serait du bruit.
-     *
-     * Formulaire en GET, sans JavaScript obligatoire : l'envoi automatique au
-     * changement est un confort, le bouton reste le filet de sécurité.
-     *
-     * @param array $certifs
-     * @param int   $actuelle
-     * @return string
-     */
     private static function selecteur_certification( $certifs, $actuelle ) {
-        if ( count( $certifs ) < 2 ) {
-            return '';
-        }
-
-        ob_start();
-        ?>
-        <form method="get" class="npq-act-certif">
-            <label for="npq-act-certif-select" class="npq-champ-label">Certification</label>
-            <select name="npq_certif" id="npq-act-certif-select"
-                    class="npq-compo-select" onchange="this.form.submit()">
-                <?php foreach ( $certifs as $c ) : ?>
-                    <option value="<?php echo (int) $c['id']; ?>"
-                        <?php selected( (int) $c['id'], (int) $actuelle ); ?>>
-                        <?php echo esc_html( $c['nom'] ); ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-            <noscript><button type="submit" class="npq-btn">Afficher</button></noscript>
-        </form>
-        <?php
-        return ob_get_clean();
+        return NPQ_Bibliotheque::selecteur_certification(
+            $certifs, $actuelle, 'npq-act-certif-select'
+        );
     }
 
     /* =====================================================================
