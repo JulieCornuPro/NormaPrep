@@ -1456,3 +1456,87 @@
 .npq-act-certif { margin: 0 0 24px; max-width: 420px; }
 .npq-act-certif .npq-champ-label { display: block; margin-bottom: 6px; }
 .npq-act-certif .npq-compo-select { width: 100%; margin-bottom: 0; }
+
+/* Mention de pré-réglage : le formulaire de révision arrive avec un domaine
+   déjà coché, transmis par la page Activité. Le candidat doit comprendre
+   pourquoi une case est cochée sans l'avoir touchée. */
+.npq-app .npq-prereglage {
+  border-left: 3px solid var(--accent, #4A9DFF);
+  padding-left: 10px;
+  margin-bottom: 12px;
+}
+
+/* ---- Points faibles : distinguer « non su » de « non atteint » ---- */
+
+/* Mention discrète à côté du nombre de questions : les questions laissées
+   blanches ne pèsent pas sur le taux, elles ne doivent donc pas avoir le
+   poids visuel d'un résultat. */
+.npq-app .npq-leg-blanches{
+  color:var(--muted); font-weight:400; opacity:.75;
+}
+
+/* Domaine jamais abordé : ni vert ni orange — il n'y a rien à juger.
+   Le gris dit « hors mesure », ce qui est exactement le propos. */
+.npq-app .npq-legende-ligne.non-aborde{ color:var(--muted); }
+.npq-app .npq-legende-ligne.non-aborde .npq-leg-code,
+.npq-app .npq-legende-ligne.non-aborde .npq-leg-taux{ color:var(--muted); }
+
+/* Message sur les questions non traitées. Volontairement PAS orange :
+   l'orange signale une lacune de connaissance, or il s'agit ici de gestion
+   du temps. Deux problèmes distincts, deux traitements visuels distincts. */
+.npq-app .npq-conseil-temps{
+  background:rgba(255,255,255,0.02);
+  border-left:3px solid var(--muted);
+  margin-bottom:18px;
+}
+
+/* Taux appuyé sur trop peu de questions : le chiffre reste lisible, mais il
+   perd son poids d'affirmation. Ni vert ni orange — on ne colore pas un
+   résultat dont on ne répond pas. */
+.npq-app .npq-legende-ligne.peu-fiable .npq-leg-taux{ color:var(--muted); }
+.npq-app .npq-legende-ligne.peu-fiable{ color:var(--text-lo); }
+
+/* ---- Résultat d'examen blanc : diagnostic par domaine ----
+   Le corrigé complet reste réservé aux révisions. Ici, chaque domaine porte
+   son taux ET son action : on ne révise pas une question, on révise un thème.
+   Lister les questions ratées produisait un mur de texte inerte, et donnait
+   au candidat un index cible dans la banque. */
+
+.npq-app .npq-resultat-note{
+  color:var(--text-lo); font-size:15px; line-height:1.55;
+  border-left:3px solid var(--muted); padding-left:14px; margin-bottom:22px;
+}
+.npq-app .npq-resultat-note strong{ color:var(--text); }
+
+.npq-app .npq-res-domaines{
+  display:flex; flex-direction:column; gap:4px; margin-bottom:28px;
+}
+.npq-app .npq-res-domaine{ padding:12px 0; }
+.npq-app .npq-res-dom-tete{
+  display:flex; justify-content:space-between; align-items:baseline;
+  gap:16px; font-size:15px; margin-bottom:6px; color:var(--text-lo);
+}
+.npq-app .npq-res-domaine.a-travailler .npq-res-dom-tete{ color:var(--text); }
+.npq-app .npq-res-dom-pct{
+  font-family:'Inconsolata',monospace; font-weight:700;
+  color:var(--teal); white-space:nowrap;
+}
+.npq-app .npq-res-domaine.a-travailler .npq-res-dom-pct{ color:var(--orange); }
+.npq-app .npq-res-dom-frac{ font-weight:400; color:var(--muted); }
+.npq-app .npq-res-dom-jauge{
+  height:8px; background:#1E3A52; border-radius:4px; overflow:hidden;
+}
+.npq-app .npq-res-dom-part{ height:100%; background:var(--teal, #00CFCF); }
+.npq-app .npq-res-domaine.a-travailler .npq-res-dom-part{ background:var(--orange); }
+
+/* Lien de révision : discret, présent seulement là où il y a à faire.
+   Un lien plutôt qu'un bouton — il peut y en avoir sept, sept boutons
+   pleins transformeraient le diagnostic en tableau de commandes. */
+.npq-app .npq-res-dom-lien{
+  display:inline-block; margin-top:8px;
+  font-family:'Inconsolata',monospace; font-size:12px; font-weight:700;
+  letter-spacing:0.06em; text-transform:uppercase;
+  color:var(--teal); text-decoration:none;
+  border-bottom:1px solid currentColor; padding-bottom:1px;
+}
+.npq-app .npq-res-dom-lien:hover{ color:var(--text); }

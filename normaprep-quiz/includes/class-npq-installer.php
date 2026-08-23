@@ -16,30 +16,45 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class NPQ_Installer {
 
+    /** Option portant l'empreinte du schéma effectivement appliqué. */
+    const OPT_EMPREINTE = 'npq_schema_empreinte';
+
     /**
-     * Compare la version de schéma enregistrée à la version du plugin et
-     * rejoue creer_tables() si elles diffèrent.
+     * Applique le schéma s'il a changé depuis la dernière fois.
+     *
+     * Le déclencheur est l'EMPREINTE des définitions de tables, pas le numéro
+     * de version du plugin.
+     *
+     * L'ancien mécanisme comparait npq_db_version à NPQ_VERSION. Il reposait
+     * donc sur une discipline humaine : ne jamais réutiliser un numéro de
+     * version déjà déployé. Cette discipline a été prise en défaut, et
+     * l'échec était SILENCIEUX — le schéma n'était pas appliqué, sans le
+     * moindre signal. Une empreinte ne s'oublie pas : si le texte des
+     * définitions change d'un caractère, dbDelta est rejoué ; s'il ne change
+     * pas, il n'y a rien à faire, quel que soit le numéro de version.
      *
      * dbDelta() est non destructif : il ajoute les colonnes et index
-     * manquants sans toucher aux données existantes. C'est ce qui permet
-     * de faire évoluer le schéma sans désactiver puis réactiver le plugin.
+     * manquants sans toucher aux données existantes.
      */
     public static function verifier_schema() {
-        if ( get_option( 'npq_db_version' ) === NPQ_VERSION ) {
+        if ( get_option( self::OPT_EMPREINTE ) === self::empreinte() ) {
             return;
         }
-        self::creer_tables();   // met à jour le schéma et réenregistre la version
+        self::creer_tables();
     }
 
     /**
-     * Crée l'ensemble des tables du plugin.
-     * Appelée une seule fois, à l'activation.
+     * Définitions de toutes les tables du plugin, sous forme d'instructions
+     * CREATE TABLE prêtes pour dbDelta.
+     *
+     * Extraites dans leur propre méthode pour pouvoir être EMPREINTÉES sans
+     * être exécutées : c'est l'empreinte de ce texte qui décide si le schéma
+     * doit être rejoué, et non plus le numéro de version du plugin.
+     *
+     * @return string[]
      */
-    public static function creer_tables() {
+    private static function definitions() {
         global $wpdb;
-
-        // dbDelta() vit dans un fichier WordPress qui n'est pas chargé par défaut.
-        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
         // Préfixe complet : préfixe WordPress (ex. wp_) + notre préfixe (npq_).
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
@@ -272,7 +287,7 @@ class NPQ_Installer {
         // d'une certification à l'autre, deux référentiels fusionneraient sous
         // le même libellé. On la lit plutôt que de remonter aux questions à
         // chaque requête. NULL = tentative ancienne dont l'origine n'a pas pu
-        // être déterminée (voir remplir_certification_tentatives()).
+        // être déterminée (voir migration_tentative_certification()).
         $sql[] = "CREATE TABLE {$p}tentative (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             utilisateur_id BIGINT UNSIGNED NOT NULL,
@@ -340,8 +355,22 @@ class NPQ_Installer {
             KEY question_id (question_id)
         ) $charset;";
 
-        // Exécution : dbDelta traite chaque CREATE TABLE.
-        foreach ( $sql as $requete ) {
+        return $sql;
+    }
+
+    /**
+     * Applique le schéma : crée les tables manquantes et ajoute les colonnes
+     * et index absents. Non destructif — dbDelta ne supprime rien.
+     *
+     * Appelée à l'activation, et par verifier_schema() dès que les définitions
+     * ci-dessus changent.
+     */
+    public static function creer_tables() {
+        // dbDelta() vit dans un fichier WordPress qui n'est pas chargé par défaut.
+        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+        $definitions = self::definitions();
+        foreach ( $definitions as $requete ) {
             dbDelta( $requete );
         }
 
@@ -351,14 +380,25 @@ class NPQ_Installer {
         // creer_tables est rappelée).
         self::amorcer_parcours();
 
-        // Rattache les tentatives déjà enregistrées à leur certification.
-        // dbDelta vient d'ajouter la colonne : elle est vide sur tout
-        // l'historique existant.
-        self::remplir_certification_tentatives();
+        // Empreinte du schéma appliqué : c'est elle qui sert de témoin.
+        update_option( self::OPT_EMPREINTE, self::empreinte( $definitions ) );
 
-        // On mémorise la version de schéma installée. Utile plus tard pour gérer
-        // les migrations d'une version à l'autre.
+        // Version du plugin au moment de l'application. Purement informatif —
+        // affiché en administration, plus jamais utilisé pour DÉCIDER.
         update_option( 'npq_db_version', NPQ_VERSION );
+    }
+
+    /**
+     * Empreinte du schéma : condensé du texte des définitions.
+     *
+     * @param string[]|null $definitions
+     * @return string
+     */
+    public static function empreinte( $definitions = null ) {
+        if ( $definitions === null ) {
+            $definitions = self::definitions();
+        }
+        return md5( implode( "\n", $definitions ) );
     }
 
     /**
@@ -380,9 +420,12 @@ class NPQ_Installer {
      *      mieux vaut une tentative sans certification qu'une tentative classée
      *      dans le mauvais référentiel.
      *
+     * Publique et nommée « migration_ » : elle est appelée par le registre
+     * NPQ_Migrations, sous la clé stable « tentative_certification ».
+     *
      * @return int Nombre de tentatives rattachées.
      */
-    private static function remplir_certification_tentatives() {
+    public static function migration_tentative_certification() {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 

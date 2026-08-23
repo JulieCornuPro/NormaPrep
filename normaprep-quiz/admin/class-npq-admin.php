@@ -723,10 +723,23 @@ class NPQ_Admin {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
-        // Version de schéma enregistrée lors de la dernière migration réussie.
-        // Si elle correspond à celle du plugin, dbDelta a bien tourné.
+        // Version du plugin lors de la dernière application du schéma. Purement
+        // informative : elle ne décide plus de rien.
         $version_schema = (string) get_option( 'npq_db_version', '' );
-        $a_jour = ( $version_schema === NPQ_VERSION );
+
+        // Le schéma est à jour si l'empreinte appliquée correspond à celle des
+        // définitions actuelles. C'est le seul témoin qui fasse foi.
+        $a_jour = ( get_option( NPQ_Installer::OPT_EMPREINTE ) === NPQ_Installer::empreinte() );
+
+        // Migrations de données restant à jouer. Normalement aucune : elles
+        // s'exécutent au chargement. Une entrée qui persiste signale une
+        // migration qui échoue à chaque tentative.
+        $migrations_attente = class_exists( 'NPQ_Migrations' )
+            ? NPQ_Migrations::en_attente()
+            : [];
+        $migrations_faites = class_exists( 'NPQ_Migrations' )
+            ? NPQ_Migrations::faites()
+            : [];
 
         // La colonne certification_id de la table tentative est le marqueur
         // concret de la migration 2.23.9. On interroge la table elle-même
@@ -751,12 +764,14 @@ class NPQ_Admin {
         }
 
         return [
-            'version_schema' => $version_schema !== '' ? $version_schema : '—',
-            'version_plugin' => NPQ_VERSION,
-            'a_jour'         => $a_jour,
-            'colonne'        => $colonne,
-            'tentatives'     => $tentatives,
-            'rattachees'     => $rattachees,
+            'version_schema'     => $version_schema !== '' ? $version_schema : '—',
+            'version_plugin'     => NPQ_VERSION,
+            'a_jour'             => $a_jour,
+            'colonne'            => $colonne,
+            'tentatives'         => $tentatives,
+            'rattachees'         => $rattachees,
+            'migrations_faites'  => $migrations_faites,
+            'migrations_attente' => $migrations_attente,
         ];
     }
 
@@ -790,8 +805,25 @@ class NPQ_Admin {
                         <?php
                         echo $ok(
                             $e['a_jour'],
-                            'à jour (' . $e['version_schema'] . ')',
-                            'en retard (' . $e['version_schema'] . ') — rechargez une page du site'
+                            'à jour (appliquée en ' . $e['version_schema'] . ')',
+                            'en retard — rechargez une page du site'
+                        );
+                        ?>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Migrations de données</strong></td>
+                    <td>
+                        <?php
+                        $nb_faites = count( $e['migrations_faites'] );
+                        echo $ok(
+                            empty( $e['migrations_attente'] ),
+                            sprintf( '%d appliquée(s), aucune en attente', $nb_faites ),
+                            sprintf(
+                                '%d en attente : %s',
+                                count( $e['migrations_attente'] ),
+                                implode( ', ', $e['migrations_attente'] )
+                            )
                         );
                         ?>
                     </td>
