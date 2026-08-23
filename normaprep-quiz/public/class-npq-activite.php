@@ -23,6 +23,18 @@ class NPQ_Activite {
     /** Nombre d'examens montrés dans la courbe de progression. */
     const NB_EXAMENS_COURBE = 10;
 
+    /**
+     * Nombre minimum de questions traitées pour qu'un taux par domaine soit
+     * considéré comme fiable.
+     *
+     * En dessous, un écart d'une seule question fait bouger le taux de dizaines
+     * de points : sur 3 questions, on passe de 33 % à 67 % en en réussissant
+     * une de plus. Ce n'est pas une mesure, c'est du bruit — et il ne doit ni
+     * peser visuellement comme un résultat, ni déclencher un conseil de
+     * révision.
+     */
+    const FIABILITE_MIN = 5;
+
     public static function init() {
         add_shortcode( 'npq_activite', [ __CLASS__, 'rendu' ] );
         add_action( 'wp_enqueue_scripts', [ __CLASS__, 'charger_script' ] );
@@ -212,9 +224,10 @@ class NPQ_Activite {
                     <div class="npq-legende-domaines">
                         <?php foreach ( $domaines as $d ) :
                             $mesure = ( $d['taux'] !== null );
-                            $faible = ( $mesure && $d['taux'] < $seuil );
+                            $fiable = ( $mesure && $d['fiable'] );
+                            $faible = ( $fiable && $d['taux'] < $seuil );
                         ?>
-                            <div class="npq-legende-ligne<?php echo $faible ? ' faible' : ''; ?><?php echo $mesure ? '' : ' non-aborde'; ?>">
+                            <div class="npq-legende-ligne<?php echo $faible ? ' faible' : ''; ?><?php echo $mesure ? '' : ' non-aborde'; ?><?php echo ( $mesure && ! $fiable ) ? ' peu-fiable' : ''; ?>">
                                 <span class="npq-leg-code"><?php echo esc_html( $d['code'] ); ?></span>
                                 <span class="npq-leg-nom"><?php echo esc_html( $d['libelle'] ); ?></span>
                                 <?php if ( $mesure ) : ?>
@@ -228,6 +241,12 @@ class NPQ_Activite {
                                             ?> <span class="npq-leg-blanches">+<?php
                                                 echo (int) $d['non_atteintes'];
                                             ?> non traitée(s)</span><?php
+                                        endif;
+                                        // Trop peu de questions pour conclure : on
+                                        // le dit, plutôt que de laisser un taux
+                                        // spectaculaire passer pour un constat.
+                                        if ( ! $fiable ) :
+                                            ?> <span class="npq-leg-blanches">trop peu pour conclure</span><?php
                                         endif; ?>
                                     </span>
                                 <?php else : ?>
@@ -267,9 +286,12 @@ class NPQ_Activite {
                     // Un domaine jamais abordé a un taux null : le désigner
                     // comme « le plus fragile » serait faux, et en PHP la
                     // comparaison null < seuil est vraie — le piège est discret.
+                    // On exige aussi un nombre de questions suffisant : envoyer
+                    // réviser un domaine sur la foi de deux questions ratées
+                    // ferait perdre du temps au candidat sur un faux signal.
                     $plus_faible = null;
                     foreach ( $domaines as $d ) {
-                        if ( $d['taux'] !== null ) {
+                        if ( $d['taux'] !== null && $d['fiable'] ) {
                             $plus_faible = $d;
                             break; // la liste est déjà triée du plus faible au plus fort
                         }
@@ -361,7 +383,10 @@ class NPQ_Activite {
                 // sous une barre). Le détail est donné dans la légende en dessous.
                 'label'   => $d['code'],
                 'value'   => (int) $d['taux'],
-                'faible'  => ( $d['taux'] < $seuil ),
+                // Un taux peu fiable n'est pas signalé comme faible : on ne
+                // met pas en rouge un résultat dont on ne répond pas.
+                'faible'  => ( $d['fiable'] && $d['taux'] < $seuil ),
+                'fiable'  => (bool) $d['fiable'],
                 'libelle' => $d['libelle'],
                 'total'   => (int) $d['total'],
             ];
@@ -604,6 +629,7 @@ class NPQ_Activite {
                 'taux'          => $taux,
                 'total'         => $repondues,          // ce sur quoi porte le taux
                 'non_atteintes' => $total - $repondues,
+                'fiable'        => ( $repondues >= self::FIABILITE_MIN ),
             ];
         }
 

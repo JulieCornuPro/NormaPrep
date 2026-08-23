@@ -1489,3 +1489,9 @@
   border-left:3px solid var(--muted);
   margin-bottom:18px;
 }
+
+/* Taux appuyé sur trop peu de questions : le chiffre reste lisible, mais il
+   perd son poids d'affirmation. Ni vert ni orange — on ne colore pas un
+   résultat dont on ne répond pas. */
+.npq-app .npq-legende-ligne.peu-fiable .npq-leg-taux{ color:var(--muted); }
+.npq-app .npq-legende-ligne.peu-fiable{ color:var(--text-lo); }
