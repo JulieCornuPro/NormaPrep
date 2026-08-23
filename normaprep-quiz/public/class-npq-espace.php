@@ -543,13 +543,19 @@ class NPQ_Espace {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
+        // Le nom de la certification accompagne chaque ligne : sur un compte
+        // multi-certification, « 68 % » ne veut rien dire sans savoir de quel
+        // référentiel il s'agit. LEFT JOIN car une tentative ancienne peut ne
+        // pas avoir été rattachée.
         $tentatives = $wpdb->get_results( $wpdb->prepare(
-            "SELECT id, mode, score, reussi, date_debut, date_fin
-             FROM {$p}tentative
-             WHERE utilisateur_id = %d
-               AND date_fin IS NOT NULL
-               AND mode <> 'revision'
-             ORDER BY date_debut DESC
+            "SELECT t.id, t.mode, t.score, t.reussi, t.date_debut, t.date_fin,
+                    c.nom AS certification
+             FROM {$p}tentative t
+             LEFT JOIN {$p}certification c ON c.id = t.certification_id
+             WHERE t.utilisateur_id = %d
+               AND t.date_fin IS NOT NULL
+               AND t.mode <> 'revision'
+             ORDER BY t.date_debut DESC
              LIMIT 20",
             $fiche['id']
         ), ARRAY_A );
@@ -558,16 +564,27 @@ class NPQ_Espace {
             return '<p style="color:#8B98B3">Aucun examen passé pour le moment.</p>';
         }
 
+        // Colonne affichée seulement si elle apporte une information : sur un
+        // compte mono-certification, elle répéterait la même valeur partout.
+        $afficher_certif = ( count( NPQ_Bibliotheque::certifications_utilisateur() ) > 1 );
+
         $html  = '<table class="npq-table">';
-        $html .= '<thead><tr><th>Date</th><th>Score</th><th>Résultat</th></tr></thead><tbody>';
+        $html .= '<thead><tr><th>Date</th>';
+        if ( $afficher_certif ) {
+            $html .= '<th>Certification</th>';
+        }
+        $html .= '<th>Score</th><th>Résultat</th></tr></thead><tbody>';
         foreach ( $tentatives as $t ) {
             $date  = esc_html( mysql2date( 'd/m/Y', $t['date_debut'] ) );
             $score = ( $t['score'] !== null ) ? intval( $t['score'] ) . ' %' : '—';
             $res   = $t['reussi'] ? 'Réussi' : 'Échoué';
             $classe = $t['reussi'] ? 'npq-result-ok' : 'npq-result-ko';
             $html .= '<tr>'
-                   . '<td>' . $date . '</td>'
-                   . '<td>' . $score . '</td>'
+                   . '<td>' . $date . '</td>';
+            if ( $afficher_certif ) {
+                $html .= '<td>' . esc_html( $t['certification'] ?? '—' ) . '</td>';
+            }
+            $html .= '<td>' . $score . '</td>'
                    . '<td class="' . $classe . '">' . $res . '</td></tr>';
         }
         $html .= '</tbody></table>';

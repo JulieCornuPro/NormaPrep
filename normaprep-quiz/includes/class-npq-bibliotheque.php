@@ -97,6 +97,147 @@ class NPQ_Bibliotheque {
     }
 
     /**
+     * Certifications à présenter à l'utilisateur CONNECTÉ : celles de sa
+     * bibliothèque. S'il n'en a aucune (compte dont l'accès n'est pas encore
+     * enregistré), on retombe sur la certification active plutôt que d'afficher
+     * une page vide.
+     *
+     * Les pages Révisions, Flashcards et Activité avaient chacune leur copie de
+     * cette logique, mot pour mot. Trois copies, c'est trois occasions de
+     * diverger : la règle de repli vit désormais à un seul endroit.
+     *
+     * @return array Lignes : id, code, nom.
+     */
+    public static function certifications_utilisateur() {
+        $fiche = NPQ_Comptes::fiche_courante();
+        $utilisateur_id = $fiche ? (int) $fiche['id'] : 0;
+
+        $certifs = $utilisateur_id ? self::certifications_de( $utilisateur_id ) : [];
+
+        if ( empty( $certifs ) ) {
+            $active = NPQ_Certification::courante();
+            if ( $active ) {
+                $certifs = [ [
+                    'id'   => (int) $active['id'],
+                    'code' => $active['code'],
+                    'nom'  => $active['nom'],
+                ] ];
+            }
+        }
+
+        return $certifs;
+    }
+
+    /**
+     * L'utilisateur connecté a-t-il accès à cette certification ?
+     * Garde-fou à appeler avant d'exposer le contenu d'une certification.
+     *
+     * Si sa bibliothèque est constituée, elle fait foi. Sinon on tolère la
+     * certification active — cohérent avec le repli ci-dessus.
+     *
+     * @param int $certification_id
+     * @return bool
+     */
+    public static function utilisateur_peut_acceder( $certification_id ) {
+        $certification_id = (int) $certification_id;
+        if ( ! $certification_id ) {
+            return false;
+        }
+
+        $fiche = NPQ_Comptes::fiche_courante();
+        $utilisateur_id = $fiche ? (int) $fiche['id'] : 0;
+        if ( ! $utilisateur_id ) {
+            return false;
+        }
+
+        $ids = self::ids_de( $utilisateur_id );
+        if ( ! empty( $ids ) ) {
+            return in_array( $certification_id, $ids, true );
+        }
+
+        return ( $certification_id === NPQ_Certification::id() );
+    }
+
+    /* =====================================================================
+     * CERTIFICATION CONSULTÉE (pages publiques multi-certification)
+     * ===================================================================== */
+
+    /**
+     * Certification que l'utilisateur consulte, lue dans l'URL (?npq_certif=…).
+     *
+     * L'état de la page vit dans l'URL plutôt qu'en session : la page reste
+     * ainsi partageable et compatible avec le bouton « précédent ».
+     *
+     * La valeur est TOUJOURS revérifiée contre la bibliothèque : le paramètre
+     * vient du navigateur, donc il se falsifie à la main. Un identifiant qui
+     * n'y figure pas est ignoré au profit de la première certification, plutôt
+     * que rejeté par une erreur — l'utilisateur n'a pas à subir un message
+     * technique pour une URL mal recopiée.
+     *
+     * @param array|null $certifs Bibliothèque déjà chargée, ou null pour la lire.
+     * @return int 0 si l'utilisateur n'a accès à aucune certification.
+     */
+    public static function certification_choisie( $certifs = null ) {
+        if ( $certifs === null ) {
+            $certifs = self::certifications_utilisateur();
+        }
+        if ( empty( $certifs ) ) {
+            return 0;
+        }
+
+        $demandee = isset( $_GET['npq_certif'] ) ? (int) $_GET['npq_certif'] : 0;
+
+        if ( $demandee ) {
+            foreach ( $certifs as $c ) {
+                if ( (int) $c['id'] === $demandee ) {
+                    return $demandee;
+                }
+            }
+        }
+
+        return (int) $certifs[0]['id'];
+    }
+
+    /**
+     * Sélecteur de certification, partagé par les pages publiques.
+     *
+     * Renvoie une chaîne vide si l'utilisateur ne possède qu'une certification :
+     * un choix à une seule option n'est pas un choix, c'est du bruit.
+     *
+     * Formulaire en GET, sans JavaScript obligatoire — l'envoi automatique au
+     * changement est un confort, le bouton reste le filet de sécurité.
+     *
+     * @param array  $certifs
+     * @param int    $actuelle
+     * @param string $id_champ Identifiant DOM, unique par page (deux pages
+     *                         peuvent afficher ce sélecteur).
+     * @return string
+     */
+    public static function selecteur_certification( $certifs, $actuelle, $id_champ = 'npq-certif-select' ) {
+        if ( count( $certifs ) < 2 ) {
+            return '';
+        }
+
+        ob_start();
+        ?>
+        <form method="get" class="npq-act-certif">
+            <label for="<?php echo esc_attr( $id_champ ); ?>" class="npq-champ-label">Certification</label>
+            <select name="npq_certif" id="<?php echo esc_attr( $id_champ ); ?>"
+                    class="npq-compo-select" onchange="this.form.submit()">
+                <?php foreach ( $certifs as $c ) : ?>
+                    <option value="<?php echo (int) $c['id']; ?>"
+                        <?php selected( (int) $c['id'], (int) $actuelle ); ?>>
+                        <?php echo esc_html( $c['nom'] ); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <noscript><button type="submit" class="npq-btn">Afficher</button></noscript>
+        </form>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
      * Attribue une certification à un utilisateur (entrée dans la bibliothèque).
      * Idempotent : réattribuer une certification déjà présente ne crée pas de
      * doublon, mais peut mettre à jour la date de fin d'accès.

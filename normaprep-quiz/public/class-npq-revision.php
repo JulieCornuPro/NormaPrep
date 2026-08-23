@@ -185,7 +185,7 @@ class NPQ_Revision {
             }
 
             if ( ( $parcours['type'] ?? 'criteres' ) === 'questions' ) {
-                self::lancer_questions( $cle );
+                self::lancer_questions( $cle, (int) $parcours['certification_id'] );
             } else {
                 self::lancer(
                     $parcours['domaines'],
@@ -227,6 +227,8 @@ class NPQ_Revision {
 
         $wpdb->insert( "{$p}tentative", [
             'utilisateur_id'   => $fiche['id'],
+            // Certification révisée : même rôle que sur une tentative d'examen.
+            'certification_id' => $certification_id,
             'examen_modele_id' => null,
             'mode'             => 'revision',
             'criteres'         => wp_json_encode( [
@@ -250,11 +252,22 @@ class NPQ_Revision {
      * Lance une révision à partir des questions figées d'un parcours
      * (mode « questions choisies »). Jumelle de lancer(), mais la composition
      * vient de la table de liaison plutôt que d'un tirage par critères.
+     *
+     * @param int $parcours_id
+     * @param int $certification_id Certification du parcours. Transmise par
+     *                              l'appelant, qui vient de la vérifier.
      */
-    private static function lancer_questions( $parcours_id ) {
+    private static function lancer_questions( $parcours_id, $certification_id = 0 ) {
         $questions = NPQ_Composeur::par_parcours( $parcours_id );
         if ( empty( $questions ) ) {
             return;
+        }
+
+        // Un parcours peut n'être rattaché à aucune certification (parcours
+        // transverse) : on retombe alors sur la certification courante.
+        $certification_id = (int) $certification_id;
+        if ( ! $certification_id ) {
+            $certification_id = self::certification_courante();
         }
 
         $fiche = NPQ_Comptes::fiche_courante();
@@ -269,6 +282,9 @@ class NPQ_Revision {
 
         $wpdb->insert( "{$pfx}tentative", [
             'utilisateur_id'   => $fiche['id'],
+            // 0 signifierait « aucune certification en base » : on écrit NULL
+            // plutôt qu'un 0 qui ressemblerait à un identifiant réel.
+            'certification_id' => $certification_id ?: null,
             'examen_modele_id' => null,
             'mode'             => 'revision',
             'criteres'         => wp_json_encode( [
@@ -501,26 +517,7 @@ class NPQ_Revision {
      * @return array Lignes de certification : id, code, nom.
      */
     private static function certifications_utilisateur() {
-        $fiche = NPQ_Comptes::fiche_courante();
-        $utilisateur_id = $fiche ? (int) $fiche['id'] : 0;
-
-        $certifs = $utilisateur_id
-            ? NPQ_Bibliotheque::certifications_de( $utilisateur_id )
-            : [];
-
-        if ( empty( $certifs ) ) {
-            // Repli : la certification active, si elle existe.
-            $active = NPQ_Certification::courante();
-            if ( $active ) {
-                $certifs = [ [
-                    'id'   => (int) $active['id'],
-                    'code' => $active['code'],
-                    'nom'  => $active['nom'],
-                ] ];
-            }
-        }
-
-        return $certifs;
+        return NPQ_Bibliotheque::certifications_utilisateur();
     }
 
     /**
@@ -528,26 +525,7 @@ class NPQ_Revision {
      * Garde-fou appelé avant de lancer un parcours ou une composition.
      */
     private static function peut_acceder( $certification_id ) {
-        $certification_id = (int) $certification_id;
-        if ( ! $certification_id ) {
-            return false;
-        }
-
-        $fiche = NPQ_Comptes::fiche_courante();
-        $utilisateur_id = $fiche ? (int) $fiche['id'] : 0;
-        if ( ! $utilisateur_id ) {
-            return false;
-        }
-
-        // Si l'utilisateur a des accès enregistrés, on s'y fie. Sinon (compte
-        // sans bibliothèque encore constituée), on tolère la certification
-        // active, cohérent avec le repli de certifications_utilisateur().
-        $ids = NPQ_Bibliotheque::ids_de( $utilisateur_id );
-        if ( ! empty( $ids ) ) {
-            return in_array( $certification_id, $ids, true );
-        }
-
-        return ( $certification_id === NPQ_Certification::id() );
+        return NPQ_Bibliotheque::utilisateur_peut_acceder( $certification_id );
     }
 
     /** Certification active — délègue à la résolution centralisée. */

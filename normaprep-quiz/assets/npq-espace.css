@@ -1450,3 +1450,9 @@
 /* Parcours de révision multi-certif */
 .npq-sec-certif { color: var(--text-lo); font-weight: 400; }
 .npq-compo-select { margin-bottom: 16px; padding: 8px; }
+/* Sélecteur de certification de la page Activité.
+   Aligné sur le libellé + champ des autres pages multi-certif, mais posé
+   en tête de page plutôt que dans un formulaire de composition. */
+.npq-act-certif { margin: 0 0 24px; max-width: 420px; }
+.npq-act-certif .npq-champ-label { display: block; margin-bottom: 6px; }
+.npq-act-certif .npq-compo-select { width: 100%; margin-bottom: 0; }

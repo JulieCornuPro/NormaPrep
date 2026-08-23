@@ -265,9 +265,18 @@ class NPQ_Installer {
         // --- Tentatives : une session d'examen passée par un utilisateur ---
         // examen_modele_id renseigné si l'examen vient d'un modèle ; sinon criteres
         // (JSON) décrit la génération à la volée.
+        //
+        // certification_id mémorise SUR QUELLE certification la tentative a été
+        // passée. Sans cette colonne, l'historique et les statistiques ne peuvent
+        // pas être segmentés : les codes de domaine (D1, D2…) étant réutilisés
+        // d'une certification à l'autre, deux référentiels fusionneraient sous
+        // le même libellé. On la lit plutôt que de remonter aux questions à
+        // chaque requête. NULL = tentative ancienne dont l'origine n'a pas pu
+        // être déterminée (voir remplir_certification_tentatives()).
         $sql[] = "CREATE TABLE {$p}tentative (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             utilisateur_id BIGINT UNSIGNED NOT NULL,
+            certification_id BIGINT UNSIGNED NULL,
             examen_modele_id BIGINT UNSIGNED NULL,
             mode VARCHAR(20) NOT NULL DEFAULT 'libre',
             criteres LONGTEXT NULL,
@@ -277,6 +286,7 @@ class NPQ_Installer {
             date_fin DATETIME NULL,
             PRIMARY KEY  (id),
             KEY utilisateur_id (utilisateur_id),
+            KEY certification_id (certification_id),
             KEY examen_modele_id (examen_modele_id)
         ) $charset;";
 
@@ -341,9 +351,135 @@ class NPQ_Installer {
         // creer_tables est rappelée).
         self::amorcer_parcours();
 
+        // Rattache les tentatives déjà enregistrées à leur certification.
+        // dbDelta vient d'ajouter la colonne : elle est vide sur tout
+        // l'historique existant.
+        self::remplir_certification_tentatives();
+
         // On mémorise la version de schéma installée. Utile plus tard pour gérer
         // les migrations d'une version à l'autre.
         update_option( 'npq_db_version', NPQ_VERSION );
+    }
+
+    /**
+     * Rattache à leur certification les tentatives qui n'en portent pas encore.
+     *
+     * La colonne tentative.certification_id est apparue après coup : tout
+     * l'historique déjà enregistré l'a à NULL. On la reconstitue par déductions
+     * successives, de la plus fiable à la moins fiable — chaque passe ne touche
+     * que les lignes encore NULL, donc l'ordre fait foi et la méthode est
+     * idempotente (rejouée, elle ne défait rien).
+     *
+     *   1. Les questions réellement répondues : c'est la preuve directe.
+     *   2. Le modèle d'examen utilisé, quand la tentative n'a aucune réponse
+     *      (examen ouvert puis abandonné).
+     *   3. Les questions mémorisées dans « criteres », qui couvrent aussi les
+     *      tentatives abandonnées sans modèle.
+     *   4. Repli : s'il n'existe qu'UNE seule certification en base, tout
+     *      l'historique lui appartient forcément. Au-delà d'une, on s'abstient :
+     *      mieux vaut une tentative sans certification qu'une tentative classée
+     *      dans le mauvais référentiel.
+     *
+     * @return int Nombre de tentatives rattachées.
+     */
+    private static function remplir_certification_tentatives() {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $restantes = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$p}tentative WHERE certification_id IS NULL"
+        );
+        if ( $restantes < 1 ) {
+            return 0; // rien à reprendre : cas courant après la première passe
+        }
+
+        // 1) D'après les questions répondues. MIN() suffit : une tentative ne
+        //    mélange jamais deux certifications (la composition part toujours
+        //    d'une seule).
+        $wpdb->query(
+            "UPDATE {$p}tentative t
+             INNER JOIN (
+                 SELECT r.tentative_id, MIN(q.certification_id) AS cid
+                 FROM {$p}reponse r
+                 INNER JOIN {$p}question q ON q.id = r.question_id
+                 WHERE q.certification_id IS NOT NULL
+                 GROUP BY r.tentative_id
+             ) src ON src.tentative_id = t.id
+             SET t.certification_id = src.cid
+             WHERE t.certification_id IS NULL"
+        );
+
+        // 2) D'après le modèle d'examen, pour les tentatives sans réponse.
+        $wpdb->query(
+            "UPDATE {$p}tentative t
+             INNER JOIN {$p}examen_modele m ON m.id = t.examen_modele_id
+             SET t.certification_id = m.certification_id
+             WHERE t.certification_id IS NULL
+               AND m.certification_id IS NOT NULL"
+        );
+
+        // 3) D'après les ids de questions mémorisés dans « criteres ». Le JSON
+        //    n'est pas interrogeable en SQL sur les vieilles versions de MySQL :
+        //    on le décode côté PHP, sur le reliquat seulement.
+        $orphelines = (array) $wpdb->get_results(
+            "SELECT id, criteres FROM {$p}tentative
+             WHERE certification_id IS NULL AND criteres IS NOT NULL",
+            ARRAY_A
+        );
+
+        foreach ( $orphelines as $ligne ) {
+            $criteres = json_decode( (string) $ligne['criteres'], true );
+            if ( ! is_array( $criteres ) || empty( $criteres['questions'] ) ) {
+                continue;
+            }
+
+            $ids = array_filter( array_map( 'intval', (array) $criteres['questions'] ) );
+            if ( empty( $ids ) ) {
+                continue;
+            }
+
+            // %d répété autant de fois qu'il y a d'ids : jamais d'interpolation
+            // directe dans la requête.
+            $marqueurs = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+            $cid = (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT certification_id FROM {$p}question
+                 WHERE id IN ( {$marqueurs} ) AND certification_id IS NOT NULL
+                 LIMIT 1",
+                $ids
+            ) );
+
+            if ( $cid ) {
+                $wpdb->update(
+                    "{$p}tentative",
+                    [ 'certification_id' => $cid ],
+                    [ 'id' => (int) $ligne['id'] ]
+                );
+            }
+        }
+
+        // 4) Repli mono-certification : sans ambiguïté possible, on rattache
+        //    tout le reste. Les questions ont pu être supprimées depuis, ce qui
+        //    rend les passes précédentes muettes — l'historique reste pourtant
+        //    bien celui de l'unique certification en place.
+        $nb_certifs = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}certification" );
+        if ( $nb_certifs === 1 ) {
+            $certification_id = (int) $wpdb->get_var(
+                "SELECT id FROM {$p}certification LIMIT 1"
+            );
+            if ( $certification_id ) {
+                $wpdb->query( $wpdb->prepare(
+                    "UPDATE {$p}tentative SET certification_id = %d
+                     WHERE certification_id IS NULL",
+                    $certification_id
+                ) );
+            }
+        }
+
+        $reste = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$p}tentative WHERE certification_id IS NULL"
+        );
+
+        return $restantes - $reste;
     }
 
     /**

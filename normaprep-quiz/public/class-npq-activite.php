@@ -76,11 +76,25 @@ class NPQ_Activite {
             return '<p class="empty">Vous devez être connecté(e) pour voir votre activité.</p>';
         }
 
-        $examens = self::examens_recents();
+        // Toute la page est relative à UNE certification : mélanger les
+        // référentiels n'aurait aucun sens (un score de 72 % en Lead Auditor
+        // ne se moyenne pas avec un 65 % en Lead Implementer).
+        $certifs          = NPQ_Bibliotheque::certifications_utilisateur();
+        $certification_id = self::certification_choisie( $certifs );
+
+        if ( ! $certification_id ) {
+            return '<p class="empty">Aucune certification disponible.</p>';
+        }
+
+        $selecteur = self::selecteur_certification( $certifs, $certification_id );
+        $examens   = self::examens_recents( $certification_id );
 
         // Aucun examen : on n'affiche pas de courbe vide, on invite à commencer.
+        // Le sélecteur reste affiché — sans lui, un candidat qui n'a pas encore
+        // passé d'examen sur la certification choisie n'aurait aucun moyen de
+        // revenir sur celle où il a travaillé.
         if ( empty( $examens ) ) {
-            return self::ecran_vide();
+            return self::ecran_vide( $selecteur );
         }
 
         $chiffres = self::chiffres_cles( $examens );
@@ -97,6 +111,8 @@ class NPQ_Activite {
             <p class="npq-act-intro">
                 Suivez votre progression au fil de vos examens blancs.
             </p>
+
+            <?php echo $selecteur; ?>
 
             <!-- Progression -->
             <section class="npq-kpi-bloc reveal-on-scroll">
@@ -149,7 +165,7 @@ class NPQ_Activite {
             </section>
 
             <?php
-            $domaines = self::taux_par_domaine();
+            $domaines = self::taux_par_domaine( $certification_id );
             $seuil    = self::seuil_reussite();
             ?>
             <?php if ( ! empty( $domaines ) ) : ?>
@@ -203,7 +219,7 @@ class NPQ_Activite {
                 </section>
             <?php endif; ?>
 
-            <?php $volume = self::volume_travail(); ?>
+            <?php $volume = self::volume_travail( $certification_id ); ?>
             <?php if ( $volume && $volume['questions'] > 0 ) : ?>
                 <!-- Volume de travail -->
                 <section class="npq-kpi-bloc reveal-on-scroll">
@@ -261,7 +277,7 @@ class NPQ_Activite {
      * Écran affiché quand le candidat n'a encore passé aucun examen.
      * Pas de courbe vide ni de zéros : on l'invite à commencer.
      */
-    private static function ecran_vide() {
+    private static function ecran_vide( $selecteur = '' ) {
         $page_examen = get_option( 'npq_page_examen_id' );
         $url = $page_examen ? get_permalink( $page_examen ) : home_url( '/' );
 
@@ -269,16 +285,43 @@ class NPQ_Activite {
         ?>
         <div class="npq-activite">
             <h2>Mon activité</h2>
+
+            <?php echo $selecteur; ?>
+
             <div class="npq-act-vide">
                 <p>
-                    Vous n'avez pas encore passé d'examen blanc. Vos indicateurs de
-                    progression apparaîtront ici dès votre premier résultat.
+                    <?php if ( $selecteur !== '' ) : ?>
+                        Vous n'avez pas encore passé d'examen blanc sur cette
+                        certification. Choisissez-en une autre ci-dessus, ou
+                        lancez votre premier examen.
+                    <?php else : ?>
+                        Vous n'avez pas encore passé d'examen blanc. Vos indicateurs de
+                        progression apparaîtront ici dès votre premier résultat.
+                    <?php endif; ?>
                 </p>
                 <a href="<?php echo esc_url( $url ); ?>" class="npq-btn">Passer mon premier examen</a>
             </div>
         </div>
         <?php
         return ob_get_clean();
+    }
+
+    /* =====================================================================
+     * CERTIFICATION AFFICHÉE
+     * ===================================================================== */
+
+    /**
+     * Certification consultée et sélecteur : mutualisés avec la page Examens,
+     * qui présente exactement le même choix. Voir NPQ_Bibliotheque.
+     */
+    private static function certification_choisie( $certifs ) {
+        return NPQ_Bibliotheque::certification_choisie( $certifs );
+    }
+
+    private static function selecteur_certification( $certifs, $actuelle ) {
+        return NPQ_Bibliotheque::selecteur_certification(
+            $certifs, $actuelle, 'npq-act-certif-select'
+        );
     }
 
     /* =====================================================================
@@ -292,7 +335,7 @@ class NPQ_Activite {
      * l'effort, pas la performance. Un candidat qui révise beaucoup travaille dur,
      * même s'il passe peu d'examens.
      */
-    private static function volume_travail() {
+    private static function volume_travail( $certification_id ) {
         $fiche = NPQ_Comptes::fiche_courante();
         if ( ! $fiche ) {
             return null;
@@ -307,8 +350,10 @@ class NPQ_Activite {
              FROM {$p}reponse r
              INNER JOIN {$p}tentative t ON t.id = r.tentative_id
              WHERE t.utilisateur_id = %d
+               AND t.certification_id = %d
                AND t.date_fin IS NOT NULL",
-            $fiche['id']
+            $fiche['id'],
+            $certification_id
         ) );
 
         // Domaines couverts : sur combien de domaines distincts a-t-il travaillé ?
@@ -318,14 +363,19 @@ class NPQ_Activite {
              INNER JOIN {$p}tentative t ON t.id = r.tentative_id
              INNER JOIN {$p}question  q ON q.id = r.question_id
              WHERE t.utilisateur_id = %d
+               AND t.certification_id = %d
                AND t.date_fin IS NOT NULL",
-            $fiche['id']
+            $fiche['id'],
+            $certification_id
         ) );
 
         // Total de domaines existants (pour donner le contexte : 5 sur 7).
-        $domaines_total = (int) $wpdb->get_var(
-            "SELECT COUNT(*) FROM {$p}domaine"
-        );
+        // Filtré sur la certification : sans cela, le dénominateur cumulait les
+        // domaines de TOUS les référentiels et affichait « 5 sur 34 ».
+        $domaines_total = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$p}domaine WHERE certification_id = %d",
+            $certification_id
+        ) );
 
         // Sessions, en distinguant examens et révisions.
         $sessions = $wpdb->get_row( $wpdb->prepare(
@@ -334,8 +384,10 @@ class NPQ_Activite {
                 SUM( CASE WHEN mode <> 'revision' THEN 1 ELSE 0 END ) AS examens
              FROM {$p}tentative
              WHERE utilisateur_id = %d
+               AND certification_id = %d
                AND date_fin IS NOT NULL",
-            $fiche['id']
+            $fiche['id'],
+            $certification_id
         ), ARRAY_A );
 
         return [
@@ -355,7 +407,7 @@ class NPQ_Activite {
      * Le nombre compte : un domaine avec une seule question donne 0 % ou 100 %,
      * ce qui n'est pas fiable — le candidat doit le savoir.
      */
-    private static function taux_par_domaine() {
+    private static function taux_par_domaine( $certification_id ) {
         $fiche = NPQ_Comptes::fiche_courante();
         if ( ! $fiche ) {
             return [];
@@ -366,6 +418,11 @@ class NPQ_Activite {
 
         // On croise les réponses du candidat avec le domaine de chaque question,
         // en ne gardant que les tentatives de type examen.
+        //
+        // Le filtre sur la certification est indispensable : les codes de
+        // domaine (D1, D2…) sont réutilisés d'un référentiel à l'autre. Sans
+        // lui, le GROUP BY fusionnait sous une même barre les résultats de
+        // deux certifications sans rapport.
         $lignes = $wpdb->get_results( $wpdb->prepare(
             "SELECT q.domaine AS code,
                     COUNT(*) AS total,
@@ -374,24 +431,27 @@ class NPQ_Activite {
              INNER JOIN {$p}tentative t ON t.id = r.tentative_id
              INNER JOIN {$p}question  q ON q.id = r.question_id
              WHERE t.utilisateur_id = %d
+               AND t.certification_id = %d
                AND t.date_fin IS NOT NULL
                AND t.score IS NOT NULL
                AND t.mode <> 'revision'
              GROUP BY q.domaine
              ORDER BY q.domaine ASC",
-            $fiche['id']
+            $fiche['id'],
+            $certification_id
         ), ARRAY_A );
 
         if ( empty( $lignes ) ) {
             return [];
         }
 
-        // Libellés lisibles des domaines.
+        // Libellés lisibles des domaines, ceux de CETTE certification : deux
+        // référentiels donnent des intitulés différents au même code D1.
         $libelles = [];
-        $rows = $wpdb->get_results(
-            "SELECT code, libelle FROM {$p}domaine",
-            ARRAY_A
-        );
+        $rows = $wpdb->get_results( $wpdb->prepare(
+            "SELECT code, libelle FROM {$p}domaine WHERE certification_id = %d",
+            $certification_id
+        ), ARRAY_A );
         foreach ( (array) $rows as $r ) {
             $libelles[ $r['code'] ] = $r['libelle'];
         }
@@ -426,7 +486,7 @@ class NPQ_Activite {
     /**
      * Les N derniers examens du candidat (révisions exclues), du plus récent au plus ancien.
      */
-    private static function examens_recents() {
+    private static function examens_recents( $certification_id ) {
         $fiche = NPQ_Comptes::fiche_courante();
         if ( ! $fiche ) {
             return [];
@@ -439,12 +499,14 @@ class NPQ_Activite {
             "SELECT id, score, reussi, date_debut
              FROM {$p}tentative
              WHERE utilisateur_id = %d
+               AND certification_id = %d
                AND date_fin IS NOT NULL
                AND score IS NOT NULL
                AND mode <> 'revision'
              ORDER BY date_debut DESC
              LIMIT %d",
             $fiche['id'],
+            $certification_id,
             self::NB_EXAMENS_COURBE
         ), ARRAY_A );
     }

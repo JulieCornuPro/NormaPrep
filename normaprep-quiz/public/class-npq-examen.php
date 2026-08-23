@@ -397,7 +397,25 @@ class NPQ_Examen {
         if ( $action === 'demarrer' ) {
             // Id du modèle d'examen choisi (0 = examen blanc PECB par défaut).
             $modele_id = isset( $_POST['npq_examen_modele'] ) ? (int) $_POST['npq_examen_modele'] : 0;
-            self::demarrer( $modele_id );
+
+            // Certification sur laquelle porte l'examen, transmise par le
+            // formulaire. À défaut, celle de la bibliothèque de l'utilisateur.
+            $certification_id = isset( $_POST['npq_certification'] )
+                ? (int) $_POST['npq_certification']
+                : 0;
+            if ( ! $certification_id ) {
+                $certification_id = self::certification_par_defaut();
+            }
+
+            // Garde-fou : on ne démarre un examen que sur une certification
+            // que l'utilisateur possède. Le champ vient du navigateur, donc il
+            // se falsifie — le nonce prouve l'origine du formulaire, pas la
+            // légitimité de sa valeur.
+            if ( ! NPQ_Bibliotheque::utilisateur_peut_acceder( $certification_id ) ) {
+                return;
+            }
+
+            self::demarrer( $modele_id, $certification_id );
         } elseif ( $action === 'repondre' ) {
             self::enregistrer_reponse();
         }
@@ -412,8 +430,11 @@ class NPQ_Examen {
      *
      * Il n'y a plus de choix de scénario : un examen est aléatoire, comme le vrai.
      */
-    private static function demarrer( $modele_id = 0 ) {
-        $certification_id = self::certification_courante();
+    private static function demarrer( $modele_id = 0, $certification_id = 0 ) {
+        $certification_id = (int) $certification_id;
+        if ( ! $certification_id ) {
+            $certification_id = self::certification_par_defaut();
+        }
         if ( ! $certification_id ) {
             return;
         }
@@ -477,6 +498,10 @@ class NPQ_Examen {
 
         $wpdb->insert( "{$p}tentative", [
             'utilisateur_id'   => $fiche['id'],
+            // Certification de l'épreuve : mémorisée sur la tentative pour que
+            // l'historique et les statistiques puissent être segmentés sans
+            // avoir à remonter aux questions.
+            'certification_id' => $certification_id,
             // On renseigne le modèle quand il y en a un : la colonne existe déjà
             // et sert précisément à ça.
             'examen_modele_id' => $modele ? (int) $modele['id'] : null,
@@ -510,6 +535,34 @@ class NPQ_Examen {
     /** Certification active — délègue à la résolution centralisée. */
     private static function certification_courante() {
         return NPQ_Certification::id();
+    }
+
+    /**
+     * Certification par défaut pour cet utilisateur : la première de sa
+     * bibliothèque. Repli sur la certification active s'il n'a pas encore
+     * d'accès enregistré.
+     *
+     * Auparavant la page d'examen s'en tenait à la certification active
+     * choisie en administration — un abonné à plusieurs référentiels ne
+     * pouvait donc passer d'examen que sur celui coché côté admin.
+     */
+    private static function certification_par_defaut() {
+        $certifs = NPQ_Bibliotheque::certifications_utilisateur();
+        return ! empty( $certifs ) ? (int) $certifs[0]['id'] : self::certification_courante();
+    }
+
+    /**
+     * Certification consultée et sélecteur : mutualisés avec la page Activité,
+     * qui présente exactement le même choix. Voir NPQ_Bibliotheque.
+     */
+    private static function certification_choisie( $certifs ) {
+        return NPQ_Bibliotheque::certification_choisie( $certifs );
+    }
+
+    private static function selecteur_certification( $certifs, $actuelle ) {
+        return NPQ_Bibliotheque::selecteur_certification(
+            $certifs, $actuelle, 'npq-exam-certif-select'
+        );
     }
 
     /**
@@ -630,9 +683,25 @@ class NPQ_Examen {
      * le chronomètre tourne, quitter l'examen l'abandonne.
      */
     private static function ecran_choix() {
-        $certification_id = self::certification_courante();
+        // Les examens proposés sont ceux de la bibliothèque de l'utilisateur,
+        // et non plus ceux de la seule certification active en administration.
+        $certifs          = NPQ_Bibliotheque::certifications_utilisateur();
+        $certification_id = self::certification_choisie( $certifs );
+
         if ( ! $certification_id ) {
             return '<p class="empty">Aucune certification disponible.</p>';
+        }
+
+        $selecteur = self::selecteur_certification( $certifs, $certification_id );
+
+        // Nom du référentiel : l'intitulé était écrit en dur, ce qui annonçait
+        // « ISO/IEC 27001 Lead Implementer » quelle que soit la certification.
+        $nom_certif = '';
+        foreach ( $certifs as $c ) {
+            if ( (int) $c['id'] === $certification_id ) {
+                $nom_certif = (string) $c['nom'];
+                break;
+            }
         }
 
         // Vérifie que la banque permet de composer l'examen.
@@ -641,7 +710,14 @@ class NPQ_Examen {
             NPQ_Ponderation::de( $certification_id )
         );
         if ( ! $verif['possible'] ) {
-            return '<p class="empty">Les questions ne sont pas encore disponibles.</p>';
+            // On garde le sélecteur : sans lui, un candidat dont la première
+            // certification n'a pas encore assez de questions serait bloqué
+            // sur ce message, sans pouvoir basculer sur une autre.
+            return '<div class="npq-examen-accueil">'
+                 . '<h2>Examen blanc</h2>'
+                 . $selecteur
+                 . '<p class="empty">Les questions de cette certification ne sont '
+                 . 'pas encore disponibles.</p></div>';
         }
 
         $nb_questions = (int) $verif['total'];
@@ -652,9 +728,12 @@ class NPQ_Examen {
         ?>
         <div class="npq-examen-accueil">
             <h2>Examen blanc</h2>
+
+            <?php echo $selecteur; ?>
+
             <p class="npq-exam-intro">
-                Une simulation dans les conditions du véritable examen PECB
-                ISO/IEC 27001 Lead Implementer.
+                Une simulation dans les conditions du véritable examen
+                <?php echo $nom_certif !== '' ? esc_html( $nom_certif ) : 'de certification'; ?>.
             </p>
 
             <!-- Les conditions de l'épreuve -->
@@ -704,6 +783,7 @@ class NPQ_Examen {
 
             <form method="post" class="npq-exam-lancer">
                 <input type="hidden" name="npq_examen_action" value="demarrer">
+                <input type="hidden" name="npq_certification" value="<?php echo (int) $certification_id; ?>">
                 <?php wp_nonce_field( 'npq_examen', 'npq_nonce' ); ?>
                 <button type="submit" data-npq-confirm="Le chronomètre va démarrer. Prêt(e) à commencer ?"
             data-npq-confirm-ok class="npq-btn">Démarrer l'examen</button>
@@ -783,6 +863,7 @@ class NPQ_Examen {
                     <form method="post" class="npq-exam-lancer">
                         <input type="hidden" name="npq_examen_action" value="demarrer">
                         <input type="hidden" name="npq_examen_modele" value="<?php echo (int) $ex['id']; ?>">
+                        <input type="hidden" name="npq_certification" value="<?php echo (int) $certification_id; ?>">
                         <?php wp_nonce_field( 'npq_examen', 'npq_nonce' ); ?>
                         <button type="submit" data-npq-confirm="Le chronomètre va démarrer. Prêt(e) à commencer ?" data-npq-confirm-ok class="npq-btn">Démarrer</button>
                     </form>
@@ -988,7 +1069,7 @@ class NPQ_Examen {
 
         // Résultat global de la tentative.
         $t = $wpdb->get_row( $wpdb->prepare(
-            "SELECT score, reussi FROM {$p}tentative WHERE id = %d",
+            "SELECT score, reussi, certification_id FROM {$p}tentative WHERE id = %d",
             $tentative_id
         ), ARRAY_A );
 
@@ -1015,8 +1096,12 @@ class NPQ_Examen {
             }
         }
 
-        // Libellés lisibles des domaines (D1 -> « Planification du SMSI »).
-        $libelles = self::libelles_domaines( array_keys( $par_domaine ) );
+        // Libellés lisibles des domaines (D1 -> « Planification du SMSI »),
+        // ceux de la certification sur laquelle l'examen a été passé.
+        $libelles = self::libelles_domaines(
+            array_keys( $par_domaine ),
+            (int) ( $t['certification_id'] ?? 0 )
+        );
 
         $url_espace = self::url_espace();
 
@@ -1403,8 +1488,17 @@ class NPQ_Examen {
      * Récupère les libellés lisibles des domaines depuis la base.
      * Renvoie un tableau code => libellé (ex : 'D3' => 'Planification du SMSI').
      * Si un domaine n'a pas de libellé, il n'est pas dans le tableau (on affichera le code).
+     *
+     * Le filtre par certification est essentiel : les codes de domaine sont
+     * réutilisés d'un référentiel à l'autre. Sans lui, plusieurs lignes
+     * remontaient pour un même code et la dernière lue écrasait les autres —
+     * l'écran de résultat pouvait afficher l'intitulé d'une certification que
+     * le candidat n'avait pas passée.
+     *
+     * @param array $codes            Codes de domaine rencontrés.
+     * @param int   $certification_id 0 pour une tentative ancienne non rattachée.
      */
-    private static function libelles_domaines( $codes ) {
+    private static function libelles_domaines( $codes, $certification_id = 0 ) {
         if ( empty( $codes ) ) {
             return [];
         }
@@ -1412,10 +1506,26 @@ class NPQ_Examen {
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
         $placeholders = implode( ',', array_fill( 0, count( $codes ), '%s' ) );
-        $lignes = $wpdb->get_results( $wpdb->prepare(
-            "SELECT code, libelle FROM {$p}domaine WHERE code IN ( $placeholders )",
-            $codes
-        ), ARRAY_A );
+
+        // Tentative non rattachée : on ne peut pas choisir le bon référentiel.
+        // On retient alors le libellé le plus ancien, un choix stable plutôt
+        // qu'un tirage au hasard. Le tri DESC y pourvoit : la boucle de
+        // construction du tableau écrase au fur et à mesure, donc c'est la
+        // DERNIÈRE ligne lue — le plus petit id — qui l'emporte.
+        if ( ! $certification_id ) {
+            $lignes = $wpdb->get_results( $wpdb->prepare(
+                "SELECT code, libelle FROM {$p}domaine
+                 WHERE code IN ( $placeholders )
+                 ORDER BY id DESC",
+                $codes
+            ), ARRAY_A );
+        } else {
+            $lignes = $wpdb->get_results( $wpdb->prepare(
+                "SELECT code, libelle FROM {$p}domaine
+                 WHERE certification_id = %d AND code IN ( $placeholders )",
+                array_merge( [ $certification_id ], $codes )
+            ), ARRAY_A );
+        }
 
         $map = [];
         foreach ( (array) $lignes as $l ) {
