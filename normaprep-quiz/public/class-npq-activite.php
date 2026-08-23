@@ -344,19 +344,28 @@ class NPQ_Activite {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
-        // Questions travaillées : toutes les réponses données, examens et révisions.
+        // Questions travaillées : celles auxquelles le candidat a réellement
+        // répondu. La correction enregistre aussi une ligne pour les questions
+        // laissées blanches (elles comptent fausses au barème) ; les inclure
+        // ici gonflerait l'effort — rendre copie blanche n'est pas travailler.
+        // Une question répondue est une question ayant au moins une option
+        // cochée.
         $questions = (int) $wpdb->get_var( $wpdb->prepare(
             "SELECT COUNT(*)
              FROM {$p}reponse r
              INNER JOIN {$p}tentative t ON t.id = r.tentative_id
              WHERE t.utilisateur_id = %d
                AND t.certification_id = %d
-               AND t.date_fin IS NOT NULL",
+               AND t.date_fin IS NOT NULL
+               AND EXISTS ( SELECT 1 FROM {$p}reponse_option ro
+                            WHERE ro.reponse_id = r.id )",
             $fiche['id'],
             $certification_id
         ) );
 
         // Domaines couverts : sur combien de domaines distincts a-t-il travaillé ?
+        // Même règle : un domaine seulement effleuré par des questions non
+        // répondues n'est pas un domaine couvert.
         $domaines_couverts = (int) $wpdb->get_var( $wpdb->prepare(
             "SELECT COUNT(DISTINCT q.domaine)
              FROM {$p}reponse r
@@ -364,7 +373,9 @@ class NPQ_Activite {
              INNER JOIN {$p}question  q ON q.id = r.question_id
              WHERE t.utilisateur_id = %d
                AND t.certification_id = %d
-               AND t.date_fin IS NOT NULL",
+               AND t.date_fin IS NOT NULL
+               AND EXISTS ( SELECT 1 FROM {$p}reponse_option ro
+                            WHERE ro.reponse_id = r.id )",
             $fiche['id'],
             $certification_id
         ) );

@@ -59,10 +59,43 @@ class NPQ_Correcteur {
     }
 
     /**
+     * Liste des questions composant une tentative, dans l'ordre.
+     *
+     * La composition est figée au démarrage dans la colonne `criteres` : c'est
+     * elle qui fait foi, et non les réponses effectivement données.
+     *
+     * @param int $tentative_id
+     * @return int[]
+     */
+    private static function ids_questions( $tentative_id ) {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $criteres = $wpdb->get_var( $wpdb->prepare(
+            "SELECT criteres FROM {$p}tentative WHERE id = %d",
+            (int) $tentative_id
+        ) );
+
+        $data = json_decode( (string) $criteres, true );
+        if ( ! isset( $data['questions'] ) || ! is_array( $data['questions'] ) ) {
+            return [];
+        }
+
+        return array_values( array_filter( array_map( 'intval', $data['questions'] ) ) );
+    }
+
+    /**
      * Corrige une TENTATIVE complète et enregistre les résultats en base.
      *
      * Attend les réponses de l'utilisateur sous la forme :
      *   [ question_id => [option_id, option_id, ...], ... ]
+     *
+     * Le dénominateur du score est le nombre de questions COMPOSANT l'examen,
+     * pas le nombre de questions répondues. C'est la règle d'une épreuve : une
+     * question laissée blanche est fausse, elle n'est pas retirée du barème.
+     *
+     * Auparavant la boucle parcourait les seules réponses reçues : un candidat
+     * qui répondait juste à une question puis rendait copie obtenait 100 %.
      *
      * @param int   $tentative_id Id de la tentative en cours.
      * @param array $reponses     Réponses de l'utilisateur.
@@ -73,18 +106,70 @@ class NPQ_Correcteur {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
+        $tentative_id = (int) $tentative_id;
+
+        // Une tentative ne se corrige qu'UNE fois. Le chemin sans JavaScript
+        // n'a pas de verrou en amont : un double clic, ou un rafraîchissement
+        // qui rejoue le POST, appelait deux fois la correction et dupliquait
+        // toutes les lignes de réponse — faussant durablement les statistiques.
+        // Le garde-fou vit ici plutôt que dans l'appelant : c'est le passage
+        // obligé des trois points de correction.
+        $deja = $wpdb->get_row( $wpdb->prepare(
+            "SELECT score, reussi FROM {$p}tentative
+             WHERE id = %d AND date_fin IS NOT NULL",
+            $tentative_id
+        ), ARRAY_A );
+
+        if ( $deja !== null ) {
+            return [
+                'score'       => (int) $deja['score'],
+                'reussi'      => (bool) $deja['reussi'],
+                'correctes'   => null,
+                'total'       => null,
+                'seuil'       => $seuil,
+                'par_domaine' => [],
+                'deja_corrigee' => true,
+            ];
+        }
+
         $total       = 0;
         $correctes   = 0;
         $par_domaine = []; // domaine => ['correctes' => x, 'total' => y]
 
-        foreach ( $reponses as $question_id => $options_cochees ) {
+        $reponses = (array) $reponses;
+
+        // Toutes les questions de l'examen. Repli sur les seules réponses
+        // reçues si la composition est introuvable (tentative ancienne ou
+        // critères corrompus) : mieux vaut un score approché que pas de score.
+        $questions = self::ids_questions( $tentative_id );
+        if ( empty( $questions ) ) {
+            $questions = array_map( 'intval', array_keys( $reponses ) );
+        }
+
+        // Domaines en UNE requête plutôt qu'une par question : la boucle porte
+        // désormais sur 80 questions et non plus sur les seules répondues.
+        $domaines = [];
+        if ( ! empty( $questions ) ) {
+            $marqueurs = implode( ',', array_fill( 0, count( $questions ), '%d' ) );
+            $lignes = $wpdb->get_results( $wpdb->prepare(
+                "SELECT id, domaine FROM {$p}question WHERE id IN ( {$marqueurs} )",
+                $questions
+            ), ARRAY_A );
+            foreach ( (array) $lignes as $l ) {
+                $domaines[ (int) $l['id'] ] = $l['domaine'];
+            }
+        }
+
+        foreach ( $questions as $question_id ) {
             $question_id = (int) $question_id;
 
-            // Domaine de la question (pour le score par domaine).
-            $domaine = $wpdb->get_var( $wpdb->prepare(
-                "SELECT domaine FROM {$p}question WHERE id = %d",
-                $question_id
-            ) );
+            // Question sans réponse : tableau vide. corriger_question() la
+            // déclare fausse, ce qui est le comportement attendu.
+            $options_cochees = isset( $reponses[ $question_id ] )
+                ? (array) $reponses[ $question_id ]
+                : [];
+
+            $domaine = isset( $domaines[ $question_id ] ) ? $domaines[ $question_id ] : '';
             if ( ! isset( $par_domaine[ $domaine ] ) ) {
                 $par_domaine[ $domaine ] = [ 'correctes' => 0, 'total' => 0 ];
             }
@@ -99,6 +184,8 @@ class NPQ_Correcteur {
             }
 
             // Enregistre la réponse (une ligne par question dans la tentative).
+            // Y compris pour les questions laissées blanches : l'écran de
+            // correction doit les montrer, et le taux par domaine les compter.
             $wpdb->insert( "{$p}reponse", [
                 'tentative_id' => $tentative_id,
                 'question_id'  => $question_id,
@@ -107,7 +194,9 @@ class NPQ_Correcteur {
             $reponse_id = $wpdb->insert_id;
 
             // Enregistre chaque option cochée (gère le multi-réponses).
-            foreach ( (array) $options_cochees as $option_id ) {
+            // Une question blanche n'en a aucune : c'est ce qui permet, plus
+            // tard, de distinguer « pas su » de « pas vue ».
+            foreach ( $options_cochees as $option_id ) {
                 $wpdb->insert( "{$p}reponse_option", [
                     'reponse_id' => $reponse_id,
                     'option_id'  => (int) $option_id,
