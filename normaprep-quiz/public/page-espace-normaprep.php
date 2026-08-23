@@ -81,7 +81,7 @@ get_header();
 
     <main class="main">
       <div class="greet">Bonjour <?php echo esc_html( $nom ); ?></div>
-      <div class="status-line">Statut : <span class="val<?php echo $abonne ? '' : ' inactif'; ?>"><?php echo $abonne ? 'Abonnement actif' : 'Compte gratuit'; ?></span></div>
+      <div class="status-line">Statut : <span class="val<?php echo $abonne ? '' : ' inactif'; ?>"><?php echo $abonne ? 'Accès actif' : 'Aucun accès'; ?></span></div>
 
       <div class="cta-row">
         <?php if ( $abonne ) : ?>
@@ -97,6 +97,9 @@ get_header();
         <div class="stat-card soon"><div class="sc-label">Temps de révision</div><div class="sc-val">à venir</div></div>
         <div class="stat-card soon"><div class="sc-label">Régularité</div><div class="sc-val">à venir</div></div>
       </div>
+
+      <div class="sec-title">Mes accès</div>
+      <?php echo NPQ_Espace::rendu_acces( $url_offres ); ?>
 
       <div class="sec-title">Mes examens</div>
 

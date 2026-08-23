@@ -140,7 +140,7 @@ class NPQ_Espace {
             <div class="avatar"><?php echo esc_html( $initiales ); ?></div>
             <div class="su-meta">
               <div class="su-name"><?php echo esc_html( $nom ); ?></div>
-              <div class="su-status mono<?php echo $abonne ? '' : ' inactif'; ?>">&#9679; <?php echo $abonne ? 'Abonnement actif' : 'Compte gratuit'; ?></div>
+              <div class="su-status mono<?php echo $abonne ? '' : ' inactif'; ?>">&#9679; <?php echo $abonne ? 'Accès actif' : 'Aucun accès'; ?></div>
             </div>
           </div>
 
@@ -481,7 +481,7 @@ class NPQ_Espace {
                     <div>
                         <div class="npq-su-name"><?php echo esc_html( $nom ); ?></div>
                         <div class="npq-su-status<?php echo $abonne ? '' : ' inactif'; ?>">
-                            ● <?php echo $abonne ? 'Abonnement actif' : 'Compte gratuit'; ?>
+                            ● <?php echo $abonne ? 'Accès actif' : 'Aucun accès'; ?>
                         </div>
                     </div>
                 </div>
@@ -504,7 +504,7 @@ class NPQ_Espace {
                 <div class="npq-status-line">
                     Statut :
                     <span class="val<?php echo $abonne ? '' : ' inactif'; ?>">
-                        <?php echo $abonne ? 'Abonnement actif' : 'Compte gratuit'; ?>
+                        <?php echo $abonne ? 'Accès actif' : 'Aucun accès'; ?>
                     </span>
                 </div>
 
@@ -545,10 +545,20 @@ class NPQ_Espace {
      * un renouvellement, et un achat qui disparaît sans laisser de trace donne
      * l'impression d'avoir été perdu.
      *
-     * @param string $url_offres Où acheter ou renouveler.
+     * Publique : le tableau de bord existe en DEUX rendus — le shortcode
+     * [npq_espace] ci-dessous, et le gabarit de page
+     * public/page-espace-normaprep.php, qui a son propre balisage et que les
+     * sites utilisent en pratique. Les deux doivent afficher ce bloc, sans
+     * quoi il n'apparaît que dans la moitié des cas.
+     *
+     * @param string $url_offres Où acheter ou renouveler. Résolu si omis.
      * @return string
      */
-    private static function rendu_acces( $url_offres ) {
+    public static function rendu_acces( $url_offres = '' ) {
+        if ( $url_offres === '' ) {
+            $url_offres = NPQ_Comptes::url_offres();
+        }
+
         $fiche = NPQ_Comptes::fiche_courante();
         $inventaire = $fiche ? NPQ_Bibliotheque::inventaire_de( (int) $fiche['id'] ) : [];
 
