@@ -3,7 +3,7 @@
  * Plugin Name:       NormaPrep Quiz
  * Plugin URI:        https://github.com/【votre-compte】/normaprep-quiz
  * Description:       Module d'examens blancs pour la certification ISO/IEC 27001 Lead Implementer : scénarios, questions à choix multiples, composition d'examens par thèmes, correction détaillée et suivi de progression.
- * Version:           2.26.1
+ * Version:           2.27.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            NormaPrep
@@ -32,7 +32,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Version courante. IMPORTANT : cette valeur doit rester synchronisée avec
 // la ligne « Version: » de l'en-tête ci-dessus.
-define( 'NPQ_VERSION', '2.26.1' );
+define( 'NPQ_VERSION', '2.27.0' );
 
 // Chemin absolu vers le dossier du plugin sur le serveur (pour charger des fichiers PHP).
 define( 'NPQ_PATH', plugin_dir_path( __FILE__ ) );
@@ -114,14 +114,26 @@ function npq_init() {
 
     require_once NPQ_PATH . 'includes/class-npq-certification.php';
 
-    // Migration de schéma : si la version de schéma enregistrée diffère de la
-    // version courante, on rejoue dbDelta (qui ne touche pas aux données
-    // existantes et se contente d'ajouter ce qui manque, ex. la table parcours).
-    // Cela évite d'avoir à désactiver puis réactiver le plugin après une mise à jour.
-    if ( get_option( 'npq_db_version' ) !== NPQ_VERSION ) {
-        require_once NPQ_PATH . 'includes/class-npq-installer.php';
-        NPQ_Installer::creer_tables();
-    }
+    // Mise à niveau de la base, en deux temps distincts.
+    //
+    // 1. LE SCHÉMA (structure des tables). Rejoué dès que le TEXTE des
+    //    définitions change — l'empreinte en fait foi. dbDelta ne touche pas
+    //    aux données : il se contente d'ajouter ce qui manque.
+    //
+    // 2. LES MIGRATIONS DE DONNÉES. Chacune porte son propre témoin, sous une
+    //    clé stable. Elles ne dépendent d'aucun numéro de version.
+    //
+    // Aucun des deux ne repose plus sur la comparaison npq_db_version /
+    // NPQ_VERSION, qui exigeait de ne jamais réutiliser un numéro déjà
+    // déployé — et échouait en silence quand on l'oubliait.
+    //
+    // Le coût du cas courant, « rien à faire », est de deux lectures d'options
+    // déjà en cache : on ne touche à la base que s'il y a du travail.
+    require_once NPQ_PATH . 'includes/class-npq-installer.php';
+    NPQ_Installer::verifier_schema();
+
+    require_once NPQ_PATH . 'includes/class-npq-migrations.php';
+    NPQ_Migrations::executer();
 
     require_once NPQ_PATH . 'includes/class-npq-ponderation.php';
 
@@ -173,12 +185,8 @@ function npq_init() {
     // Administration du contenu (état de la banque, couverture PECB).
     if ( is_admin() ) {
 
-        // Met à jour le schéma si la version du plugin a changé.
-        // À faire avant tout écran d'admin : certains lisent des colonnes
-        // qui pourraient ne pas encore exister.
-        require_once NPQ_PATH . 'includes/class-npq-installer.php';
-        NPQ_Installer::verifier_schema();
-
+        // Le schéma et les migrations ont déjà été traités en tête de
+        // npq_init(), avant tout écran : rien à refaire ici.
         require_once NPQ_PATH . 'admin/class-npq-admin.php';
         NPQ_Admin::init();
     }
