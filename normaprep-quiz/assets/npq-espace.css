@@ -1465,3 +1465,27 @@
   padding-left: 10px;
   margin-bottom: 12px;
 }
+
+/* ---- Points faibles : distinguer « non su » de « non atteint » ---- */
+
+/* Mention discrète à côté du nombre de questions : les questions laissées
+   blanches ne pèsent pas sur le taux, elles ne doivent donc pas avoir le
+   poids visuel d'un résultat. */
+.npq-app .npq-leg-blanches{
+  color:var(--muted); font-weight:400; opacity:.75;
+}
+
+/* Domaine jamais abordé : ni vert ni orange — il n'y a rien à juger.
+   Le gris dit « hors mesure », ce qui est exactement le propos. */
+.npq-app .npq-legende-ligne.non-aborde{ color:var(--muted); }
+.npq-app .npq-legende-ligne.non-aborde .npq-leg-code,
+.npq-app .npq-legende-ligne.non-aborde .npq-leg-taux{ color:var(--muted); }
+
+/* Message sur les questions non traitées. Volontairement PAS orange :
+   l'orange signale une lacune de connaissance, or il s'agit ici de gestion
+   du temps. Deux problèmes distincts, deux traitements visuels distincts. */
+.npq-app .npq-conseil-temps{
+  background:rgba(255,255,255,0.02);
+  border-left:3px solid var(--muted);
+  margin-bottom:18px;
+}
