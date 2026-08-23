@@ -3,7 +3,7 @@
  * Plugin Name:       NormaPrep Quiz
  * Plugin URI:        https://github.com/【votre-compte】/normaprep-quiz
  * Description:       Module d'examens blancs pour la certification ISO/IEC 27001 Lead Implementer : scénarios, questions à choix multiples, composition d'examens par thèmes, correction détaillée et suivi de progression.
- * Version:           2.28.0
+ * Version:           2.29.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            NormaPrep
@@ -32,7 +32,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Version courante. IMPORTANT : cette valeur doit rester synchronisée avec
 // la ligne « Version: » de l'en-tête ci-dessus.
-define( 'NPQ_VERSION', '2.28.0' );
+define( 'NPQ_VERSION', '2.29.0' );
 
 // Chemin absolu vers le dossier du plugin sur le serveur (pour charger des fichiers PHP).
 define( 'NPQ_PATH', plugin_dir_path( __FILE__ ) );
@@ -151,6 +151,13 @@ function npq_init() {
     // Gestion des comptes abonnés (rôle, lien WordPress, droits d'accès).
     require_once NPQ_PATH . 'includes/class-npq-comptes.php';
     NPQ_Comptes::init();
+
+    // Vente des accès via WooCommerce. Chargé après les comptes et la
+    // bibliothèque, dont il se sert. Le module se désarme tout seul si
+    // WooCommerce n'est pas actif : NormaPrep fonctionne sans lui, et
+    // désactiver la boutique ne retire aucun droit à personne.
+    require_once NPQ_PATH . 'includes/class-npq-woocommerce.php';
+    NPQ_WooCommerce::init();
 
     // Inscription, validation d'email et connexion des abonnés (côté public).
     require_once NPQ_PATH . 'public/class-npq-auth.php';

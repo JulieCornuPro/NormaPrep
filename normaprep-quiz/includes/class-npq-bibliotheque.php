@@ -285,6 +285,68 @@ class NPQ_Bibliotheque {
     }
 
     /**
+     * Ouvre ou PROLONGE un accès de N mois.
+     *
+     * La différence avec attribuer() est la règle de calcul de la date de fin,
+     * et elle compte : un client qui renouvelle deux mois avant l'échéance ne
+     * doit pas perdre les deux mois qu'il a déjà payés. On repart donc de la
+     * date de fin en cours si elle est future, et d'aujourd'hui sinon.
+     *
+     * Un accès permanent (fin_acces NULL) le reste : rien ne peut le raccourcir.
+     *
+     * @param int $utilisateur_id
+     * @param int $certification_id
+     * @param int $mois  Nombre de mois à ajouter. 0 = accès permanent.
+     * @return string|null Nouvelle date de fin ('AAAA-MM-JJ'), ou null si permanent.
+     */
+    public static function prolonger( $utilisateur_id, $certification_id, $mois ) {
+        $utilisateur_id   = (int) $utilisateur_id;
+        $certification_id = (int) $certification_id;
+        $mois             = (int) $mois;
+
+        if ( ! $utilisateur_id || ! $certification_id ) {
+            return null;
+        }
+
+        // Durée nulle : accès sans limite. On écrase toute date existante,
+        // puisqu'un accès permanent est toujours plus favorable.
+        if ( $mois <= 0 ) {
+            self::attribuer( $utilisateur_id, $certification_id, null );
+            return null;
+        }
+
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $ligne = $wpdb->get_row( $wpdb->prepare(
+            "SELECT id, fin_acces FROM {$p}utilisateur_certification
+             WHERE utilisateur_id = %d AND certification_id = %d",
+            $utilisateur_id,
+            $certification_id
+        ), ARRAY_A );
+
+        // Accès permanent déjà en place : on n'y touche pas. Le prolonger
+        // reviendrait à lui donner une fin, donc à retirer un droit.
+        if ( $ligne && $ligne['fin_acces'] === null ) {
+            return null;
+        }
+
+        $aujourdhui = current_time( 'Y-m-d' );
+
+        // Point de départ : l'échéance en cours si elle est encore future,
+        // aujourd'hui sinon (premier achat, ou reprise après expiration).
+        $depart = ( $ligne && $ligne['fin_acces'] >= $aujourdhui )
+            ? $ligne['fin_acces']
+            : $aujourdhui;
+
+        $fin = gmdate( 'Y-m-d', strtotime( $depart . ' +' . $mois . ' months' ) );
+
+        self::attribuer( $utilisateur_id, $certification_id, $fin );
+
+        return $fin;
+    }
+
+    /**
      * Retire une certification de la bibliothèque d'un utilisateur.
      *
      * @param int $utilisateur_id
