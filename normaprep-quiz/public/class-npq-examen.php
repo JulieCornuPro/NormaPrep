@@ -1130,111 +1130,75 @@ class NPQ_Examen {
                 </div>
             </div>
 
+            <?php
+            // Domaines classés du plus faible au plus fort : le candidat lit
+            // d'abord ce qui coince. L'ordre d'insertion (celui des questions
+            // tirées) n'avait aucune signification.
+            $seuil_dom = (int) get_option( 'npq_seuil_reussite', 70 );
+            $classement = [];
+            foreach ( $par_domaine as $dom => $stats ) {
+                $classement[] = [
+                    'code'  => $dom,
+                    'pct'   => $stats['total'] > 0 ? (int) round( $stats['ok'] * 100 / $stats['total'] ) : 0,
+                    'ok'    => (int) $stats['ok'],
+                    'total' => (int) $stats['total'],
+                ];
+            }
+            usort( $classement, static function ( $a, $b ) {
+                return $a['pct'] <=> $b['pct'];
+            } );
+
+            $page_revision = get_option( 'npq_page_revision_id' );
+            $certif_tent   = (int) ( $t['certification_id'] ?? 0 );
+            ?>
+
             <h3>Score par domaine</h3>
-            <div style="margin-bottom:28px">
-                <?php foreach ( $par_domaine as $dom => $stats ) :
-                    $pct = $stats['total'] > 0 ? (int) round( $stats['ok'] * 100 / $stats['total'] ) : 0;
-                    $nom_dom = isset( $libelles[ $dom ] ) ? $libelles[ $dom ] : $dom;
+            <?php if ( ! $revele ) : ?>
+                <p class="npq-resultat-note">
+                    Les bonnes réponses ne sont pas données ici. Un examen blanc
+                    sert à vous évaluer : en connaître le corrigé vous priverait
+                    de pouvoir le repasser dans les mêmes conditions.
+                    <strong>C'est en révision que vous travaillez vos points
+                    faibles</strong>, avec les explications et sans chronomètre.
+                </p>
+            <?php endif; ?>
+
+            <div class="npq-res-domaines">
+                <?php foreach ( $classement as $c ) :
+                    $nom_dom = isset( $libelles[ $c['code'] ] ) ? $libelles[ $c['code'] ] : $c['code'];
+                    $a_travailler = ( $c['pct'] < $seuil_dom );
+
+                    // Le bouton n'apparaît que sur les domaines sous le seuil,
+                    // et seulement en examen : en révision, le corrigé complet
+                    // est déjà là, proposer d'aller réviser n'aurait pas de sens.
+                    $url_dom = ( ! $revele && $a_travailler && $page_revision )
+                        ? add_query_arg(
+                            [ 'npq_domaine' => $c['code'], 'npq_certif' => $certif_tent ],
+                            get_permalink( $page_revision )
+                          ) . '#npq-composer'
+                        : '';
                 ?>
-                    <div style="margin-bottom:10px">
-                        <div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:4px">
-                            <span><?php echo esc_html( $nom_dom ); ?></span>
-                            <span><?php echo $pct; ?> % (<?php echo (int) $stats['ok']; ?>/<?php echo (int) $stats['total']; ?>)</span>
+                    <div class="npq-res-domaine<?php echo $a_travailler ? ' a-travailler' : ''; ?>">
+                        <div class="npq-res-dom-tete">
+                            <span class="npq-res-dom-nom"><?php echo esc_html( $nom_dom ); ?></span>
+                            <span class="npq-res-dom-pct">
+                                <?php echo (int) $c['pct']; ?> %
+                                <span class="npq-res-dom-frac">(<?php echo (int) $c['ok']; ?>/<?php echo (int) $c['total']; ?>)</span>
+                            </span>
                         </div>
-                        <div style="height:8px;background:#1E3A52;border-radius:4px;overflow:hidden">
-                            <div style="height:100%;width:<?php echo $pct; ?>%;background:#00CFCF"></div>
+                        <div class="npq-res-dom-jauge">
+                            <div class="npq-res-dom-part" style="width:<?php echo (int) $c['pct']; ?>%"></div>
                         </div>
+                        <?php if ( $url_dom ) : ?>
+                            <a href="<?php echo esc_url( $url_dom ); ?>" class="npq-res-dom-lien">
+                                Réviser ce domaine
+                            </a>
+                        <?php endif; ?>
                     </div>
                 <?php endforeach; ?>
             </div>
 
-            <?php if ( ! $revele ) : ?>
-                <?php
-                // --- EXAMEN BLANC : diagnostic, sans les bonnes réponses ---
-                //
-                // Un examen blanc sert à s'évaluer. Livrer le corrigé complet
-                // le vide de son sens : après un seul passage, le candidat
-                // détient les réponses et ne peut plus se mesurer. Sur une
-                // banque de taille finie, quelques échecs suffisent à la
-                // moissonner entière.
-                //
-                // Les énoncés, eux, ne sont pas un secret : le candidat vient
-                // de les lire pendant l'épreuve. On les lui redonne donc pour
-                // qu'il sache QUOI retravailler — sans les options, sans dire
-                // laquelle était juste, et sans l'explication.
-                //
-                // L'apprentissage se fait en révision, qui garde le corrigé
-                // immédiat : chaque mode retrouve son rôle.
-                $ratees = array_filter( $detail, static function ( $d ) {
-                    return empty( $d['correcte'] );
-                } );
-
-                // Domaine le plus faible de CETTE tentative, pour proposer une
-                // révision ciblée — le même mécanisme que la page Activité.
-                $dom_faible = '';
-                $pct_faible = 101;
-                foreach ( $par_domaine as $dom => $stats ) {
-                    if ( $stats['total'] < 1 ) {
-                        continue;
-                    }
-                    $pct = (int) round( $stats['ok'] * 100 / $stats['total'] );
-                    if ( $pct < $pct_faible ) {
-                        $pct_faible = $pct;
-                        $dom_faible = $dom;
-                    }
-                }
-
-                $page_revision = get_option( 'npq_page_revision_id' );
-                $url_reviser = ( $page_revision && $dom_faible !== '' )
-                    ? add_query_arg(
-                        [
-                            'npq_domaine' => $dom_faible,
-                            'npq_certif'  => (int) ( $t['certification_id'] ?? 0 ),
-                        ],
-                        get_permalink( $page_revision )
-                      ) . '#npq-composer'
-                    : '';
-                ?>
-
-                <h3>Questions à retravailler</h3>
-                <p class="npq-resultat-note">
-                    Les bonnes réponses ne sont pas données ici. Un examen blanc
-                    sert à vous évaluer : en connaître le corrigé vous priverait
-                    de pouvoir recommencer dans les mêmes conditions.
-                    <strong>C'est en révision que vous les travaillez</strong>,
-                    avec l'explication et sans chronomètre.
-                </p>
-
-                <?php if ( empty( $ratees ) ) : ?>
-                    <p class="npq-resultat-sansfaute">
-                        Aucune erreur sur cet examen. Rien à retravailler.
-                    </p>
-                <?php else : ?>
-                    <div class="npq-ratees">
-                        <?php foreach ( $ratees as $i => $d ) :
-                            $dom = $d['question']['domaine'];
-                            $nom_dom = isset( $libelles[ $dom ] ) ? $libelles[ $dom ] : $dom;
-                        ?>
-                            <div class="npq-ratee">
-                                <span class="npq-ratee-num"><?php echo (int) $i + 1; ?></span>
-                                <div class="npq-ratee-corps">
-                                    <p class="npq-ratee-enonce"><?php echo esc_html( $d['question']['enonce'] ); ?></p>
-                                    <p class="npq-ratee-dom"><?php echo esc_html( $nom_dom ); ?></p>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-
-                <?php if ( $url_reviser ) : ?>
-                    <p style="margin-top:24px">
-                        <a href="<?php echo esc_url( $url_reviser ); ?>" class="npq-btn">
-                            Réviser <?php echo esc_html( $libelles[ $dom_faible ] ?? $dom_faible ); ?>
-                        </a>
-                    </p>
-                <?php endif; ?>
-
-            <?php else : ?>
+            <?php if ( $revele ) : ?>
 
             <h3>Correction détaillée</h3>
             <?php foreach ( $detail as $i => $d ) : ?>
