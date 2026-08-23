@@ -144,22 +144,36 @@ class NPQ_Activite {
                         <div class="stat-block__sub">Votre record</div>
                     </div>
 
+                    <?php
+                    // Écart au seuil de réussite, plutôt que l'écart avec
+                    // l'examen précédent.
+                    //
+                    // Deux points de mesure ne font pas une tendance : sur des
+                    // tirages aléatoires, un candidat stable voyait alterner
+                    // « +6 pts » et « −6 pts », lus comme des progrès et des
+                    // rechutes. Surtout, la question qui décide de tout est
+                    // binaire — suis-je au-dessus du seuil ? — et aucun
+                    // indicateur n'y répondait.
+                    $seuil_reussite = self::seuil_reussite();
+                    $ecart  = (int) $chiffres['dernier'] - $seuil_reussite;
+                    $classe = ( $ecart >= 0 ) ? 'hausse' : 'baisse';
+                    $signe  = ( $ecart > 0 ) ? '+' : '';
+                    ?>
                     <div class="stat-block">
-                        <?php if ( $chiffres['evolution'] === null ) : ?>
-                            <div class="stat-block__value">&mdash;</div>
-                            <div class="stat-block__label">Évolution</div>
-                            <div class="stat-block__sub">Un seul examen pour l'instant</div>
-                        <?php else :
-                            $ev = (int) $chiffres['evolution'];
-                            $classe = ( $ev > 0 ) ? 'hausse' : ( ( $ev < 0 ) ? 'baisse' : 'stable' );
-                            $signe  = ( $ev > 0 ) ? '+' : '';
-                        ?>
-                            <div class="stat-block__value npq-ev-<?php echo $classe; ?>">
-                                <?php echo $signe . $ev; ?><span class="accent">pts</span>
-                            </div>
-                            <div class="stat-block__label">Évolution</div>
-                            <div class="stat-block__sub">Par rapport à l'examen précédent</div>
-                        <?php endif; ?>
+                        <div class="stat-block__value npq-ev-<?php echo $classe; ?>">
+                            <?php echo $signe . $ecart; ?><span class="accent">pts</span>
+                        </div>
+                        <div class="stat-block__label">
+                            <?php echo ( $ecart >= 0 ) ? 'Au-dessus du seuil' : 'Sous le seuil'; ?>
+                        </div>
+                        <div class="stat-block__sub">
+                            <?php if ( $ecart >= 0 ) : ?>
+                                Votre dernier examen valide les <?php echo $seuil_reussite; ?> % requis
+                            <?php else : ?>
+                                Il vous manque <?php echo abs( $ecart ); ?> points pour atteindre
+                                les <?php echo $seuil_reussite; ?> % requis
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -202,8 +216,24 @@ class NPQ_Activite {
                     // Le domaine le plus faible : on le met en avant avec une action.
                     $plus_faible = $domaines[0];
                     $url_revision = get_option( 'npq_page_revision_id' );
+
+                    // Le lien porte le domaine ET la certification, pour que la
+                    // page Révisions arrive pré-réglée. Sans ces paramètres, le
+                    // bouton promettait de réviser CE domaine puis déposait le
+                    // candidat sur la page nue, à lui de retrouver lequel.
+                    // L'ancre l'amène directement au formulaire, situé sous les
+                    // parcours proposés.
+                    $url_reviser = $url_revision
+                        ? add_query_arg(
+                            [
+                                'npq_domaine' => $plus_faible['code'],
+                                'npq_certif'  => $certification_id,
+                            ],
+                            get_permalink( $url_revision )
+                          ) . '#npq-composer'
+                        : '';
                     ?>
-                    <?php if ( $plus_faible['taux'] < $seuil && $url_revision ) : ?>
+                    <?php if ( $plus_faible['taux'] < $seuil && $url_reviser ) : ?>
                         <div class="npq-conseil">
                             <p>
                                 Votre domaine le plus fragile est
@@ -211,7 +241,7 @@ class NPQ_Activite {
                                 (<?php echo (int) $plus_faible['taux']; ?> % sur
                                 <?php echo (int) $plus_faible['total']; ?> question(s)).
                             </p>
-                            <a href="<?php echo esc_url( get_permalink( $url_revision ) ); ?>" class="npq-btn">
+                            <a href="<?php echo esc_url( $url_reviser ); ?>" class="npq-btn">
                                 Réviser ce domaine
                             </a>
                         </div>
@@ -527,7 +557,9 @@ class NPQ_Activite {
      *
      * - dernier   : score du dernier examen (« où j'en suis »).
      * - meilleur  : record personnel (« ce dont je suis capable »).
-     * - evolution : écart avec l'examen précédent (« suis-je en progrès ? »).
+     *
+     * L'écart au seuil de réussite est calculé à l'affichage, à partir de
+     * « dernier » : il dépend d'un réglage administrable, pas de l'historique.
      *
      * On n'affiche pas la moyenne ici : elle est sur le tableau de bord, et sur une
      * page de progression une moyenne écrase justement la progression.
@@ -539,16 +571,9 @@ class NPQ_Activite {
         $scores = array_map( function ( $e ) { return (int) $e['score']; }, $examens );
         $meilleur = max( $scores );
 
-        // Évolution : dernier moins avant-dernier (null s'il n'y a qu'un examen).
-        $evolution = null;
-        if ( count( $examens ) >= 2 ) {
-            $evolution = $dernier - (int) $examens[1]['score'];
-        }
-
         return [
             'dernier'      => $dernier,
             'meilleur'     => $meilleur,
-            'evolution'    => $evolution,
             'date_dernier' => mysql2date( 'd/m/Y', $examens[0]['date_debut'] ),
         ];
     }

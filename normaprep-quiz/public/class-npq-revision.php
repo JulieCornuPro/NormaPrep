@@ -335,6 +335,28 @@ class NPQ_Revision {
         $certifs = self::certifications_utilisateur();
         $plusieurs = ( count( $certifs ) > 1 );
 
+        // Pré-sélection transmise par la page Activité, qui désigne au candidat
+        // son domaine le plus fragile : ?npq_domaine=D3&npq_certif=12
+        //
+        // Le formulaire de composition est en POST, mais on y arrive par un
+        // lien — donc en GET. Sans cette lecture, le bouton « Réviser ce
+        // domaine » ramenait sur la page nue et le candidat devait retrouver
+        // à la main le domaine qu'on venait de lui désigner.
+        $pre_domaine = isset( $_GET['npq_domaine'] )
+            ? sanitize_text_field( wp_unslash( $_GET['npq_domaine'] ) )
+            : '';
+
+        $pre_certif = isset( $_GET['npq_certif'] ) ? (int) $_GET['npq_certif'] : 0;
+
+        // La certification demandée doit appartenir à la bibliothèque : le
+        // paramètre vient du navigateur. Sinon, la première.
+        if ( $pre_certif && ! self::peut_acceder( $pre_certif ) ) {
+            $pre_certif = 0;
+        }
+        if ( $pre_domaine !== '' && ! $pre_certif && ! empty( $certifs ) ) {
+            $pre_certif = (int) $certifs[0]['id'];
+        }
+
         ob_start();
         ?>
         <div class="npq-revision">
@@ -393,7 +415,12 @@ class NPQ_Revision {
             <?php endforeach; ?>
 
             <!-- Composition libre : une seule, avec choix de la certification -->
-            <div class="sec-title">Composer ma révision</div>
+            <div class="sec-title" id="npq-composer">Composer ma révision</div>
+            <?php if ( $pre_domaine !== '' ) : ?>
+                <p class="npq-champ-aide npq-prereglage">
+                    Domaine pré-sélectionné depuis votre activité. Ajustez librement.
+                </p>
+            <?php endif; ?>
             <form method="post" class="npq-composer">
                 <input type="hidden" name="npq_revision_action" value="composer">
                 <?php wp_nonce_field( 'npq_revision', 'npq_nonce' ); ?>
@@ -402,7 +429,8 @@ class NPQ_Revision {
                     <p class="npq-champ-label">Certification</p>
                     <select name="npq_certification" id="npq-compo-certif" class="npq-compo-select" data-npq-select>
                         <?php foreach ( $certifs as $certif ) : ?>
-                            <option value="<?php echo (int) $certif['id']; ?>">
+                            <option value="<?php echo (int) $certif['id']; ?>"
+                                <?php selected( (int) $certif['id'], $pre_certif ); ?>>
                                 <?php echo esc_html( $certif['nom'] ); ?>
                             </option>
                         <?php endforeach; ?>
@@ -428,7 +456,14 @@ class NPQ_Revision {
                             $nb = NPQ_Composeur::compter_domaines( $cid, [ $d['code'] ] );
                     ?>
                         <label class="npq-domaine-case" data-certification="<?php echo $cid; ?>">
-                            <input type="checkbox" name="npq_domaines[]" value="<?php echo esc_attr( $d['code'] ); ?>">
+                            <input type="checkbox" name="npq_domaines[]" value="<?php echo esc_attr( $d['code'] ); ?>"
+                                <?php
+                                // Les codes de domaine étant partagés entre
+                                // référentiels, on exige que la certification
+                                // corresponde aussi — sinon cocher « D3 »
+                                // cocherait le D3 des cinq certifications.
+                                checked( $pre_domaine !== '' && $d['code'] === $pre_domaine && $cid === $pre_certif );
+                                ?>>
                             <span class="npq-dom-nom"><?php echo esc_html( $d['libelle'] ); ?></span>
                             <span class="npq-dom-nb"><?php echo (int) $nb; ?></span>
                         </label>

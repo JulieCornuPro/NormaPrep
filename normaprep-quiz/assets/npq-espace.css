@@ -1456,3 +1456,12 @@
 .npq-act-certif { margin: 0 0 24px; max-width: 420px; }
 .npq-act-certif .npq-champ-label { display: block; margin-bottom: 6px; }
 .npq-act-certif .npq-compo-select { width: 100%; margin-bottom: 0; }
+
+/* Mention de pré-réglage : le formulaire de révision arrive avec un domaine
+   déjà coché, transmis par la page Activité. Le candidat doit comprendre
+   pourquoi une case est cochée sans l'avoir touchée. */
+.npq-app .npq-prereglage {
+  border-left: 3px solid var(--accent, #4A9DFF);
+  padding-left: 10px;
+  margin-bottom: 12px;
+}
