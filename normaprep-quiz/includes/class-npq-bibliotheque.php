@@ -308,18 +308,32 @@ class NPQ_Bibliotheque {
     }
 
     /**
-     * Migration douce : garantit que chaque utilisateur existant a accès à la
-     * certification donnée (par défaut, la certification active). Idempotent —
-     * on peut l'appeler à chaque chargement sans créer de doublons.
+     * Attribue une certification à TOUS les utilisateurs, en accès permanent.
      *
-     * Sert à ne casser l'accès de personne au déploiement de la bibliothèque :
-     * les comptes créés avant l'existence de la table reçoivent leur accès
-     * historique.
+     * ⚠️ NE JAMAIS APPELER AU CHARGEMENT DU PLUGIN.
+     *
+     * Cette méthode s'appelait « migration_douce » et tournait à chaque
+     * chargement de page. Deux conséquences, longtemps invisibles :
+     *
+     *   1. Tout nouvel inscrit — y compris un compte gratuit créé la seconde
+     *      d'avant — recevait un accès PERMANENT à la certification active.
+     *      Tant que la barrière d'accès reposait sur la table `abonnement`,
+     *      cela ne se voyait pas. Depuis que la bibliothèque fait seule
+     *      autorité, cela reviendrait à donner le produit.
+     *
+     *   2. Révoquer un accès était impossible : retirer() supprimait la ligne,
+     *      que le chargement suivant recréait aussitôt. Le bouton « retirer »
+     *      de la page Accès semblait fonctionner, puis l'accès revenait.
+     *
+     * Elle reste disponible pour un geste d'administration délibéré — offrir
+     * une certification à toute une promotion, par exemple. Son nom dit
+     * désormais ce qu'elle fait, pour que personne ne la rebranche en croyant
+     * appeler une migration inoffensive.
      *
      * @param int|null $certification_id  Défaut : la certification active.
      * @return int Nombre d'accès créés.
      */
-    public static function migration_douce( $certification_id = null ) {
+    public static function attribuer_a_tous_les_utilisateurs( $certification_id = null ) {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 

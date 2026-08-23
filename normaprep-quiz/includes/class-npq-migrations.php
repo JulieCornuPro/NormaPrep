@@ -59,6 +59,12 @@ class NPQ_Migrations {
             // Rattache à leur certification les tentatives enregistrées avant
             // l'existence de la colonne tentative.certification_id.
             'tentative_certification' => [ 'NPQ_Installer', 'migration_tentative_certification' ],
+
+            // Fait de la bibliothèque le registre unique des droits d'accès,
+            // en y inscrivant ce que la table `abonnement` disait jusqu'ici.
+            // Retire les accès qui n'étaient que le résidu de l'attribution
+            // automatique. Sauvegarde les lignes retirées avant suppression.
+            'alignement_acces' => [ 'NPQ_Installer', 'migration_aligner_acces_sur_abonnement' ],
         ];
     }
 

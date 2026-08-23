@@ -606,12 +606,12 @@ class NPQ_Admin {
             <div style="display:flex;gap:16px;flex-wrap:wrap;max-width:900px">
 
                 <div class="card" style="flex:1;min-width:170px;padding:18px 20px;margin:0">
-                    <p style="margin:0 0 6px;color:#646970;font-size:13px">Abonnés</p>
+                    <p style="margin:0 0 6px;color:#646970;font-size:13px">Comptes</p>
                     <p style="margin:0;font-size:28px;font-weight:600">
                         <?php echo (int) $usage['abonnes']; ?>
                     </p>
                     <p style="margin:6px 0 0;color:#646970;font-size:12px">
-                        dont <?php echo (int) $usage['abonnes_actifs']; ?> avec un abonnement actif
+                        dont <?php echo (int) $usage['abonnes_actifs']; ?> avec un accès valide
                     </p>
                 </div>
 
@@ -763,7 +763,19 @@ class NPQ_Admin {
             );
         }
 
+        // Droits d'accès en vigueur : la bibliothèque étant devenue le registre
+        // unique, ce compte est désormais le nombre de personnes qui peuvent
+        // réellement utiliser le produit.
+        $acces_valides = (int) $wpdb->get_var(
+            "SELECT COUNT(DISTINCT utilisateur_id) FROM {$p}utilisateur_certification
+             WHERE fin_acces IS NULL OR fin_acces >= CURDATE()"
+        );
+        $comptes = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}utilisateur" );
+
         return [
+            'acces_valides'      => $acces_valides,
+            'comptes'            => $comptes,
+            'bilan_alignement'   => get_option( 'npq_alignement_acces_bilan', [] ),
             'version_schema'     => $version_schema !== '' ? $version_schema : '—',
             'version_plugin'     => NPQ_VERSION,
             'a_jour'             => $a_jour,
@@ -851,6 +863,30 @@ class NPQ_Admin {
                                 )
                             );
                             ?>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Comptes ayant un accès valide</strong></td>
+                    <td>
+                        <?php echo (int) $e['acces_valides']; ?>
+                        sur <?php echo (int) $e['comptes']; ?> compte(s)
+                        <?php
+                        // Chiffre à lire, pas à juger : tous les inscrits n'ont
+                        // pas vocation à avoir accès. On ne le colore donc pas.
+                        $bilan = $e['bilan_alignement'];
+                        if ( ! empty( $bilan ) ) :
+                        ?>
+                            <br>
+                            <span class="description">
+                                Alignement sur les abonnements :
+                                <?php echo (int) ( $bilan['conserves'] ?? 0 ); ?> accès conservé(s),
+                                <?php echo (int) ( $bilan['retires'] ?? 0 ); ?> retiré(s)
+                                <?php if ( ! empty( $bilan['sauvegardes'] ) ) : ?>
+                                    (sauvegardés dans l'option
+                                    <code>npq_acces_retires_sauvegarde</code>)
+                                <?php endif; ?>
+                            </span>
                         <?php endif; ?>
                     </td>
                 </tr>
@@ -1082,13 +1118,18 @@ class NPQ_Admin {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
-        // Abonnés (fiches métier), et ceux qui ont un abonnement actif.
+        // Comptes (fiches métier), et ceux qui détiennent un accès valide.
+        //
+        // Compté depuis la bibliothèque, devenue le registre unique des droits.
+        // L'ancien décompte interrogeait la table `abonnement` : il aurait
+        // continué d'afficher un chiffre plausible tout en ne mesurant plus
+        // rien — le pire des indicateurs faux, celui qui ne se remarque pas.
         $abonnes = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}utilisateur" );
 
         $abonnes_actifs = (int) $wpdb->get_var(
             "SELECT COUNT(DISTINCT utilisateur_id)
-             FROM {$p}abonnement
-             WHERE statut = 'actif'"
+             FROM {$p}utilisateur_certification
+             WHERE fin_acces IS NULL OR fin_acces >= CURDATE()"
         );
 
         // Examens : passés, réussis, abandonnés.
