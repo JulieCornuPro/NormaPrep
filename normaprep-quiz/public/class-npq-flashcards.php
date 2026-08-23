@@ -299,24 +299,6 @@ class NPQ_Flashcards {
      * @return array Lignes : id, code, nom.
      */
     private static function certifications_utilisateur() {
-        $fiche = NPQ_Comptes::fiche_courante();
-        $utilisateur_id = $fiche ? (int) $fiche['id'] : 0;
-
-        $certifs = $utilisateur_id
-            ? NPQ_Bibliotheque::certifications_de( $utilisateur_id )
-            : [];
-
-        if ( empty( $certifs ) ) {
-            $active = NPQ_Certification::courante();
-            if ( $active ) {
-                $certifs = [ [
-                    'id'   => (int) $active['id'],
-                    'code' => $active['code'],
-                    'nom'  => $active['nom'],
-                ] ];
-            }
-        }
-
-        return $certifs;
+        return NPQ_Bibliotheque::certifications_utilisateur();
     }
 }

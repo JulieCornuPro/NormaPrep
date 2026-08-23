@@ -517,26 +517,7 @@ class NPQ_Revision {
      * @return array Lignes de certification : id, code, nom.
      */
     private static function certifications_utilisateur() {
-        $fiche = NPQ_Comptes::fiche_courante();
-        $utilisateur_id = $fiche ? (int) $fiche['id'] : 0;
-
-        $certifs = $utilisateur_id
-            ? NPQ_Bibliotheque::certifications_de( $utilisateur_id )
-            : [];
-
-        if ( empty( $certifs ) ) {
-            // Repli : la certification active, si elle existe.
-            $active = NPQ_Certification::courante();
-            if ( $active ) {
-                $certifs = [ [
-                    'id'   => (int) $active['id'],
-                    'code' => $active['code'],
-                    'nom'  => $active['nom'],
-                ] ];
-            }
-        }
-
-        return $certifs;
+        return NPQ_Bibliotheque::certifications_utilisateur();
     }
 
     /**
@@ -544,26 +525,7 @@ class NPQ_Revision {
      * Garde-fou appelé avant de lancer un parcours ou une composition.
      */
     private static function peut_acceder( $certification_id ) {
-        $certification_id = (int) $certification_id;
-        if ( ! $certification_id ) {
-            return false;
-        }
-
-        $fiche = NPQ_Comptes::fiche_courante();
-        $utilisateur_id = $fiche ? (int) $fiche['id'] : 0;
-        if ( ! $utilisateur_id ) {
-            return false;
-        }
-
-        // Si l'utilisateur a des accès enregistrés, on s'y fie. Sinon (compte
-        // sans bibliothèque encore constituée), on tolère la certification
-        // active, cohérent avec le repli de certifications_utilisateur().
-        $ids = NPQ_Bibliotheque::ids_de( $utilisateur_id );
-        if ( ! empty( $ids ) ) {
-            return in_array( $certification_id, $ids, true );
-        }
-
-        return ( $certification_id === NPQ_Certification::id() );
+        return NPQ_Bibliotheque::utilisateur_peut_acceder( $certification_id );
     }
 
     /** Certification active — délègue à la résolution centralisée. */

@@ -992,7 +992,7 @@ class NPQ_Examen {
 
         // Résultat global de la tentative.
         $t = $wpdb->get_row( $wpdb->prepare(
-            "SELECT score, reussi FROM {$p}tentative WHERE id = %d",
+            "SELECT score, reussi, certification_id FROM {$p}tentative WHERE id = %d",
             $tentative_id
         ), ARRAY_A );
 
@@ -1019,8 +1019,12 @@ class NPQ_Examen {
             }
         }
 
-        // Libellés lisibles des domaines (D1 -> « Planification du SMSI »).
-        $libelles = self::libelles_domaines( array_keys( $par_domaine ) );
+        // Libellés lisibles des domaines (D1 -> « Planification du SMSI »),
+        // ceux de la certification sur laquelle l'examen a été passé.
+        $libelles = self::libelles_domaines(
+            array_keys( $par_domaine ),
+            (int) ( $t['certification_id'] ?? 0 )
+        );
 
         $url_espace = self::url_espace();
 
@@ -1407,8 +1411,17 @@ class NPQ_Examen {
      * Récupère les libellés lisibles des domaines depuis la base.
      * Renvoie un tableau code => libellé (ex : 'D3' => 'Planification du SMSI').
      * Si un domaine n'a pas de libellé, il n'est pas dans le tableau (on affichera le code).
+     *
+     * Le filtre par certification est essentiel : les codes de domaine sont
+     * réutilisés d'un référentiel à l'autre. Sans lui, plusieurs lignes
+     * remontaient pour un même code et la dernière lue écrasait les autres —
+     * l'écran de résultat pouvait afficher l'intitulé d'une certification que
+     * le candidat n'avait pas passée.
+     *
+     * @param array $codes            Codes de domaine rencontrés.
+     * @param int   $certification_id 0 pour une tentative ancienne non rattachée.
      */
-    private static function libelles_domaines( $codes ) {
+    private static function libelles_domaines( $codes, $certification_id = 0 ) {
         if ( empty( $codes ) ) {
             return [];
         }
@@ -1416,10 +1429,26 @@ class NPQ_Examen {
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
         $placeholders = implode( ',', array_fill( 0, count( $codes ), '%s' ) );
-        $lignes = $wpdb->get_results( $wpdb->prepare(
-            "SELECT code, libelle FROM {$p}domaine WHERE code IN ( $placeholders )",
-            $codes
-        ), ARRAY_A );
+
+        // Tentative non rattachée : on ne peut pas choisir le bon référentiel.
+        // On retient alors le libellé le plus ancien, un choix stable plutôt
+        // qu'un tirage au hasard. Le tri DESC y pourvoit : la boucle de
+        // construction du tableau écrase au fur et à mesure, donc c'est la
+        // DERNIÈRE ligne lue — le plus petit id — qui l'emporte.
+        if ( ! $certification_id ) {
+            $lignes = $wpdb->get_results( $wpdb->prepare(
+                "SELECT code, libelle FROM {$p}domaine
+                 WHERE code IN ( $placeholders )
+                 ORDER BY id DESC",
+                $codes
+            ), ARRAY_A );
+        } else {
+            $lignes = $wpdb->get_results( $wpdb->prepare(
+                "SELECT code, libelle FROM {$p}domaine
+                 WHERE certification_id = %d AND code IN ( $placeholders )",
+                array_merge( [ $certification_id ], $codes )
+            ), ARRAY_A );
+        }
 
         $map = [];
         foreach ( (array) $lignes as $l ) {

@@ -97,6 +97,68 @@ class NPQ_Bibliotheque {
     }
 
     /**
+     * Certifications à présenter à l'utilisateur CONNECTÉ : celles de sa
+     * bibliothèque. S'il n'en a aucune (compte dont l'accès n'est pas encore
+     * enregistré), on retombe sur la certification active plutôt que d'afficher
+     * une page vide.
+     *
+     * Les pages Révisions, Flashcards et Activité avaient chacune leur copie de
+     * cette logique, mot pour mot. Trois copies, c'est trois occasions de
+     * diverger : la règle de repli vit désormais à un seul endroit.
+     *
+     * @return array Lignes : id, code, nom.
+     */
+    public static function certifications_utilisateur() {
+        $fiche = NPQ_Comptes::fiche_courante();
+        $utilisateur_id = $fiche ? (int) $fiche['id'] : 0;
+
+        $certifs = $utilisateur_id ? self::certifications_de( $utilisateur_id ) : [];
+
+        if ( empty( $certifs ) ) {
+            $active = NPQ_Certification::courante();
+            if ( $active ) {
+                $certifs = [ [
+                    'id'   => (int) $active['id'],
+                    'code' => $active['code'],
+                    'nom'  => $active['nom'],
+                ] ];
+            }
+        }
+
+        return $certifs;
+    }
+
+    /**
+     * L'utilisateur connecté a-t-il accès à cette certification ?
+     * Garde-fou à appeler avant d'exposer le contenu d'une certification.
+     *
+     * Si sa bibliothèque est constituée, elle fait foi. Sinon on tolère la
+     * certification active — cohérent avec le repli ci-dessus.
+     *
+     * @param int $certification_id
+     * @return bool
+     */
+    public static function utilisateur_peut_acceder( $certification_id ) {
+        $certification_id = (int) $certification_id;
+        if ( ! $certification_id ) {
+            return false;
+        }
+
+        $fiche = NPQ_Comptes::fiche_courante();
+        $utilisateur_id = $fiche ? (int) $fiche['id'] : 0;
+        if ( ! $utilisateur_id ) {
+            return false;
+        }
+
+        $ids = self::ids_de( $utilisateur_id );
+        if ( ! empty( $ids ) ) {
+            return in_array( $certification_id, $ids, true );
+        }
+
+        return ( $certification_id === NPQ_Certification::id() );
+    }
+
+    /**
      * Attribue une certification à un utilisateur (entrée dans la bibliothèque).
      * Idempotent : réattribuer une certification déjà présente ne crée pas de
      * doublon, mais peut mettre à jour la date de fin d'accès.
