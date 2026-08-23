@@ -72,6 +72,88 @@ class NPQ_WooCommerce {
         // Remboursement ou annulation : on reprend ce qui a été donné.
         add_action( 'woocommerce_order_status_refunded',  [ __CLASS__, 'reprendre_acces' ] );
         add_action( 'woocommerce_order_status_cancelled', [ __CLASS__, 'reprendre_acces' ] );
+
+        // --- Intégration visuelle au thème ---
+        // Priorité 20 : après le after_setup_theme du thème (priorité 10 par
+        // défaut), sans quoi current_theme_supports() répondrait avant que le
+        // thème ait eu l'occasion de se déclarer.
+        add_action( 'after_setup_theme', [ __CLASS__, 'passerelle_theme' ], 20 );
+        add_action( 'wp_enqueue_scripts', [ __CLASS__, 'charger_styles' ] );
+    }
+
+    /* =====================================================================
+     * INTÉGRATION AU THÈME
+     * ===================================================================== */
+
+    /**
+     * Fait entrer les pages boutique dans la mise en page du thème.
+     *
+     * Le thème CARTO ne déclare pas add_theme_support( 'woocommerce' ).
+     * WooCommerce enveloppe donc son contenu dans son balisage par défaut
+     * (#primary, #main) — des identifiants que CARTO n'utilise pas : il
+     * travaille avec .carto-wrap. Résultat, les pages boutique s'affichaient
+     * hors de la grille du thème, sans ses marges ni sa largeur.
+     *
+     * On déclare le support manquant et on remplace ces enveloppes par celles
+     * du thème, reprises de son page.php.
+     *
+     * LE JOUR OÙ LE THÈME S'EN CHARGERA, CE CODE S'EFFACE : si
+     * current_theme_supports('woocommerce') est déjà vrai, on ne touche à
+     * rien. Une rustine doit savoir se retirer quand le mur est réparé.
+     */
+    public static function passerelle_theme() {
+        if ( current_theme_supports( 'woocommerce' ) ) {
+            return;
+        }
+
+        add_theme_support( 'woocommerce' );
+
+        remove_action( 'woocommerce_before_main_content', 'woocommerce_output_content_wrapper', 10 );
+        remove_action( 'woocommerce_after_main_content', 'woocommerce_output_content_wrapper_end', 10 );
+
+        add_action( 'woocommerce_before_main_content', [ __CLASS__, 'ouvrir_enveloppe' ], 10 );
+        add_action( 'woocommerce_after_main_content', [ __CLASS__, 'fermer_enveloppe' ], 10 );
+
+        // CARTO n'a pas de barre latérale. WooCommerce en réclame une sur
+        // plusieurs de ses gabarits ; sans ce retrait, on demande au thème un
+        // fichier qui n'existe pas.
+        remove_action( 'woocommerce_sidebar', 'woocommerce_get_sidebar', 10 );
+    }
+
+    /** Ouvre l'enveloppe de page du thème (reprise de son page.php). */
+    public static function ouvrir_enveloppe() {
+        echo '<section class="npq-boutique"><div class="carto-wrap">';
+    }
+
+    /** Ferme l'enveloppe de page du thème. */
+    public static function fermer_enveloppe() {
+        echo '</div></section>';
+    }
+
+    /**
+     * Charge la feuille de style de la boutique, uniquement sur ses pages.
+     *
+     * is_woocommerce() ne couvre QUE la boutique et les fiches produit : le
+     * panier, la commande et le compte client lui échappent. On les ajoute
+     * explicitement, sinon le tunnel d'achat — l'endroit où l'apparence
+     * compte le plus — resterait au style par défaut.
+     */
+    public static function charger_styles() {
+        if ( ! function_exists( 'is_woocommerce' ) ) {
+            return;
+        }
+
+        $sur_boutique = is_woocommerce() || is_cart() || is_checkout() || is_account_page();
+        if ( ! $sur_boutique ) {
+            return;
+        }
+
+        wp_enqueue_style(
+            'npq-boutique',
+            NPQ_URL . 'assets/npq-boutique.css',
+            [],
+            NPQ_VERSION
+        );
     }
 
     /* =====================================================================

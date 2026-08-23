@@ -1,0 +1,441 @@
+/**
+ * Boutique NormaPrep — alignement de WooCommerce sur le thème.
+ *
+ * POURQUOI CE FICHIER
+ *
+ * Les jetons de couleur du plugin (--teal, --text, --border…) sont définis
+ * dans .npq-app, le conteneur de l'espace membre. Les pages WooCommerce sont
+ * rendues par le thème, HORS de ce conteneur : elles n'héritaient donc
+ * d'aucun jeton, et affichaient le style par défaut de WooCommerce — des
+ * boutons gris-mauve sur un thème sombre.
+ *
+ * On redéclare donc les jetons sur les pages boutique, en pointant vers ceux
+ * du thème (--carto-*). La boutique suit donc CARTO si ses couleurs évoluent.
+ * Les valeurs de repli sont celles du thème, relevées dans son :root — pas
+ * celles de l'espace membre, qui en diffèrent légèrement : sur un thème
+ * absent, mieux vaut se tromper du côté du thème que de l'application.
+ *
+ * PORTÉE
+ *
+ * Tout est préfixé par .woocommerce ou .woocommerce-page, les classes que
+ * WooCommerce pose sur <body>. Rien ne fuit vers le reste du site.
+ */
+
+.woocommerce,
+.woocommerce-page {
+  --npqb-bg:        var(--carto-bg, #070C18);
+  --npqb-surface:   var(--carto-surface, #0C1428);
+  --npqb-border:    var(--carto-border, #1A2840);
+  --npqb-teal:      var(--carto-teal, #00CFCF);
+  --npqb-teal-soft: var(--carto-teal-soft, #7FD0E8);
+  --npqb-orange:    var(--carto-orange, #FF6B35);
+  --npqb-text:      var(--carto-text, #C8D8E8);
+  --npqb-text-lo:   var(--carto-text-lo, #6A8AAA);
+  --npqb-muted:     var(--carto-muted, #3A5070);
+  --npqb-ease:      var(--carto-ease, cubic-bezier(0.16, 1, 0.3, 1));
+  --npqb-mono:      var(--carto-font-mono, 'Inconsolata', monospace);
+}
+
+/* =====================================================================
+ * BOUTONS
+ *
+ * Reprise du .btn--primary du thème CARTO, à l'identique : monospace,
+ * capitales, interlettrage 0.14em, angles droits, bordure teal, survol vers
+ * teal-soft. C'est le thème qui fait référence ici, pas l'espace membre :
+ * la boutique est une page du SITE, pas un écran de l'application.
+ *
+ * WooCommerce impose ses couleurs avec une spécificité élevée : !important
+ * est ici le moyen le plus court d'avoir le dessus, plutôt qu'empiler des
+ * sélecteurs de plus en plus longs.
+ * ===================================================================== */
+
+.woocommerce a.button,
+.woocommerce button.button,
+.woocommerce input.button,
+.woocommerce #respond input#submit,
+.woocommerce a.button.alt,
+.woocommerce button.button.alt,
+.woocommerce input.button.alt,
+.woocommerce-page a.button,
+.woocommerce-page button.button,
+.woocommerce-page input.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--npqb-mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  padding: 14px 28px;
+  border: 1px solid var(--npqb-teal);
+  border-radius: 0;
+  background: var(--npqb-teal) !important;
+  color: var(--npqb-bg) !important;
+  text-decoration: none;
+  transition: background .25s var(--npqb-ease), color .25s, border-color .25s;
+  cursor: pointer;
+}
+
+.woocommerce a.button:hover,
+.woocommerce button.button:hover,
+.woocommerce input.button:hover,
+.woocommerce #respond input#submit:hover,
+.woocommerce a.button.alt:hover,
+.woocommerce button.button.alt:hover,
+.woocommerce-page a.button:hover,
+.woocommerce-page button.button:hover {
+  background: var(--npqb-teal-soft) !important;
+  color: var(--npqb-bg) !important;
+  border-color: var(--npqb-teal-soft);
+}
+
+/* Bouton désactivé : il doit se lire comme indisponible, pas comme un
+   bouton normal qui refuse de répondre. */
+.woocommerce a.button.disabled,
+.woocommerce button.button:disabled,
+.woocommerce button.button[disabled] {
+  background: var(--npqb-muted) !important;
+  color: var(--npqb-text-lo) !important;
+  border-color: var(--npqb-muted);
+  cursor: not-allowed;
+}
+
+/* Action secondaire (« Mettre à jour le panier », « Continuer mes achats ») :
+   présente sans rivaliser avec l'action principale. */
+.woocommerce .cart .button[name="update_cart"],
+.woocommerce a.button.wc-backward {
+  background: transparent !important;
+  color: var(--npqb-text) !important;
+  border: 1px solid var(--npqb-border);
+}
+
+.woocommerce .cart .button[name="update_cart"]:hover,
+.woocommerce a.button.wc-backward:hover {
+  background: transparent !important;
+  color: var(--npqb-teal) !important;
+  border-color: var(--npqb-teal);
+}
+
+/* =====================================================================
+ * ENVELOPPE DE PAGE
+ *
+ * Posée par NPQ_WooCommerce::ouvrir_enveloppe(), qui reprend la structure du
+ * page.php du thème pour que la boutique s'inscrive dans sa grille.
+ * ===================================================================== */
+
+.npq-boutique {
+  padding-top: clamp(32px, 4vw, 56px);
+  padding-bottom: clamp(48px, 6vw, 96px);
+}
+
+/* =====================================================================
+ * GRILLE PRODUITS
+ * ===================================================================== */
+
+.woocommerce ul.products li.product {
+  background: var(--npqb-surface);
+  border: 1px solid var(--npqb-border);
+  padding: 22px;
+  text-align: left;
+  transition: border-color .2s var(--npqb-ease);
+}
+
+.woocommerce ul.products li.product:hover {
+  border-color: var(--npqb-teal);
+}
+
+.woocommerce ul.products li.product .woocommerce-loop-product__title,
+.woocommerce ul.products li.product h2 {
+  color: var(--npqb-text);
+  font-size: 19px;
+  font-weight: 600;
+  padding: 0 0 8px;
+}
+
+/* Le badge « Promo » de WooCommerce, aligné sur les codes du produit. */
+.woocommerce span.onsale {
+  background: var(--npqb-orange);
+  color: #2B1206;
+  font-family: var(--npqb-mono);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 0;
+  min-height: 0;
+  min-width: 0;
+  line-height: 1;
+  padding: 8px 12px;
+}
+
+/* =====================================================================
+ * PRIX
+ * ===================================================================== */
+
+.woocommerce ul.products li.product .price,
+.woocommerce div.product p.price,
+.woocommerce div.product span.price {
+  color: var(--npqb-teal);
+  font-family: var(--npqb-mono);
+  font-weight: 700;
+  font-size: 22px;
+}
+
+/* Prix barré : c'est une information secondaire, elle ne doit pas capter
+   l'attention au détriment du prix réel. */
+.woocommerce ul.products li.product .price del,
+.woocommerce div.product p.price del {
+  color: var(--npqb-muted);
+  font-size: 16px;
+  opacity: 1;
+}
+
+/* =====================================================================
+ * FICHE PRODUIT
+ * ===================================================================== */
+
+.woocommerce div.product .product_title {
+  color: var(--npqb-text);
+}
+
+.woocommerce div.product .woocommerce-product-details__short-description,
+.woocommerce div.product .woocommerce-tabs .panel {
+  color: var(--npqb-text-lo);
+  line-height: 1.6;
+}
+
+.woocommerce div.product .woocommerce-tabs ul.tabs li {
+  background: transparent;
+  border: 1px solid var(--npqb-border);
+  border-radius: 0;
+}
+
+.woocommerce div.product .woocommerce-tabs ul.tabs li.active {
+  background: var(--npqb-surface);
+  border-bottom-color: var(--npqb-surface);
+}
+
+.woocommerce div.product .woocommerce-tabs ul.tabs li a {
+  color: var(--npqb-text-lo);
+  font-family: var(--npqb-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 13px;
+}
+
+.woocommerce div.product .woocommerce-tabs ul.tabs li.active a {
+  color: var(--npqb-text);
+}
+
+/* Une certification n'a pas de stock : la quantité n'a pas de sens ici.
+   On la neutralise visuellement plutôt que de laisser un champ inutile. */
+.woocommerce div.product form.cart .quantity input.qty {
+  background: var(--npqb-bg);
+  border: 1px solid var(--npqb-border);
+  color: var(--npqb-text);
+  padding: 12px 8px;
+  font-family: var(--npqb-mono);
+}
+
+/* =====================================================================
+ * MESSAGES
+ *
+ * WooCommerce les rend avec une bordure haute colorée. On garde ce principe
+ * mais avec une barre latérale, comme les encarts de l'espace membre.
+ * ===================================================================== */
+
+.woocommerce-message,
+.woocommerce-info,
+.woocommerce-error,
+.woocommerce-noreviews,
+.woocommerce p.no-comments {
+  background: var(--npqb-surface);
+  color: var(--npqb-text-lo);
+  border: 1px solid var(--npqb-border);
+  border-top: none;
+  border-left: 3px solid var(--npqb-teal);
+  border-radius: 0;
+  padding: 16px 20px;
+  list-style: none;
+}
+
+.woocommerce-error {
+  border-left-color: var(--npqb-orange);
+}
+
+.woocommerce-message::before,
+.woocommerce-info::before,
+.woocommerce-error::before {
+  display: none; /* les pictogrammes de WooCommerce jurent avec la maquette */
+}
+
+.woocommerce-message a.button,
+.woocommerce-info a.button {
+  padding: 10px 18px;
+  font-size: 12px;
+}
+
+/* =====================================================================
+ * TABLEAUX (panier, commande, compte)
+ * ===================================================================== */
+
+.woocommerce table.shop_table,
+.woocommerce table.shop_table td,
+.woocommerce table.shop_table th,
+.woocommerce table.shop_table tbody th,
+.woocommerce table.shop_table tfoot td,
+.woocommerce table.shop_table tfoot th {
+  background: transparent;
+  border-color: var(--npqb-border);
+  border-radius: 0;
+  color: var(--npqb-text-lo);
+}
+
+.woocommerce table.shop_table th {
+  color: var(--npqb-text);
+  font-family: var(--npqb-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.woocommerce table.shop_table .product-name a {
+  color: var(--npqb-text);
+}
+
+.woocommerce table.shop_table .amount {
+  color: var(--npqb-teal);
+  font-family: var(--npqb-mono);
+  font-weight: 700;
+}
+
+.woocommerce-cart .cart-collaterals .cart_totals > h2,
+.woocommerce-checkout h3 {
+  color: var(--npqb-text);
+}
+
+/* =====================================================================
+ * FORMULAIRES (commande, connexion, compte)
+ * ===================================================================== */
+
+.woocommerce form .form-row label,
+.woocommerce-page form .form-row label {
+  color: var(--npqb-text-lo);
+  font-size: 14px;
+}
+
+.woocommerce form .form-row input.input-text,
+.woocommerce form .form-row textarea,
+.woocommerce form .form-row select,
+.woocommerce-page form .form-row input.input-text,
+.woocommerce .select2-container .select2-selection--single {
+  background: var(--npqb-bg);
+  border: 1px solid var(--npqb-border);
+  border-radius: 0;
+  color: var(--npqb-text);
+  padding: 12px 14px;
+  line-height: 1.4;
+}
+
+.woocommerce form .form-row input.input-text:focus,
+.woocommerce form .form-row textarea:focus,
+.woocommerce form .form-row select:focus {
+  outline: none;
+  border-color: var(--npqb-teal);
+}
+
+.woocommerce form.checkout_coupon,
+.woocommerce form.login,
+.woocommerce form.register,
+.woocommerce-checkout #payment {
+  background: var(--npqb-surface);
+  border: 1px solid var(--npqb-border);
+  border-radius: 0;
+}
+
+.woocommerce-checkout #payment div.payment_box {
+  background: var(--npqb-bg);
+  color: var(--npqb-text-lo);
+  border-radius: 0;
+}
+
+/* La petite flèche qui relie le mode de paiement à son explication : elle
+   pointe vers le bloc, sa couleur doit suivre celle du bloc. */
+.woocommerce-checkout #payment div.payment_box::before {
+  border-bottom-color: var(--npqb-bg);
+}
+
+.woocommerce-checkout #payment ul.payment_methods {
+  border-bottom-color: var(--npqb-border);
+}
+
+.woocommerce-checkout #payment ul.payment_methods li label {
+  color: var(--npqb-text);
+}
+
+/* =====================================================================
+ * COMPTE CLIENT
+ * ===================================================================== */
+
+.woocommerce-account .woocommerce-MyAccount-navigation ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.woocommerce-account .woocommerce-MyAccount-navigation li {
+  border-bottom: 1px solid var(--npqb-border);
+}
+
+.woocommerce-account .woocommerce-MyAccount-navigation li a {
+  display: block;
+  padding: 12px 4px;
+  color: var(--npqb-text-lo);
+  font-family: var(--npqb-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 13px;
+}
+
+.woocommerce-account .woocommerce-MyAccount-navigation li.is-active a,
+.woocommerce-account .woocommerce-MyAccount-navigation li a:hover {
+  color: var(--npqb-teal);
+}
+
+/* =====================================================================
+ * FIL D'ARIANE ET TRI
+ * ===================================================================== */
+
+.woocommerce .woocommerce-breadcrumb,
+.woocommerce .woocommerce-result-count,
+.woocommerce .woocommerce-ordering select {
+  color: var(--npqb-text-lo);
+  font-size: 14px;
+}
+
+.woocommerce .woocommerce-breadcrumb a {
+  color: var(--npqb-text-lo);
+}
+
+.woocommerce .woocommerce-breadcrumb a:hover {
+  color: var(--npqb-teal);
+}
+
+/* =====================================================================
+ * MOBILE
+ * ===================================================================== */
+
+@media (max-width: 700px) {
+  .woocommerce a.button,
+  .woocommerce button.button,
+  .woocommerce input.button {
+    width: 100%;
+    text-align: center;
+  }
+
+  .woocommerce ul.products li.product {
+    padding: 18px;
+  }
+}
