@@ -407,6 +407,12 @@
   height: 40px;
   padding: 0 14px;
   background: transparent;
+  /* color-scheme: dark — la liste qu'ouvre un <select> natif est dessinée
+     par le navigateur, hors du document : aucun sélecteur ne l'atteint.
+     Cette propriété est le seul levier qui existe dessus, et elle suffit à
+     la faire basculer en sombre. Filet de sécurité : normalement le
+     composant a pris la main avant qu'on la voie. */
+  color-scheme: dark;
   border: 1px solid var(--npqb-border);
   border-radius: 0;
   color: var(--npqb-text-lo);

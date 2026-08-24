@@ -145,11 +145,9 @@ class NPQ_WooCommerce {
         // maquette ne montre que le tri.
         remove_action( 'woocommerce_before_shop_loop', 'woocommerce_result_count', 20 );
 
-        // Le menu de tri passe par notre composant habillé : un <select>
-        // natif ouvre une liste que le navigateur dessine lui-même, sur fond
-        // blanc, et qu'aucune feuille de style ne peut atteindre.
-        remove_action( 'woocommerce_before_shop_loop', 'woocommerce_catalog_ordering', 30 );
-        add_action( 'woocommerce_before_shop_loop', [ __CLASS__, 'tri_catalogue' ], 30 );
+        // La boutique manquait au fil d'Ariane des fiches produit.
+        add_filter( 'woocommerce_get_breadcrumb', [ __CLASS__, 'fil_avec_boutique' ], 10, 2 );
+
 
         // CARTO n'a pas de barre latérale. WooCommerce en réclame une sur
         // plusieurs de ses gabarits ; sans ce retrait, on demande au thème un
@@ -186,24 +184,53 @@ class NPQ_WooCommerce {
     }
 
     /**
-     * Menu de tri du catalogue, confié au composant habillé du plugin.
+     * Insère la boutique dans le fil d'Ariane, après l'accueil.
      *
-     * npq-select.js remplace un <select> par un menu qu'on peut styler, en
-     * gardant le natif dans la page : il porte toujours la valeur, soumet le
-     * formulaire, et reste pleinement utilisable si le script ne s'exécute
-     * pas. Il ne prend en charge que les <select> marqués d'un attribut.
+     * WooCommerce ne l'y met que si la base des permaliens produit contient
+     * le nom de la page boutique — autrement dit si les adresses ressemblent
+     * à /boutique/mon-produit/ et non à /produit/mon-produit/. C'est une
+     * condition sur la FORME DES ADRESSES, alors que la question posée est
+     * celle de la place du produit dans le site. Les deux n'ont pas de raison
+     * d'être liées : un produit appartient à la boutique quelle que soit son
+     * adresse.
      *
-     * WooCommerce n'offre aucun filtre sur les attributs de ce <select> : on
-     * reprend donc sa sortie pour y poser la marque. Un remplacement sur la
-     * seule balise ouvrante, et non sur tout le balisage, pour ne rien
-     * abîmer si WooCommerce change son gabarit.
+     * On ajoute donc l'échelon manquant, sans toucher aux permaliens — les
+     * changer réécrirait toutes les adresses de produits déjà en ligne.
+     *
+     * @param array $crumbs Échelons : [ libellé, url ].
+     * @param WC_Breadcrumb $breadcrumb
+     * @return array
      */
-    public static function tri_catalogue() {
-        ob_start();
-        woocommerce_catalog_ordering();
-        $html = ob_get_clean();
+    public static function fil_avec_boutique( $crumbs, $breadcrumb = null ) {
+        if ( empty( $crumbs ) || ! ( is_product() || is_product_taxonomy() ) ) {
+            return $crumbs;
+        }
 
-        echo str_replace( '<select ', '<select data-npq-select ', $html );
+        $page_boutique = wc_get_page_id( 'shop' );
+        if ( $page_boutique < 1 ) {
+            return $crumbs;
+        }
+
+        // Boutique en page d'accueil : l'accueil EST déjà la boutique, et
+        // l'ajouter écrirait deux fois le même échelon sous deux noms.
+        if ( (int) get_option( 'page_on_front' ) === $page_boutique ) {
+            return $crumbs;
+        }
+
+        $url = get_permalink( $page_boutique );
+
+        // Déjà présente ? C'est le cas si les permaliens sont réglés sur la
+        // base boutique : WooCommerce l'a alors mise lui-même.
+        foreach ( $crumbs as $echelon ) {
+            if ( ! empty( $echelon[1] ) && untrailingslashit( $echelon[1] ) === untrailingslashit( $url ) ) {
+                return $crumbs;
+            }
+        }
+
+        // Position 1 : juste après l'accueil, avant les catégories.
+        array_splice( $crumbs, 1, 0, [ [ get_the_title( $page_boutique ), $url ] ] );
+
+        return $crumbs;
     }
 
     /**
