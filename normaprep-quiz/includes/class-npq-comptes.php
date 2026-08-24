@@ -113,12 +113,24 @@ class NPQ_Comptes {
     }
 
     /**
-     * L'utilisateur connecté a-t-il un abonnement actif ?
-     * Vérifie la table abonnement (statut 'actif' et période non expirée).
+     * L'utilisateur connecté détient-il au moins un accès valide ?
+     *
+     * LA BIBLIOTHÈQUE EST LE REGISTRE DES DROITS — l'unique. Détenir une
+     * certification non expirée, c'est avoir le droit de s'en servir.
+     *
+     * Auparavant, deux barrières se superposaient : la table `abonnement`
+     * disait « est-ce un client payant ? », la bibliothèque « à quelles
+     * certifications ? ». Cette superposition devient intenable dès qu'on vend
+     * à l'unité : un client ayant acheté une certification obtiendrait sa ligne
+     * de bibliothèque et resterait pourtant bloqué, faute de ligne dans
+     * `abonnement`. Il faudrait écrire deux fois le même fait — donc deux
+     * occasions de désynchronisation, et un jour un client payant à la porte.
+     *
+     * Une seule table décide, une seule table s'écrit.
      *
      * @return bool
      */
-    public static function est_abonne_actif() {
+    public static function a_acces_actif() {
         $fiche = self::fiche_courante();
         if ( ! $fiche ) {
             return false;
@@ -126,26 +138,70 @@ class NPQ_Comptes {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
-        $actif = $wpdb->get_var( $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$p}abonnement
+        $actifs = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$p}utilisateur_certification
              WHERE utilisateur_id = %d
-               AND statut = 'actif'
-               AND ( fin_periode IS NULL OR fin_periode >= CURDATE() )",
+               AND ( fin_acces IS NULL OR fin_acces >= CURDATE() )",
             $fiche['id']
         ) );
 
-        return $actif > 0;
+        return ( $actifs > 0 );
+    }
+
+    /**
+     * Conservé sous son ancien nom : il est appelé depuis des gabarits de page
+     * (public/page-espace-normaprep.php), susceptibles d'avoir été recopiés
+     * dans le thème. Le renommer casserait ces copies sans prévenir.
+     *
+     * @deprecated Préférer a_acces_actif(), dont le nom dit la vérité.
+     * @return bool
+     */
+    public static function est_abonne_actif() {
+        return self::a_acces_actif();
+    }
+
+    /**
+     * Où envoyer quelqu'un qui n'a pas (ou plus) accès.
+     *
+     * Cette résolution vivait recopiée dans cinq fichiers, et retombait sur
+     * « # » quand la page « offres » n'existait pas — un lien mort au moment
+     * précis où l'on essaie de vendre.
+     *
+     * Ordre : la page « offres » si tu en as fait une, sinon la boutique
+     * WooCommerce, sinon l'accueil. Le repli sur la boutique évite d'avoir à
+     * créer une page vitrine pour commencer à vendre.
+     *
+     * @return string
+     */
+    public static function url_offres() {
+        $page = get_page_by_path( 'offres' );
+        if ( $page ) {
+            return get_permalink( $page );
+        }
+
+        if ( function_exists( 'wc_get_page_id' ) ) {
+            $boutique = wc_get_page_id( 'shop' );
+            if ( $boutique && $boutique > 0 ) {
+                return get_permalink( $boutique );
+            }
+        }
+
+        return home_url( '/' );
     }
 
     /**
      * L'utilisateur a-t-il le droit de passer un examen complet ?
-     * Combine le contrôle de capacité (rôle) et l'abonnement actif.
+     * Combine le contrôle de capacité (rôle) et la détention d'un accès.
+     *
+     * Barrière GÉNÉRALE : elle dit « cette personne a-t-elle accès à quelque
+     * chose ». Le périmètre — quelle certification précisément — est vérifié
+     * en aval, à chaque usage, par NPQ_Bibliotheque::utilisateur_peut_acceder().
      *
      * @return bool
      */
     public static function peut_passer_examen_complet() {
         return is_user_logged_in()
             && current_user_can( self::CAP_PASSER_EXAMEN )
-            && self::est_abonne_actif();
+            && self::a_acces_actif();
     }
 }

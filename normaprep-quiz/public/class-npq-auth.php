@@ -25,6 +25,27 @@ class NPQ_Auth {
     /** Clés de métadonnées utilisateur. */
     const META_EMAIL_VERIFIE = 'npq_email_verifie';
     const META_JETON         = 'npq_jeton_validation';
+    const META_JETON_DATE    = 'npq_jeton_date';
+
+    /**
+     * Durée de validité d'un lien de validation, en secondes.
+     *
+     * Un jeton sans expiration reste exploitable indéfiniment : un lien oublié
+     * au fond d'une boîte mail, ou lu par quelqu'un qui y a accès des années
+     * plus tard, permettrait encore d'activer le compte. Sept jours laissent
+     * largement le temps de relever son courrier.
+     */
+    const JETON_VALIDITE = 7 * DAY_IN_SECONDS;
+
+    /**
+     * Réponse unique du formulaire d'inscription.
+     *
+     * Volontairement identique que l'adresse soit libre ou déjà prise : c'est
+     * ce qui empêche d'utiliser le formulaire pour vérifier si une adresse est
+     * inscrite. Le message reste vrai dans les deux cas — un email part bien.
+     */
+    const MESSAGE_INSCRIPTION = 'Si cette adresse peut être utilisée, un email vient de vous être '
+                              . 'envoyé. Cliquez sur le lien qu\'il contient pour activer votre accès.';
 
     /** Options mémorisant les id des pages créées automatiquement. */
     const OPT_PAGE_INSCRIPTION = 'npq_page_inscription_id';
@@ -198,13 +219,34 @@ class NPQ_Auth {
         $mdp   = isset( $_POST['npq_mdp'] ) ? (string) $_POST['npq_mdp'] : '';
         $mdp2  = isset( $_POST['npq_mdp2'] ) ? (string) $_POST['npq_mdp2'] : '';
 
+        // Trop de comptes créés depuis cette adresse : on freine. Le honeypot
+        // arrête les robots naïfs, pas un outil qui remplit correctement le
+        // formulaire.
+        if ( NPQ_Limitation::inscription_bloquee() ) {
+            return self::flash(
+                'Trop de comptes créés depuis cette connexion. Réessayez plus tard.',
+                'erreur'
+            );
+        }
+
         // Validations.
         if ( ! is_email( $email ) ) {
             return self::flash( 'Adresse email invalide.', 'erreur' );
         }
+
+        // Adresse déjà inscrite : on ne le dit PAS, et on répond exactement
+        // comme pour une inscription réussie. Annoncer « un compte existe
+        // déjà » transforme ce formulaire en outil de vérification d'adresses.
+        //
+        // Un email part quand même — vers l'adresse existante, pour signaler
+        // la tentative. La personne concernée est ainsi informée, sans que
+        // celui qui a rempli le formulaire n'apprenne quoi que ce soit.
         if ( email_exists( $email ) ) {
-            return self::flash( 'Un compte existe déjà avec cette adresse.', 'erreur' );
+            self::avertir_compte_existant( $email );
+            NPQ_Limitation::inscription_effectuee();
+            return self::flash( self::MESSAGE_INSCRIPTION, 'succes' );
         }
+
         if ( strlen( $mdp ) < 8 ) {
             return self::flash( 'Le mot de passe doit contenir au moins 8 caractères.', 'erreur' );
         }
@@ -224,18 +266,44 @@ class NPQ_Auth {
             return self::flash( 'Erreur lors de la création du compte.', 'erreur' );
         }
 
-        // Marque le compte comme non vérifié + génère un jeton de validation.
+        // Marque le compte comme non vérifié + génère un jeton de validation,
+        // horodaté pour qu'il puisse expirer (voir jeton_expire()).
         $jeton = wp_generate_password( 32, false );
         update_user_meta( $user_id, self::META_EMAIL_VERIFIE, 0 );
         update_user_meta( $user_id, self::META_JETON, $jeton );
+        update_user_meta( $user_id, self::META_JETON_DATE, time() );
 
         // Envoie l'email de validation (attrapé par Mailpit en local).
         self::envoyer_email_validation( $user_id, $email, $jeton );
 
-        return self::flash(
-            'Votre compte a été créé. Un email de validation vous a été envoyé : '
-            . 'cliquez sur le lien qu\'il contient pour activer votre accès.',
-            'succes'
+        NPQ_Limitation::inscription_effectuee();
+
+        return self::flash( self::MESSAGE_INSCRIPTION, 'succes' );
+    }
+
+    /**
+     * Prévient le titulaire d'un compte qu'on a tenté de se réinscrire avec
+     * son adresse.
+     *
+     * C'est la contrepartie du silence : le formulaire ne révèle rien à celui
+     * qui l'a rempli, mais la personne concernée est avertie — et si elle
+     * avait simplement oublié son compte, l'email le lui rappelle.
+     *
+     * @param string $email
+     */
+    private static function avertir_compte_existant( $email ) {
+        $page_connexion = get_option( self::OPT_PAGE_CONNEXION );
+        $lien = $page_connexion ? get_permalink( $page_connexion ) : home_url( '/' );
+
+        wp_mail(
+            $email,
+            'Tentative d\'inscription avec votre adresse',
+            "Quelqu'un a tenté de créer un compte NormaPrep avec cette adresse, "
+            . "qui est déjà associée à un compte existant.\n\n"
+            . "Si c'était vous : connectez-vous plutôt ici.\n"
+            . $lien . "\n\n"
+            . "Si ce n'était pas vous, aucune action n'est nécessaire : "
+            . "aucun compte n'a été créé et le vôtre n'a pas été modifié."
         );
     }
 
@@ -263,9 +331,23 @@ class NPQ_Auth {
 
         $jeton_attendu = get_user_meta( $user_id, self::META_JETON, true );
 
-        if ( $jeton_attendu && hash_equals( $jeton_attendu, $jeton ) ) {
+        // hash_equals : comparaison à durée constante. Comparer avec === ferait
+        // varier le temps de réponse selon le nombre de caractères devinés,
+        // ce qui, répété, permet de reconstituer le jeton.
+        $valide = ( $jeton_attendu && hash_equals( $jeton_attendu, $jeton ) );
+
+        if ( $valide && self::jeton_expire( $user_id ) ) {
+            // Jeton juste mais périmé : on le retire plutôt que de le laisser
+            // traîner, et on invite à recommencer.
+            delete_user_meta( $user_id, self::META_JETON );
+            delete_user_meta( $user_id, self::META_JETON_DATE );
+            $valide = false;
+        }
+
+        if ( $valide ) {
             update_user_meta( $user_id, self::META_EMAIL_VERIFIE, 1 );
             delete_user_meta( $user_id, self::META_JETON ); // jeton à usage unique
+            delete_user_meta( $user_id, self::META_JETON_DATE );
             self::flash( 'Votre email est validé. Vous pouvez maintenant vous connecter.', 'succes' );
         } else {
             self::flash( 'Lien de validation invalide ou expiré.', 'erreur' );
@@ -277,6 +359,24 @@ class NPQ_Auth {
         exit;
     }
 
+    /**
+     * Le jeton de validation de ce compte a-t-il dépassé sa durée de vie ?
+     *
+     * Les comptes créés avant l'horodatage n'en ont pas : on les considère
+     * valides, faute de pouvoir dater leur jeton. Ils s'épuiseront d'eux-mêmes
+     * à mesure que leurs titulaires valideront leur adresse.
+     *
+     * @param int $user_id
+     * @return bool
+     */
+    private static function jeton_expire( $user_id ) {
+        $date = (int) get_user_meta( $user_id, self::META_JETON_DATE, true );
+        if ( ! $date ) {
+            return false;
+        }
+        return ( ( time() - $date ) > self::JETON_VALIDITE );
+    }
+
     private static function traiter_connexion() {
         if ( ! isset( $_POST['npq_nonce'] ) || ! wp_verify_nonce( $_POST['npq_nonce'], 'npq_connexion' ) ) {
             return self::flash( 'Session expirée, merci de réessayer.', 'erreur' );
@@ -285,17 +385,40 @@ class NPQ_Auth {
         $email = isset( $_POST['npq_email'] ) ? sanitize_email( wp_unslash( $_POST['npq_email'] ) ) : '';
         $mdp   = isset( $_POST['npq_mdp'] ) ? (string) $_POST['npq_mdp'] : '';
 
-        $user = get_user_by( 'email', $email );
-        if ( ! $user ) {
-            return self::flash( 'Identifiants incorrects.', 'erreur' );
-        }
-
-        // Bloque la connexion tant que l'email n'est pas validé.
-        if ( ! get_user_meta( $user->ID, self::META_EMAIL_VERIFIE, true ) ) {
+        // Trop d'échecs récents : on refuse d'examiner la demande. WordPress ne
+        // limite pas nativement les tentatives ; sans ce garde, le formulaire
+        // accepte des milliers d'essais par minute.
+        if ( NPQ_Limitation::connexion_bloquee( $email ) ) {
             return self::flash(
-                'Votre email n\'est pas encore validé. Vérifiez votre boîte de réception.',
+                sprintf(
+                    'Trop de tentatives de connexion. Réessayez dans %d minutes.',
+                    NPQ_Limitation::minutes_restantes()
+                ),
                 'erreur'
             );
+        }
+
+        $user = get_user_by( 'email', $email );
+
+        // Email inconnu, email non validé, mot de passe faux : TROIS causes,
+        // UN SEUL message. Distinguer « identifiants incorrects » de « email
+        // pas encore validé » revenait à confirmer l'existence du compte —
+        // de quoi constituer une liste d'adresses valides, qui sert ensuite
+        // au bourrage d'identifiants et au hameçonnage.
+        //
+        // On compte l'échec dans tous les cas, y compris quand l'email
+        // n'existe pas : sinon le balayage d'adresses ne serait jamais ralenti.
+        $echec = function () use ( $email ) {
+            NPQ_Limitation::connexion_echouee( $email );
+            return self::flash( 'Identifiants incorrects, ou compte pas encore validé.', 'erreur' );
+        };
+
+        if ( ! $user ) {
+            return $echec();
+        }
+
+        if ( ! get_user_meta( $user->ID, self::META_EMAIL_VERIFIE, true ) ) {
+            return $echec();
         }
 
         // Connexion via la fonction sécurisée de WordPress.
@@ -306,8 +429,10 @@ class NPQ_Auth {
         ] );
 
         if ( is_wp_error( $resultat ) ) {
-            return self::flash( 'Identifiants incorrects.', 'erreur' );
+            return $echec();
         }
+
+        NPQ_Limitation::connexion_reussie( $email );
 
         // Redirige vers l'espace abonné.
         $page_espace = get_option( 'npq_page_espace_id' );

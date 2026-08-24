@@ -247,7 +247,22 @@ class NPQ_Installer {
             UNIQUE KEY wp_user_id (wp_user_id)
         ) $charset;";
 
-        // --- Abonnements : au plus un actif par utilisateur ---
+        // --- Abonnements : TABLE HISTORIQUE, PLUS AUCUNE AUTORITÉ ------------
+        //
+        // Elle a gardé l'accès au produit jusqu'à la version 2.28.0. Depuis,
+        // la bibliothèque (utilisateur_certification) est le registre UNIQUE
+        // des droits : détenir une certification non expirée est le droit de
+        // s'en servir.
+        //
+        // Conservée pour ne pas détruire l'historique de paiement qu'elle peut
+        // porter, et parce qu'aucune donnée ne se supprime à la légère. Mais
+        // plus une seule ligne de code ne la lit pour décider d'un accès —
+        // hormis la migration qui a transféré son contenu.
+        //
+        // NE PAS LA REBRANCHER. Deux registres pour un même droit, c'est deux
+        // occasions de désynchronisation, et un jour un client payant à la
+        // porte. Toute mécanique de vente doit écrire dans la bibliothèque,
+        // via NPQ_Bibliotheque::attribuer().
         $sql[] = "CREATE TABLE {$p}abonnement (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             utilisateur_id BIGINT UNSIGNED NOT NULL,
@@ -523,6 +538,115 @@ class NPQ_Installer {
         );
 
         return $restantes - $reste;
+    }
+
+    /**
+     * Aligne la bibliothèque sur la vérité que portait la table `abonnement`.
+     *
+     * POURQUOI
+     *
+     * L'accès au produit était gardé par deux barrières superposées :
+     * `abonnement` disait « est-ce un client payant ? », la bibliothèque
+     * « à quelles certifications ? ». La bibliothèque étant par ailleurs
+     * remplie automatiquement pour TOUS les utilisateurs à chaque chargement,
+     * elle ne valait rien comme droit : c'est `abonnement` qui faisait seule
+     * barrage.
+     *
+     * En faisant de la bibliothèque le registre unique, on doit donc y inscrire
+     * ce que `abonnement` disait — sans quoi tout inscrit, payant ou non,
+     * obtiendrait un accès permanent.
+     *
+     * CE QU'ELLE FAIT
+     *
+     *   1. Les utilisateurs ayant un abonnement actif conservent leur accès,
+     *      dont la date de fin est reprise de l'abonnement (fin_periode).
+     *      Un abonnement sans date reste un accès permanent.
+     *   2. Les accès des utilisateurs SANS abonnement actif sont retirés :
+     *      ils n'ont jamais été un droit, seulement le résidu de l'attribution
+     *      automatique.
+     *
+     * PRUDENCE
+     *
+     * L'étape 2 supprime des lignes. Elles sont donc recopiées au préalable
+     * dans une option, ce qui permet de rétablir à la main si le résultat
+     * surprend. La sauvegarde est bornée : au-delà, on préfère ne pas gonfler
+     * indéfiniment la table des options.
+     *
+     * @return array Compte-rendu : conserves, retires, sauvegardes.
+     */
+    public static function migration_aligner_acces_sur_abonnement() {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        // Condition d'un abonnement en cours de validité. Écrite une fois,
+        // réutilisée par les deux étapes pour qu'elles ne puissent pas diverger.
+        $abonnement_actif = "a.statut = 'actif'
+                             AND ( a.fin_periode IS NULL OR a.fin_periode >= CURDATE() )";
+
+        // --- 1. Report des dates d'échéance sur les accès conservés ---------
+        // MAX() : si un utilisateur porte plusieurs abonnements actifs, c'est
+        // la fin la plus lointaine qui vaut. MAX ignore les NULL, d'où le
+        // décompte séparé d'un éventuel abonnement sans date, qui l'emporte
+        // sur toute date (accès permanent).
+        $conserves = (int) $wpdb->get_var(
+            "SELECT COUNT(*)
+             FROM {$p}utilisateur_certification uc
+             WHERE EXISTS (
+                 SELECT 1 FROM {$p}abonnement a
+                 WHERE a.utilisateur_id = uc.utilisateur_id AND {$abonnement_actif}
+             )"
+        );
+
+        $wpdb->query(
+            "UPDATE {$p}utilisateur_certification uc
+             INNER JOIN (
+                 SELECT a.utilisateur_id,
+                        MAX( a.fin_periode ) AS fin,
+                        SUM( CASE WHEN a.fin_periode IS NULL THEN 1 ELSE 0 END ) AS sans_fin
+                 FROM {$p}abonnement a
+                 WHERE {$abonnement_actif}
+                 GROUP BY a.utilisateur_id
+             ) src ON src.utilisateur_id = uc.utilisateur_id
+             SET uc.fin_acces = CASE WHEN src.sans_fin > 0 THEN NULL ELSE src.fin END"
+        );
+
+        // --- 2. Retrait des accès sans abonnement derrière eux --------------
+        // Sauvegarde avant suppression : ces lignes ne sont pas reconstituables
+        // autrement, la table abonnement ne les mentionnant pas.
+        $a_retirer = (array) $wpdb->get_results(
+            "SELECT uc.utilisateur_id, uc.certification_id, uc.date_acquisition, uc.fin_acces
+             FROM {$p}utilisateur_certification uc
+             WHERE NOT EXISTS (
+                 SELECT 1 FROM {$p}abonnement a
+                 WHERE a.utilisateur_id = uc.utilisateur_id AND {$abonnement_actif}
+             )
+             LIMIT 5000",
+            ARRAY_A
+        );
+
+        if ( ! empty( $a_retirer ) ) {
+            update_option( 'npq_acces_retires_sauvegarde', $a_retirer, false );
+        }
+
+        $retires = (int) $wpdb->query(
+            "DELETE uc FROM {$p}utilisateur_certification uc
+             WHERE NOT EXISTS (
+                 SELECT 1 FROM {$p}abonnement a
+                 WHERE a.utilisateur_id = uc.utilisateur_id AND {$abonnement_actif}
+             )"
+        );
+
+        $bilan = [
+            'conserves'  => $conserves,
+            'retires'    => $retires,
+            'sauvegardes'=> count( $a_retirer ),
+        ];
+
+        // Compte-rendu affiché en administration : une migration qui touche
+        // aux droits d'accès ne doit pas passer inaperçue.
+        update_option( 'npq_alignement_acces_bilan', $bilan, false );
+
+        return $bilan;
     }
 
     /**

@@ -26,6 +26,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 class NPQ_Bibliotheque {
 
     /**
+     * Nombre de jours avant l'échéance à partir duquel on prévient le client.
+     *
+     * Assez tôt pour qu'il ait le temps de décider, assez tard pour que
+     * l'avertissement garde du poids : prévenir trois mois à l'avance revient
+     * à ne pas prévenir, l'alerte devient un décor.
+     */
+    const PREAVIS_JOURS = 30;
+
+    /**
      * L'utilisateur a-t-il accès à cette certification ?
      * Un accès expiré (fin_acces dépassée) ne compte pas.
      *
@@ -81,6 +90,70 @@ class NPQ_Bibliotheque {
              ORDER BY uc.date_acquisition ASC, c.nom ASC",
             $utilisateur_id
         ), ARRAY_A );
+    }
+
+    /**
+     * TOUTES les certifications d'un utilisateur, expirées comprises, avec
+     * leur état lisible.
+     *
+     * certifications_de() écarte volontairement les accès expirés : c'est ce
+     * qu'il faut pour décider d'un droit. Mais pour AFFICHER sa bibliothèque à
+     * un client, l'expiré compte autant que l'actif — c'est même le seul
+     * endroit où on peut lui proposer de renouveler. Un accès qui disparaît
+     * sans laisser de trace donne l'impression d'un achat perdu.
+     *
+     * @param int $utilisateur_id
+     * @return array Lignes : id, code, nom, fin_acces, etat, jours_restants.
+     *               etat : 'permanent' | 'actif' | 'bientot' | 'expire'.
+     */
+    public static function inventaire_de( $utilisateur_id ) {
+        $utilisateur_id = (int) $utilisateur_id;
+        if ( ! $utilisateur_id ) {
+            return [];
+        }
+
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $lignes = (array) $wpdb->get_results( $wpdb->prepare(
+            "SELECT c.id, c.code, c.nom, uc.date_acquisition, uc.fin_acces
+             FROM {$p}utilisateur_certification uc
+             INNER JOIN {$p}certification c ON c.id = uc.certification_id
+             WHERE uc.utilisateur_id = %d
+             ORDER BY uc.fin_acces IS NULL DESC, uc.fin_acces DESC, c.nom ASC",
+            $utilisateur_id
+        ), ARRAY_A );
+
+        $aujourdhui = current_time( 'Y-m-d' );
+
+        foreach ( $lignes as &$ligne ) {
+            if ( $ligne['fin_acces'] === null ) {
+                $ligne['etat']           = 'permanent';
+                $ligne['jours_restants'] = null;
+                continue;
+            }
+
+            // Différence en jours entiers, sans heure : deux dates au format
+            // AAAA-MM-JJ se comparent à midi UTC pour éviter qu'un changement
+            // d'heure ne décale le compte d'un jour.
+            $jours = (int) floor(
+                ( strtotime( $ligne['fin_acces'] . ' 12:00:00' )
+                - strtotime( $aujourdhui . ' 12:00:00' ) ) / DAY_IN_SECONDS
+            );
+
+            $ligne['jours_restants'] = $jours;
+
+            if ( $jours < 0 ) {
+                $ligne['etat'] = 'expire';
+            } elseif ( $jours <= self::PREAVIS_JOURS ) {
+                $ligne['etat'] = 'bientot';
+            } else {
+                $ligne['etat'] = 'actif';
+            }
+        }
+        unset( $ligne );
+
+        return $lignes;
     }
 
     /**
@@ -285,6 +358,68 @@ class NPQ_Bibliotheque {
     }
 
     /**
+     * Ouvre ou PROLONGE un accès de N mois.
+     *
+     * La différence avec attribuer() est la règle de calcul de la date de fin,
+     * et elle compte : un client qui renouvelle deux mois avant l'échéance ne
+     * doit pas perdre les deux mois qu'il a déjà payés. On repart donc de la
+     * date de fin en cours si elle est future, et d'aujourd'hui sinon.
+     *
+     * Un accès permanent (fin_acces NULL) le reste : rien ne peut le raccourcir.
+     *
+     * @param int $utilisateur_id
+     * @param int $certification_id
+     * @param int $mois  Nombre de mois à ajouter. 0 = accès permanent.
+     * @return string|null Nouvelle date de fin ('AAAA-MM-JJ'), ou null si permanent.
+     */
+    public static function prolonger( $utilisateur_id, $certification_id, $mois ) {
+        $utilisateur_id   = (int) $utilisateur_id;
+        $certification_id = (int) $certification_id;
+        $mois             = (int) $mois;
+
+        if ( ! $utilisateur_id || ! $certification_id ) {
+            return null;
+        }
+
+        // Durée nulle : accès sans limite. On écrase toute date existante,
+        // puisqu'un accès permanent est toujours plus favorable.
+        if ( $mois <= 0 ) {
+            self::attribuer( $utilisateur_id, $certification_id, null );
+            return null;
+        }
+
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $ligne = $wpdb->get_row( $wpdb->prepare(
+            "SELECT id, fin_acces FROM {$p}utilisateur_certification
+             WHERE utilisateur_id = %d AND certification_id = %d",
+            $utilisateur_id,
+            $certification_id
+        ), ARRAY_A );
+
+        // Accès permanent déjà en place : on n'y touche pas. Le prolonger
+        // reviendrait à lui donner une fin, donc à retirer un droit.
+        if ( $ligne && $ligne['fin_acces'] === null ) {
+            return null;
+        }
+
+        $aujourdhui = current_time( 'Y-m-d' );
+
+        // Point de départ : l'échéance en cours si elle est encore future,
+        // aujourd'hui sinon (premier achat, ou reprise après expiration).
+        $depart = ( $ligne && $ligne['fin_acces'] >= $aujourdhui )
+            ? $ligne['fin_acces']
+            : $aujourdhui;
+
+        $fin = gmdate( 'Y-m-d', strtotime( $depart . ' +' . $mois . ' months' ) );
+
+        self::attribuer( $utilisateur_id, $certification_id, $fin );
+
+        return $fin;
+    }
+
+    /**
      * Retire une certification de la bibliothèque d'un utilisateur.
      *
      * @param int $utilisateur_id
@@ -308,18 +443,32 @@ class NPQ_Bibliotheque {
     }
 
     /**
-     * Migration douce : garantit que chaque utilisateur existant a accès à la
-     * certification donnée (par défaut, la certification active). Idempotent —
-     * on peut l'appeler à chaque chargement sans créer de doublons.
+     * Attribue une certification à TOUS les utilisateurs, en accès permanent.
      *
-     * Sert à ne casser l'accès de personne au déploiement de la bibliothèque :
-     * les comptes créés avant l'existence de la table reçoivent leur accès
-     * historique.
+     * ⚠️ NE JAMAIS APPELER AU CHARGEMENT DU PLUGIN.
+     *
+     * Cette méthode s'appelait « migration_douce » et tournait à chaque
+     * chargement de page. Deux conséquences, longtemps invisibles :
+     *
+     *   1. Tout nouvel inscrit — y compris un compte gratuit créé la seconde
+     *      d'avant — recevait un accès PERMANENT à la certification active.
+     *      Tant que la barrière d'accès reposait sur la table `abonnement`,
+     *      cela ne se voyait pas. Depuis que la bibliothèque fait seule
+     *      autorité, cela reviendrait à donner le produit.
+     *
+     *   2. Révoquer un accès était impossible : retirer() supprimait la ligne,
+     *      que le chargement suivant recréait aussitôt. Le bouton « retirer »
+     *      de la page Accès semblait fonctionner, puis l'accès revenait.
+     *
+     * Elle reste disponible pour un geste d'administration délibéré — offrir
+     * une certification à toute une promotion, par exemple. Son nom dit
+     * désormais ce qu'elle fait, pour que personne ne la rebranche en croyant
+     * appeler une migration inoffensive.
      *
      * @param int|null $certification_id  Défaut : la certification active.
      * @return int Nombre d'accès créés.
      */
-    public static function migration_douce( $certification_id = null ) {
+    public static function attribuer_a_tous_les_utilisateurs( $certification_id = null ) {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 

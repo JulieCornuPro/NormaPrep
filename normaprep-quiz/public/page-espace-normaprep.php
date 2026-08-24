@@ -24,8 +24,7 @@ if ( $initiales === '' ) { $initiales = 'NP'; }
 
 $url_examen  = ( $id = get_option( 'npq_page_examen_id' ) ) ? get_permalink( $id ) : '#';
 $url_espace  = ( $id = get_option( 'npq_page_espace_id' ) ) ? get_permalink( $id ) : home_url( '/' );
-$page_offres = get_page_by_path( 'offres' );
-$url_offres  = $page_offres ? get_permalink( $page_offres ) : '#';
+$url_offres  = class_exists( 'NPQ_Comptes' ) ? NPQ_Comptes::url_offres() : home_url( '/' );
 
 // Vraies données : EXAMENS passés (les révisions sont exclues — ce sont des
 // entraînements, elles ne comptent ni dans l'historique ni dans les statistiques).
@@ -82,7 +81,7 @@ get_header();
 
     <main class="main">
       <div class="greet">Bonjour <?php echo esc_html( $nom ); ?></div>
-      <div class="status-line">Statut : <span class="val<?php echo $abonne ? '' : ' inactif'; ?>"><?php echo $abonne ? 'Abonnement actif' : 'Compte gratuit'; ?></span></div>
+      <div class="status-line">Statut : <span class="val<?php echo $abonne ? '' : ' inactif'; ?>"><?php echo $abonne ? 'Accès actif' : 'Aucun accès'; ?></span></div>
 
       <div class="cta-row">
         <?php if ( $abonne ) : ?>
@@ -98,6 +97,9 @@ get_header();
         <div class="stat-card soon"><div class="sc-label">Temps de révision</div><div class="sc-val">à venir</div></div>
         <div class="stat-card soon"><div class="sc-label">Régularité</div><div class="sc-val">à venir</div></div>
       </div>
+
+      <div class="sec-title">Mes accès</div>
+      <?php echo NPQ_Espace::rendu_acces( $url_offres ); ?>
 
       <div class="sec-title">Mes examens</div>
 

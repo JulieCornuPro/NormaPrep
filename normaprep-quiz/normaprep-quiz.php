@@ -3,7 +3,7 @@
  * Plugin Name:       NormaPrep Quiz
  * Plugin URI:        https://github.com/【votre-compte】/normaprep-quiz
  * Description:       Module d'examens blancs pour la certification ISO/IEC 27001 Lead Implementer : scénarios, questions à choix multiples, composition d'examens par thèmes, correction détaillée et suivi de progression.
- * Version:           2.27.0
+ * Version:           2.33.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            NormaPrep
@@ -32,7 +32,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Version courante. IMPORTANT : cette valeur doit rester synchronisée avec
 // la ligne « Version: » de l'en-tête ci-dessus.
-define( 'NPQ_VERSION', '2.27.0' );
+define( 'NPQ_VERSION', '2.33.0' );
 
 // Chemin absolu vers le dossier du plugin sur le serveur (pour charger des fichiers PHP).
 define( 'NPQ_PATH', plugin_dir_path( __FILE__ ) );
@@ -137,14 +137,12 @@ function npq_init() {
 
     require_once NPQ_PATH . 'includes/class-npq-ponderation.php';
 
+    // Registre des droits d'accès. Rien n'est attribué automatiquement au
+    // chargement : la bibliothèque ne se remplit que par un achat, un geste
+    // d'administration, ou une migration explicite. L'attribution automatique
+    // qui vivait ici donnait un accès permanent à tout nouvel inscrit, et
+    // empêchait toute révocation (voir attribuer_a_tous_les_utilisateurs).
     require_once NPQ_PATH . 'includes/class-npq-bibliotheque.php';
-
-    // Garantit que les comptes existants gardent l'accès à la certification
-    // active quand la bibliothèque entre en service. Idempotent : sans effet
-    // une fois les accès en place.
-    if ( class_exists( 'NPQ_Bibliotheque' ) ) {
-        NPQ_Bibliotheque::migration_douce();
-    }
 
     // Logique de composition et de correction (disponible partout).
     require_once NPQ_PATH . 'logic/class-npq-composeur.php';
@@ -153,6 +151,17 @@ function npq_init() {
     // Gestion des comptes abonnés (rôle, lien WordPress, droits d'accès).
     require_once NPQ_PATH . 'includes/class-npq-comptes.php';
     NPQ_Comptes::init();
+
+    // Vente des accès via WooCommerce. Chargé après les comptes et la
+    // bibliothèque, dont il se sert. Le module se désarme tout seul si
+    // WooCommerce n'est pas actif : NormaPrep fonctionne sans lui, et
+    // désactiver la boutique ne retire aucun droit à personne.
+    require_once NPQ_PATH . 'includes/class-npq-woocommerce.php';
+    NPQ_WooCommerce::init();
+
+    // Limitation des tentatives (connexion, inscription). Chargée avant
+    // l'authentification, qui s'en sert.
+    require_once NPQ_PATH . 'includes/class-npq-limitation.php';
 
     // Inscription, validation d'email et connexion des abonnés (côté public).
     require_once NPQ_PATH . 'public/class-npq-auth.php';
