@@ -306,9 +306,12 @@ class NPQ_Boutique_Vignette {
      * support. Sinon l'identifiant du produit, qui a le mérite d'exister
      * toujours et de désigner sans ambiguïté.
      *
+     * Publique : la barre de fil d'Ariane l'affiche aussi, et deux façons de
+     * calculer une même référence finiraient par diverger.
+     *
      * @param WC_Product $product
      */
-    private static function reference( $product ) {
+    public static function reference( $product ) {
         $sku = $product->get_sku();
         return ( '' !== $sku ) ? $sku : 'REF-' . $product->get_id();
     }

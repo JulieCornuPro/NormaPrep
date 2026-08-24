@@ -132,6 +132,13 @@ class NPQ_WooCommerce {
         add_action( 'woocommerce_before_main_content', [ __CLASS__, 'ouvrir_enveloppe' ], 10 );
         add_action( 'woocommerce_after_main_content', [ __CLASS__, 'fermer_enveloppe' ], 10 );
 
+        // Le fil d'Ariane sort de l'enveloppe pour devenir une barre pleine
+        // largeur, comme dans la maquette. WooCommerce l'affiche à la
+        // priorité 20, donc APRÈS l'ouverture de nos conteneurs : il se
+        // retrouvait enfermé dans la colonne des produits, à côté des filtres.
+        remove_action( 'woocommerce_before_main_content', 'woocommerce_breadcrumb', 20 );
+        add_action( 'woocommerce_before_main_content', [ __CLASS__, 'barre_fil' ], 5 );
+
         // CARTO n'a pas de barre latérale. WooCommerce en réclame une sur
         // plusieurs de ses gabarits ; sans ce retrait, on demande au thème un
         // fichier qui n'existe pas.
@@ -164,6 +171,76 @@ class NPQ_WooCommerce {
         }
 
         echo '</div></section>';
+    }
+
+    /**
+     * Barre de fil d'Ariane, sous l'en-tête.
+     *
+     * Deux informations, aux deux bouts : où l'on se trouve, à gauche ; ce
+     * que la page contient, à droite. La maquette y met un état de stock —
+     * sans objet ici, où l'on vend un accès à une plateforme et non des
+     * pièces en réserve. La place revient donc à ce qui compte vraiment
+     * selon la page : un décompte de produits, ou une référence.
+     *
+     * PORTÉE : catalogue et fiches produit seulement. Le panier et la
+     * commande sont des pages WordPress ordinaires, rendues par le page.php
+     * du thème ; WooCommerce n'y déclenche pas ce hook, et la barre n'y
+     * apparaît donc pas.
+     */
+    public static function barre_fil() {
+        // Le fil est bufferisé : WooCommerce n'affiche rien sur certaines
+        // pages, et une barre vide vaudrait moins que pas de barre du tout.
+        ob_start();
+        woocommerce_breadcrumb();
+        $fil = trim( ob_get_clean() );
+
+        $etat = self::etat_page();
+
+        if ( '' === $fil && '' === $etat ) {
+            return;
+        }
+
+        echo '<div class="npq-fil"><div class="carto-wrap npq-fil__inner">';
+        echo $fil;
+
+        if ( '' !== $etat ) {
+            echo '<span class="npq-fil__etat">' . esc_html( $etat ) . '</span>';
+        }
+
+        echo '</div></div>';
+    }
+
+    /**
+     * Ce que la page contient, en bout de barre.
+     *
+     * @return string Chaîne vide quand il n'y a rien d'utile à dire — la
+     *                barre reste alors muette plutôt que de meubler.
+     */
+    private static function etat_page() {
+        if ( is_product() ) {
+            require_once NPQ_PATH . 'includes/class-npq-boutique-vignette.php';
+            $product = wc_get_product( get_queried_object_id() );
+            return $product ? '// ' . NPQ_Boutique_Vignette::reference( $product ) : '';
+        }
+
+        if ( is_shop() || is_product_taxonomy() ) {
+            $total = isset( $GLOBALS['wp_query'] ) ? (int) $GLOBALS['wp_query']->found_posts : 0;
+
+            $etat = sprintf( _n( '%s produit', '%s produits', $total, 'normaprep-quiz' ), number_format_i18n( $total ) );
+
+            // Le nom du rayon complète le décompte : « 3 produits » seul ne
+            // dit pas de quoi, quand on arrive par un lien de filtre.
+            if ( is_product_taxonomy() ) {
+                $terme = get_queried_object();
+                if ( $terme instanceof WP_Term ) {
+                    $etat .= ' · ' . $terme->name;
+                }
+            }
+
+            return $etat;
+        }
+
+        return '';
     }
 
     /**

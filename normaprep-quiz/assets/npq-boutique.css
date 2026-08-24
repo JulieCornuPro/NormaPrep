@@ -46,6 +46,16 @@
   --npqb-mono:       var(--carto-font-mono, 'Inconsolata', monospace);
   --npqb-display:    var(--carto-font-display, 'Syncopate', sans-serif);
   --npqb-glow:       var(--carto-glow-teal, 0 0 24px rgba(0,207,207,0.30));
+
+  /* LARGEUR DES PAGES DE VENTE
+     La maquette de la boutique est dessinée sur 1400px, le thème travaille
+     sur 1200px. Un catalogue perd plus qu'une page d'article à être étroit :
+     à 1200px, trois cartes plus la colonne de filtres ne laissaient pas
+     respirer les cartes.
+     On redéfinit donc le jeton du thème, sans le modifier : .carto-wrap le
+     lit comme d'habitude, et seules les pages qui portent une classe
+     WooCommerce sur <body> sont concernées. Le reste du site ne bouge pas. */
+  --carto-max-width: 1400px;
 }
 
 /* =====================================================================
@@ -822,6 +832,23 @@
   color: var(--npqb-teal);
 }
 
+/* UN SEUL ONGLET NE FAIT PAS UNE BARRE D'ONGLETS
+ *
+ * Avec un seul onglet, WooCommerce affiche quand même sa barre — et le
+ * panneau répète le titre juste en dessous. « Description » s'écrivait
+ * donc deux fois de suite. Une barre d'onglets sert à choisir : sans
+ * choix, elle ne fait que du bruit.
+ *
+ * :has() masque la barre entière. Sur un navigateur qui l'ignore, la
+ * seconde règle masque au moins l'onglet, et il ne reste qu'un filet. */
+.woocommerce div.product .woocommerce-tabs ul.tabs:has(li:only-child) {
+  display: none;
+}
+
+.woocommerce div.product .woocommerce-tabs ul.tabs li:only-child {
+  display: none;
+}
+
 /* LE PANNEAU DES ONGLETS
  *
  * Le panneau (#tab-description et ses voisins) s'affichait sur fond blanc.
@@ -1077,8 +1104,43 @@
 }
 
 /* =====================================================================
- * FIL D'ARIANE
+ * BARRE DE FIL D'ARIANE
+ *
+ * Une barre pleine largeur sous l'en-tête, et non un fil posé au-dessus
+ * du contenu : c'est ce qui la rattache visuellement à la navigation
+ * plutôt qu'à la page. Elle est rendue par NPQ_WooCommerce::barre_fil(),
+ * en dehors de l'enveloppe — sans quoi elle serait enfermée dans la
+ * colonne des produits, à côté des filtres.
  * ===================================================================== */
+
+.npq-fil {
+  border-top: 1px solid var(--npqb-border);
+  border-bottom: 1px solid var(--npqb-border);
+  background: rgba(12, 20, 40, 0.75);
+}
+
+.npq-fil__inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 40px;
+  flex-wrap: wrap;
+}
+
+/* L'état est repoussé à l'autre bout ; le fil prend ce qui reste et se
+   tronque plutôt que de pousser l'état hors du cadre. */
+.npq-fil .woocommerce-breadcrumb {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+.npq-fil__etat {
+  flex-shrink: 0;
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  color: var(--npqb-muted);
+}
 
 .woocommerce .woocommerce-breadcrumb {
   font-family: var(--npqb-mono);
