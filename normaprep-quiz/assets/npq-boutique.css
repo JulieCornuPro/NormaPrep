@@ -789,7 +789,21 @@
   display: none;
 }
 
+/* L'ONGLET ACTIF
+ *
+ * C'est ici qu'était le fond blanc — sur l'onglet, pas sur le panneau.
+ *
+ * WooCommerce dessine ses onglets comme des intercalaires de classeur :
+ * l'onglet actif se peint en blanc pour se fondre dans le panneau qu'il
+ * ouvre. La règle voisine remettait bien un fond transparent, mais sur
+ * « li » seul — moins spécifique que le « li.active » de WooCommerce, qui
+ * gardait donc le dessus. Un seul onglet suffisait à le rendre visible :
+ * étant seul, il est toujours actif.
+ *
+ * On repeint donc l'état actif explicitement. La maquette ne dessine pas
+ * d'intercalaire : l'onglet ouvert se signale par son seul filet teal. */
 .woocommerce div.product .woocommerce-tabs ul.tabs li.active {
+  background: transparent;
   border-bottom-color: var(--npqb-teal);
 }
 
