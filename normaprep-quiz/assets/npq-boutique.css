@@ -419,7 +419,7 @@
   position: relative; /* référent du badge « Promo », posé en absolu */
   background: var(--npqb-surface);
   border: 0;
-  border-top: 3px solid var(--npqb-teal);
+  border-top: 3px solid var(--npqb-accent, var(--npqb-teal));
   padding: 0 0 22px;
   text-align: left;
   display: flex;
@@ -431,18 +431,98 @@
   background: var(--npqb-surface-2);
 }
 
-/* Zone visuelle : fond grillé sombre, comme dans la maquette. Sans image de
-   produit, elle reste une surface graphique plutôt qu'un vide. */
-.woocommerce ul.products li.product a img {
+/* =====================================================================
+ * ZONE VISUELLE DU PRODUIT
+ *
+ * Rendue par NPQ_Boutique_Vignette, jamais par WooCommerce : son visuel
+ * de remplacement gris n'a rien à faire ici. Deux états, un seul cadre —
+ * l'image du produit quand il y en a une, un motif généré sinon.
+ *
+ * L'accent (teal / ambre / orange) suit la catégorie du produit. Il est
+ * posé sur la carte par une classe .npq-accent-*, et redescend par la
+ * variable --npqb-accent : le liseré haut de la carte et le drapeau
+ * changent ensemble, sans que chaque règle ait à connaître la couleur.
+ * ===================================================================== */
+
+.woocommerce .product.npq-accent-teal   { --npqb-accent: var(--npqb-teal); }
+.woocommerce .product.npq-accent-amber  { --npqb-accent: var(--npqb-amber); }
+.woocommerce .product.npq-accent-orange { --npqb-accent: var(--npqb-orange); }
+
+.npq-vignette {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--npqb-code-bg);
+  background-image: var(--carto-grid-image, none);
+  background-size: 40px 40px;
+  border-bottom: 1px solid var(--npqb-border);
+}
+
+.npq-vignette--boucle { height: 160px; }
+
+/* La fiche produit donne à la zone la place que la maquette lui accorde,
+   sans jamais dépasser la hauteur de l'écran : une zone décorative qui
+   repousse le prix hors de vue coûterait une vente. */
+.npq-vignette--fiche {
+  min-height: clamp(300px, 42vw, 560px);
+}
+
+.npq-vignette img {
   width: 100%;
-  height: 160px;
+  height: 100%;
   object-fit: cover;
   margin: 0;
-  border-bottom: 1px solid var(--npqb-border);
-  background: var(--npqb-code-bg);
-  background-image: var(--carto-grid-image);
-  background-size: 40px 40px;
+  display: block;
 }
+
+/* Le trigramme est en creux, pas en avant : c'est un fond, et le titre du
+   produit juste en dessous doit rester ce qu'on lit en premier. */
+.npq-vignette__marque {
+  font-family: var(--npqb-display);
+  font-weight: 700;
+  letter-spacing: -1px;
+  color: rgba(200, 216, 232, 0.15);
+  user-select: none;
+}
+
+.npq-vignette--boucle .npq-vignette__marque { font-size: 30px; }
+.npq-vignette--fiche  .npq-vignette__marque { font-size: clamp(64px, 11vw, 150px); }
+
+/* Drapeau et référence restent posés même par-dessus une image : ce sont
+   eux qui gardent la grille homogène quand seuls certains produits en ont
+   une. D'où le léger voile derrière, sans quoi ils deviendraient illisibles
+   sur une photo claire. */
+.npq-vignette__drapeau,
+.npq-vignette__ref {
+  position: absolute;
+  font-family: var(--npqb-mono);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.npq-vignette__drapeau {
+  top: 12px;
+  left: 14px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--npqb-accent, var(--npqb-teal));
+}
+
+.npq-vignette__ref {
+  bottom: 10px;
+  right: 14px;
+  color: var(--npqb-muted);
+}
+
+.npq-vignette--image .npq-vignette__drapeau,
+.npq-vignette--image .npq-vignette__ref {
+  padding: 4px 7px;
+  background: rgba(7, 12, 24, 0.78);
+}
+
+.npq-vignette--image .npq-vignette__ref { color: var(--npqb-text-lo); }
 
 .woocommerce ul.products li.product .woocommerce-loop-product__title,
 .woocommerce ul.products li.product h2 {
@@ -476,12 +556,16 @@
   color: var(--npqb-teal);
 }
 
-/* Badge « Promo » : pastille monospace en capitales, angles droits. */
+/* Badge « Promo » : pastille monospace en capitales, angles droits.
+   À DROITE, et non à gauche comme avant : le drapeau de catégorie occupe
+   désormais le coin haut-gauche de la zone visuelle, et les deux s'y
+   chevauchaient. */
 .woocommerce span.onsale {
   position: absolute;
+  z-index: 2;
   top: 12px;
-  left: 14px;
-  right: auto;
+  right: 14px;
+  left: auto;
   margin: 0;
   padding: 0;
   min-height: 0;
@@ -540,6 +624,76 @@
 /* =====================================================================
  * FICHE PRODUIT
  * ===================================================================== */
+
+/* MISE EN PAGE
+ *
+ * WooCommerce dispose la fiche en float : images à 48% à gauche, résumé à
+ * 48% à droite. Ce mécanisme ne survit pas au remplacement de sa galerie
+ * par notre zone visuelle — un élément qui ne flotte pas laisse le résumé
+ * lui passer dessus.
+ *
+ * On repasse donc en grille explicite. Tout ce que contient la fiche —
+ * onglets, produits liés, avis — occupe la pleine largeur par défaut ;
+ * seules la zone visuelle et la colonne d'achat sont placées côte à côte
+ * sur la première ligne. Une règle de placement plutôt qu'une liste de
+ * corrections : les blocs que WooCommerce ajoutera plus tard tomberont
+ * d'eux-mêmes au bon endroit.
+ */
+
+.woocommerce div.product {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr);
+  align-items: start;
+}
+
+.woocommerce div.product > * { grid-column: 1 / -1; }
+
+/* Le liseré haut de 3px traverse les deux colonnes : sur la fiche comme sur
+   la carte du catalogue, c'est lui qui porte la couleur de la catégorie. */
+.woocommerce div.product > .npq-vignette--fiche,
+.woocommerce div.product > .woocommerce-product-gallery {
+  grid-column: 1;
+  grid-row: 1;
+  border: 1px solid var(--npqb-border);
+  border-top: 3px solid var(--npqb-accent, var(--npqb-teal));
+}
+
+.woocommerce div.product > .summary {
+  grid-column: 2;
+  grid-row: 1;
+  padding: 30px 32px;
+  background: var(--npqb-surface);
+  border: 1px solid var(--npqb-border);
+  border-left: 0;
+  border-top: 3px solid var(--npqb-accent, var(--npqb-teal));
+}
+
+/* Les largeurs et flottements de WooCommerce se battraient avec la grille. */
+.woocommerce div.product div.images,
+.woocommerce div.product div.summary,
+.woocommerce div.product .woocommerce-product-gallery {
+  float: none !important;
+  width: auto !important;
+  margin: 0 !important;
+}
+
+/* Sous 900px, la colonne d'achat passe sous la zone visuelle : côte à côte,
+   il ne resterait pas de quoi lire un prix. */
+@media (max-width: 900px) {
+  .woocommerce div.product { grid-template-columns: 1fr; }
+
+  .woocommerce div.product > .npq-vignette--fiche,
+  .woocommerce div.product > .woocommerce-product-gallery,
+  .woocommerce div.product > .summary {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .woocommerce div.product > .summary {
+    border-left: 1px solid var(--npqb-border);
+    border-top: 0;
+  }
+}
 
 .woocommerce div.product .product_title {
   font-size: clamp(24px, 2.6vw, 30px);

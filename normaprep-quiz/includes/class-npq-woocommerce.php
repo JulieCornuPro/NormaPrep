@@ -91,6 +91,12 @@ class NPQ_WooCommerce {
         // thème ait eu l'occasion de se déclarer.
         add_action( 'after_setup_theme', [ __CLASS__, 'passerelle_theme' ], 20 );
         add_action( 'wp_enqueue_scripts', [ __CLASS__, 'charger_styles' ] );
+
+        // Zone visuelle des produits : image du produit s'il en a une, motif
+        // graphique généré sinon. Remplace le visuel de remplacement gris de
+        // WooCommerce, qui ne ressemble à rien du reste du site.
+        require_once NPQ_PATH . 'includes/class-npq-boutique-vignette.php';
+        NPQ_Boutique_Vignette::init();
     }
 
     /* =====================================================================
