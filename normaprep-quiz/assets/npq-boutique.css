@@ -253,8 +253,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  /* position: relative — le voyant d'attente de WooCommerce (.loading::after)
+     se place en absolu : sans référent ici, il irait se coller au coin d'un
+     ancêtre quelconque. */
+  position: relative;
   min-height: 46px;
-  padding: 0 26px;
+  /* Rembourrage vertical plutôt qu'une hauteur seule : un libellé qui passe
+     sur deux lignes fait grandir le bouton au lieu d'en déborder. C'est le
+     cas d'« Ajouter au panier » dans une colonne de catalogue étroite. */
+  padding: 12px 24px;
   border: 0;
   border-radius: 0;
   background: var(--npqb-teal) !important;
@@ -265,7 +272,9 @@
   letter-spacing: 0.16em;
   text-transform: uppercase;
   text-decoration: none;
-  line-height: 1;
+  text-align: center;
+  line-height: 1.25;
+  white-space: normal;
   cursor: pointer;
   transition: box-shadow .25s var(--npqb-ease);
 }
@@ -548,6 +557,38 @@
   margin: 11px 22px 0;
 }
 
+/* Le bouton du catalogue vit dans une colonne d'environ 300px, alors que
+   celui de la fiche produit a toute la largeur du bloc d'achat. Avec
+   l'interlettrage de la maquette, « Ajouter au panier » n'y tenait pas :
+   le libellé sortait du cadre. On resserre ici, et là seulement — la fiche
+   produit garde le bouton de la maquette. */
+.woocommerce ul.products li.product .button {
+  display: flex;
+  width: calc(100% - 44px);
+  padding: 12px 14px;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+}
+
+/* « Voir le panier », que WooCommerce ajoute après un ajout en AJAX. Sans
+   style il s'affichait en lien brut, collé sous le bouton. Ce n'est pas
+   l'action principale : il se lit comme un lien, pas comme un second
+   bouton qui rivaliserait avec le premier. */
+.woocommerce ul.products li.product a.added_to_cart {
+  display: block;
+  margin: 9px 22px 0;
+  font-family: var(--npqb-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--npqb-teal);
+  text-decoration: none;
+}
+
+.woocommerce ul.products li.product a.added_to_cart:hover {
+  color: var(--npqb-text);
+}
+
 .woocommerce ul.products li.product .price {
   display: block;
   font-family: var(--npqb-mono);
@@ -765,6 +806,61 @@
 
 .woocommerce div.product .woocommerce-tabs ul.tabs li.active a {
   color: var(--npqb-teal);
+}
+
+/* LE PANNEAU DES ONGLETS
+ *
+ * Le panneau (#tab-description et ses voisins) s'affichait sur fond blanc.
+ * Ni le thème ni cette feuille ne le demandaient : le fond venait d'une
+ * feuille tierce — WooCommerce, ou les styles globaux que WordPress injecte
+ * pour les blocs. On ne cherche pas laquelle : on pose le fond ici, sur les
+ * sélecteurs du panneau, ce qui règle le cas quelle que soit la source.
+ *
+ * « transparent » et non une couleur : le panneau doit laisser voir le fond
+ * de la page, qui porte déjà le quadrillage du thème. */
+.woocommerce div.product .woocommerce-tabs .panel,
+.woocommerce div.product .woocommerce-tabs .wc-tab,
+.woocommerce div.product .woocommerce-Tabs-panel,
+.woocommerce div.product #tab-description,
+.woocommerce div.product #tab-additional_information,
+.woocommerce div.product #tab-reviews {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: var(--npqb-text-lo);
+}
+
+/* Le titre que WooCommerce pose en tête du panneau (« Description »). */
+.woocommerce div.product .woocommerce-tabs .panel > h2 {
+  font-family: var(--npqb-display);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.4px;
+  text-transform: uppercase;
+  color: #fff;
+  margin: 0 0 14px;
+}
+
+/* Le tableau des caractéristiques : WooCommerce y alterne des lignes sur
+   fond clair, pensées pour un thème clair. */
+.woocommerce div.product table.shop_attributes th,
+.woocommerce div.product table.shop_attributes td,
+.woocommerce div.product table.shop_attributes tr:nth-child(even) th,
+.woocommerce div.product table.shop_attributes tr:nth-child(even) td {
+  background: transparent;
+  border-bottom: 1px solid var(--npqb-border);
+  color: var(--npqb-text-lo);
+  font-style: normal;
+  padding: 10px 0;
+}
+
+.woocommerce div.product table.shop_attributes th {
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--npqb-muted);
+  font-weight: 400;
 }
 
 /* Sélecteur de quantité : cadre unique, chiffre blanc centré. */
