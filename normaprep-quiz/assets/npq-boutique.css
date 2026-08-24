@@ -59,6 +59,175 @@
 }
 
 /* =====================================================================
+ * COLONNE DE FILTRES
+ * Deux colonnes sur les pages de catalogue : 232px de filtres, le reste
+ * pour les produits. Les valeurs viennent de la maquette (232 / 44).
+ *
+ * La grille n'existe QUE si la colonne a quelque chose à dire : c'est
+ * NPQ_WooCommerce::ouvrir_enveloppe() qui décide, et rend l'enveloppe
+ * simple sinon. Une colonne vide de 232px serait pire que pas de colonne.
+ * ===================================================================== */
+
+.npq-boutique-grille {
+  display: grid;
+  grid-template-columns: 232px 1fr;
+  gap: 44px;
+  align-items: start;
+}
+
+/* min-width: 0 — sans quoi une grille de produits large refuse de se
+   réduire et déborde de sa colonne : le défaut de CSS Grid, dont les
+   pistes ne descendent pas sous la taille minimale de leur contenu. */
+.npq-boutique-colonne { min-width: 0; }
+
+.npq-filtres {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  position: sticky;
+  top: 88px;   /* hauteur de l'en-tête fixe du thème, plus une respiration */
+}
+
+.npq-filtres__groupe {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.npq-filtres__titre {
+  font-family: var(--npqb-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--npqb-teal);
+}
+
+/* Le filet dégradé de la maquette : il s'éteint vers la droite plutôt que
+   de s'arrêter net, pour ne pas dessiner une seconde bordure. */
+.npq-filtres__filet {
+  height: 1px;
+  width: 170px;
+  margin-top: -4px;
+  background: linear-gradient(to right, var(--npqb-teal), transparent);
+}
+
+/* ── Liens de rayon ──
+   Le repère d'état est un liseré à GAUCHE, pas un fond plein : la colonne
+   doit rester lisible d'un coup d'œil, sans blocs qui se disputent
+   l'attention avec les cartes produit. */
+.npq-filtres__liens {
+  display: flex;
+  flex-direction: column;
+}
+
+.npq-filtre-lien {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border-left: 2px solid transparent;
+  font-size: 15px;
+  color: var(--npqb-text-lo);
+  text-decoration: none;
+  transition: color .25s var(--npqb-ease), background .25s, border-color .25s;
+}
+
+.npq-filtre-lien:hover {
+  color: var(--npqb-text);
+  background: rgba(0,207,207,0.04);
+}
+
+.npq-filtre-lien.est-actif {
+  color: var(--npqb-teal);
+  background: var(--npqb-teal-12);
+  border-left-color: var(--npqb-teal);
+}
+
+.npq-filtre-lien__lbl { flex: 1; }
+
+.npq-filtre-lien__nb {
+  font-family: var(--npqb-mono);
+  font-size: 11px;
+  color: var(--npqb-muted);
+}
+
+/* ── Cases à cocher ──
+   Dessinées, pas natives : un <input type=checkbox> n'aurait pas de sens
+   pour un lien, et les carrés à angles droits de la maquette ne sont de
+   toute façon pas obtenables sur un contrôle du navigateur. */
+.npq-filtres__cases {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.npq-filtre-case {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--npqb-text-lo);
+  text-decoration: none;
+  transition: color .25s var(--npqb-ease);
+}
+
+.npq-filtre-case:hover { color: var(--npqb-text); }
+
+.npq-filtre-case__marque {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--npqb-border);
+  transition: border-color .25s, background .25s;
+}
+
+.npq-filtre-case:hover .npq-filtre-case__marque { border-color: var(--npqb-text-lo); }
+
+.npq-filtre-case.est-actif { color: var(--npqb-teal); }
+
+.npq-filtre-case.est-actif .npq-filtre-case__marque {
+  border-color: var(--npqb-teal);
+  background: var(--npqb-teal-12);
+}
+
+/* Ne s'affiche que si un filtre est posé : proposer d'effacer ce qui n'existe
+   pas ajoute une ligne pour rien. */
+.npq-filtres__reinit {
+  align-self: flex-start;
+  font-family: var(--npqb-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--npqb-text-lo);
+  text-decoration: none;
+  border-bottom: 1px solid var(--npqb-border);
+  padding-bottom: 3px;
+  transition: color .25s, border-color .25s;
+}
+
+.npq-filtres__reinit:hover {
+  color: var(--npqb-teal);
+  border-bottom-color: var(--npqb-teal);
+}
+
+/* Sous 900px la colonne passe au-dessus du catalogue : côte à côte, elle
+   laisserait moins de 300px aux produits. */
+@media (max-width: 900px) {
+  .npq-boutique-grille {
+    grid-template-columns: 1fr;
+    gap: 34px;
+  }
+  .npq-filtres {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 26px 40px;
+  }
+  .npq-filtres__groupe { flex: 1 1 220px; }
+}
+
+/* =====================================================================
  * BOUTONS
  *
  * Le bouton d'achat de la maquette : sans bordure, interlettrage 0.16em,

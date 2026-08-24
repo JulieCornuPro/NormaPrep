@@ -43,6 +43,18 @@ class NPQ_WooCommerce {
     const META_COMMANDE_TRAITEE = '_npq_acces_attribues';
 
     /**
+     * Colonne de filtres rendue à l'ouverture de l'enveloppe.
+     *
+     * Mémorisée parce que la fermeture doit refermer exactement ce que
+     * l'ouverture a ouvert : recalculer la condition en fin de page risquerait
+     * de fermer une balise qui n'a jamais été ouverte, et de casser la mise en
+     * page de tout ce qui suit.
+     *
+     * @var string
+     */
+    private static $colonne_filtres = '';
+
+    /**
      * WooCommerce est-il actif ?
      * On ne teste pas le fichier du plugin mais la présence de sa classe :
      * c'est le seul indicateur fiable qu'il est réellement chargé.
@@ -120,14 +132,50 @@ class NPQ_WooCommerce {
         remove_action( 'woocommerce_sidebar', 'woocommerce_get_sidebar', 10 );
     }
 
-    /** Ouvre l'enveloppe de page du thème (reprise de son page.php). */
+    /**
+     * Ouvre l'enveloppe de page du thème (reprise de son page.php).
+     *
+     * Sur les pages de catalogue, l'enveloppe se dédouble en deux colonnes :
+     * les filtres à gauche, les produits à droite. Ailleurs — fiche produit,
+     * panier, commande — le contenu prend toute la largeur.
+     */
     public static function ouvrir_enveloppe() {
         echo '<section class="npq-boutique"><div class="carto-wrap">';
+
+        self::$colonne_filtres = self::rendu_filtres();
+
+        if ( '' !== self::$colonne_filtres ) {
+            echo '<div class="npq-boutique-grille">';
+            echo self::$colonne_filtres;
+            echo '<div class="npq-boutique-colonne">';
+        }
     }
 
     /** Ferme l'enveloppe de page du thème. */
     public static function fermer_enveloppe() {
+        if ( '' !== self::$colonne_filtres ) {
+            echo '</div></div>';
+        }
+
         echo '</div></section>';
+    }
+
+    /**
+     * La colonne de filtres, si la page en attend une.
+     *
+     * Chargée à la demande : sur une fiche produit ou dans le tunnel d'achat,
+     * ce fichier n'a aucune raison d'être lu.
+     *
+     * @return string HTML, chaîne vide s'il n'y a rien à filtrer.
+     */
+    private static function rendu_filtres() {
+        require_once NPQ_PATH . 'includes/class-npq-boutique-filtres.php';
+
+        if ( ! NPQ_Boutique_Filtres::sur_catalogue() ) {
+            return '';
+        }
+
+        return NPQ_Boutique_Filtres::rendu();
     }
 
     /**
