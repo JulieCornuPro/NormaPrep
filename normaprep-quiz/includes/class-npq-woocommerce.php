@@ -139,6 +139,18 @@ class NPQ_WooCommerce {
         remove_action( 'woocommerce_before_main_content', 'woocommerce_breadcrumb', 20 );
         add_action( 'woocommerce_before_main_content', [ __CLASS__, 'barre_fil' ], 5 );
 
+        // « 4 résultats affichés » disait la même chose que le décompte de la
+        // barre, deux fois sur le même écran. On garde celui de la barre : il
+        // est à sa place dans la maquette, et discret. Sous le titre, la
+        // maquette ne montre que le tri.
+        remove_action( 'woocommerce_before_shop_loop', 'woocommerce_result_count', 20 );
+
+        // Le menu de tri passe par notre composant habillé : un <select>
+        // natif ouvre une liste que le navigateur dessine lui-même, sur fond
+        // blanc, et qu'aucune feuille de style ne peut atteindre.
+        remove_action( 'woocommerce_before_shop_loop', 'woocommerce_catalog_ordering', 30 );
+        add_action( 'woocommerce_before_shop_loop', [ __CLASS__, 'tri_catalogue' ], 30 );
+
         // CARTO n'a pas de barre latérale. WooCommerce en réclame une sur
         // plusieurs de ses gabarits ; sans ce retrait, on demande au thème un
         // fichier qui n'existe pas.
@@ -171,6 +183,27 @@ class NPQ_WooCommerce {
         }
 
         echo '</div></section>';
+    }
+
+    /**
+     * Menu de tri du catalogue, confié au composant habillé du plugin.
+     *
+     * npq-select.js remplace un <select> par un menu qu'on peut styler, en
+     * gardant le natif dans la page : il porte toujours la valeur, soumet le
+     * formulaire, et reste pleinement utilisable si le script ne s'exécute
+     * pas. Il ne prend en charge que les <select> marqués d'un attribut.
+     *
+     * WooCommerce n'offre aucun filtre sur les attributs de ce <select> : on
+     * reprend donc sa sortie pour y poser la marque. Un remplacement sur la
+     * seule balise ouvrante, et non sur tout le balisage, pour ne rien
+     * abîmer si WooCommerce change son gabarit.
+     */
+    public static function tri_catalogue() {
+        ob_start();
+        woocommerce_catalog_ordering();
+        $html = ob_get_clean();
+
+        echo str_replace( '<select ', '<select data-npq-select ', $html );
     }
 
     /**
@@ -279,10 +312,29 @@ class NPQ_WooCommerce {
             return;
         }
 
+        // Le composant de menu déroulant, partagé avec l'espace membre. Il
+        // est déclaré AVANT la feuille de la boutique, qui en dépend : c'est
+        // cette dépendance qui garantit l'ordre de chargement, et donc que
+        // les réglages de la boutique aient le dernier mot.
+        wp_enqueue_style(
+            'npq-select',
+            NPQ_URL . 'assets/npq-select.css',
+            [],
+            NPQ_VERSION
+        );
+
+        wp_enqueue_script(
+            'npq-select',
+            NPQ_URL . 'assets/npq-select.js',
+            [],           // aucune dépendance : vanilla JS
+            NPQ_VERSION,
+            true          // dans le pied de page
+        );
+
         wp_enqueue_style(
             'npq-boutique',
             NPQ_URL . 'assets/npq-boutique.css',
-            [],
+            [ 'npq-select' ],
             NPQ_VERSION
         );
     }

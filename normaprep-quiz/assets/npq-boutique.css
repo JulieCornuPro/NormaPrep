@@ -47,6 +47,20 @@
   --npqb-display:    var(--carto-font-display, 'Syncopate', sans-serif);
   --npqb-glow:       var(--carto-glow-teal, 0 0 24px rgba(0,207,207,0.30));
 
+  /* Le composant de menu déroulant (npq-select.css) est écrit pour l'espace
+     membre et lit SES jetons : --surface, --border, --teal… Plutôt que de le
+     dupliquer pour la boutique, on lui tend ici les jetons CARTO sous les
+     noms qu'il attend. Un seul composant, deux habillages. */
+  --surface:   var(--npqb-surface);
+  --surface-2: var(--npqb-surface-2);
+  --border:    var(--npqb-border);
+  --text:      var(--npqb-text);
+  --text-lo:   var(--npqb-text-lo);
+  --muted:     var(--npqb-muted);
+  --teal:      var(--npqb-teal);
+  --teal-dim:  var(--npqb-teal-12);
+  --ease:      var(--npqb-ease);
+
   /* LARGEUR DES PAGES DE VENTE
      La maquette de la boutique est dessinée sur 1400px, le thème travaille
      sur 1200px. Un catalogue perd plus qu'une page d'article à être étroit :
@@ -379,15 +393,16 @@
   color: var(--npqb-text-lo);
 }
 
-/* Compteur et tri : deux éléments monospace discrets, alignés. */
-.woocommerce .woocommerce-result-count {
-  font-family: var(--npqb-mono);
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--npqb-text-lo);
-}
-
+/* LE MENU DE TRI
+ *
+ * Le <select> natif est masqué par npq-select.js, qui le remplace par un
+ * menu qu'on peut habiller — le navigateur dessine sa propre liste, sur
+ * fond blanc, hors d'atteinte de toute feuille de style. Les règles
+ * ci-dessous restent utiles : elles habillent le natif tant que le script
+ * n'a pas pris la main, et pour toujours s'il ne s'exécute pas.
+ *
+ * (Le compteur « X résultats affichés » n'est plus affiché : il faisait
+ * doublon avec le décompte de la barre de fil d'Ariane.) */
 .woocommerce .woocommerce-ordering select {
   height: 40px;
   padding: 0 14px;
@@ -408,6 +423,47 @@
   border-color: var(--npqb-teal);
   color: var(--npqb-teal);
   outline: none;
+}
+
+/* Le composant habillé, une fois le natif remplacé. npq-select.css lui donne
+   la mesure de l'espace membre — Rajdhani 17px, cadres généreux. Ici c'est un
+   contrôle de barre d'outils, pas un champ de formulaire : on reprend le
+   monospace en capitales du reste de la boutique, et la hauteur de 40px des
+   autres commandes de l'en-tête de catalogue. */
+.woocommerce .woocommerce-ordering .npq-select {
+  min-width: 240px;
+}
+
+.woocommerce .woocommerce-ordering .npq-select__trigger {
+  height: 40px;
+  padding: 0 14px;
+  background: transparent;
+  border-color: var(--npqb-border);
+  color: var(--npqb-text-lo);
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.woocommerce .woocommerce-ordering .npq-select__trigger:hover,
+.woocommerce .woocommerce-ordering .npq-select.is-open .npq-select__trigger {
+  border-color: var(--npqb-teal);
+  color: var(--npqb-teal);
+}
+
+.woocommerce .woocommerce-ordering .npq-select__panel {
+  background: var(--npqb-surface);
+  border-color: var(--npqb-border);
+}
+
+.woocommerce .woocommerce-ordering .npq-select__option {
+  padding: 11px 14px;
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 /* =====================================================================
@@ -717,6 +773,16 @@
   border: 1px solid var(--npqb-border);
   border-left: 0;
   border-top: 3px solid var(--npqb-accent, var(--npqb-teal));
+}
+
+/* Ce qui suit le bloc d'achat — onglets, ventes croisées, produits liés —
+   touchait le bas de la zone visuelle. La grille ne pose pas d'écart entre
+   ses lignes, et ces blocs n'ont pas de marge propre : « Description »
+   venait donc se coller à l'image. */
+.woocommerce div.product > .woocommerce-tabs,
+.woocommerce div.product > .upsells,
+.woocommerce div.product > .related {
+  margin-top: 48px;
 }
 
 /* Les largeurs et flottements de WooCommerce se battraient avec la grille. */
@@ -1132,7 +1198,6 @@
 .npq-fil .woocommerce-breadcrumb {
   flex: 1 1 auto;
   min-width: 0;
-  margin: 0;
 }
 
 .npq-fil__etat {
@@ -1142,13 +1207,18 @@
   color: var(--npqb-muted);
 }
 
+/* margin: 0 — et non la marge basse de 26px d'avant. Le fil ne vit plus
+   qu'à l'intérieur de la barre, qui centre ses éléments : une marge basse y
+   décale le texte vers le HAUT de la moitié de sa valeur, et le désaligne du
+   décompte d'en face. C'est à la barre de donner la respiration, pas au fil
+   de la porter. */
 .woocommerce .woocommerce-breadcrumb {
+  margin: 0;
   font-family: var(--npqb-mono);
   font-size: 11px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--npqb-muted);
-  margin-bottom: 26px;
 }
 
 .woocommerce .woocommerce-breadcrumb a {
