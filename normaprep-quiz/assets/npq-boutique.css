@@ -1040,13 +1040,20 @@
    Rendu par NPQ_WooCommerce::fil_etapes(). Le trait qui suit chaque étape
    la relie à la suivante ; la dernière n'en a pas, elle ne mène nulle
    part. */
+/* Le bandeau qui porte le fil, sous celui du fil d'Ariane. Il vit hors de
+   .carto-wrap pour occuper toute la largeur, et remet le wrap à l'intérieur
+   pour aligner les étapes sur le contenu. */
+.npq-tunnel {
+  padding: 30px 0 0;
+}
+
 .npq-etapes {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 0;
   list-style: none;
-  margin: 0 0 34px;
+  margin: 0;
   padding: 0;
 }
 
@@ -1116,8 +1123,7 @@
 }
 
 /* Les messages s'adressent à la page entière, pas à une colonne. */
-.woocommerce-cart .woocommerce > .woocommerce-notices-wrapper,
-.woocommerce-cart .woocommerce > .npq-etapes {
+.woocommerce-cart .woocommerce > .woocommerce-notices-wrapper {
   grid-column: 1 / -1;
 }
 

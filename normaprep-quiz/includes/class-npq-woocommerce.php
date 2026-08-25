@@ -55,6 +55,17 @@ class NPQ_WooCommerce {
     private static $colonne_filtres = '';
 
     /**
+     * Les bandeaux sous l'en-tête ont-ils déjà été rendus sur cette page ?
+     *
+     * Deux points d'accroche peuvent y mener — celui du thème, et le repli
+     * sur WooCommerce quand le thème n'est pas à jour. Sans ce témoin, un
+     * thème à jour afficherait le fil d'Ariane deux fois sur le catalogue.
+     *
+     * @var bool
+     */
+    private static $bandeaux_rendus = false;
+
+    /**
      * WooCommerce est-il actif ?
      * On ne teste pas le fichier du plugin mais la présence de sa classe :
      * c'est le seul indicateur fiable qu'il est réellement chargé.
@@ -90,6 +101,14 @@ class NPQ_WooCommerce {
         // défaut), sans quoi current_theme_supports() répondrait avant que le
         // thème ait eu l'occasion de se déclarer.
         add_action( 'after_setup_theme', [ __CLASS__, 'passerelle_theme' ], 20 );
+
+        // Habillage de la boutique. SÉPARÉ DE LA PASSERELLE À DESSEIN : la
+        // passerelle est une rustine qui s'efface le jour où le thème déclare
+        // son support de WooCommerce, alors que ces réglages-ci sont
+        // l'intégration graphique elle-même. Les mélanger ferait disparaître
+        // le fil d'Ariane et le fil d'étapes avec la rustine.
+        add_action( 'after_setup_theme', [ __CLASS__, 'habillage_boutique' ], 20 );
+
         add_action( 'wp_enqueue_scripts', [ __CLASS__, 'charger_styles' ] );
 
         // Zone visuelle des produits : image du produit s'il en a une, motif
@@ -102,6 +121,46 @@ class NPQ_WooCommerce {
     /* =====================================================================
      * INTÉGRATION AU THÈME
      * ===================================================================== */
+
+    /**
+     * Réglages d'habillage de la boutique.
+     *
+     * Ce que WooCommerce affiche de lui-même et qu'on remplace, et ce qu'on
+     * ajoute par-dessus. Indépendant de la passerelle : ces choix valent que
+     * le thème déclare ou non son support de WooCommerce.
+     */
+    public static function habillage_boutique() {
+        // Le fil d'Ariane sort de l'enveloppe pour devenir une barre pleine
+        // largeur, comme dans la maquette. WooCommerce l'affiche à la
+        // priorité 20, donc APRÈS l'ouverture de nos conteneurs : il se
+        // retrouvait enfermé dans la colonne des produits, à côté des filtres.
+        remove_action( 'woocommerce_before_main_content', 'woocommerce_breadcrumb', 20 );
+
+        // « 4 résultats affichés » disait la même chose que le décompte de la
+        // barre, deux fois sur le même écran. On garde celui de la barre : il
+        // est à sa place dans la maquette, et discret. Sous le titre, la
+        // maquette ne montre que le tri.
+        remove_action( 'woocommerce_before_shop_loop', 'woocommerce_result_count', 20 );
+
+        // La boutique manquait au fil d'Ariane des fiches produit.
+        add_filter( 'woocommerce_get_breadcrumb', [ __CLASS__, 'fil_avec_boutique' ], 10, 2 );
+
+        // Les bandeaux (fil d'Ariane, fil d'étapes) se posent sous l'en-tête,
+        // par un point d'accroche du THÈME et non de WooCommerce.
+        //
+        // C'est ce qui les rend indépendants des gabarits : le panier et la
+        // commande sont des pages WordPress ordinaires, et selon la version de
+        // WooCommerce elles sont rendues par un shortcode ou par des blocs —
+        // deux chemins qui ne déclenchent pas les mêmes actions, et parfois
+        // aucune de celles qu'on attendait. Un point d'accroche du thème, lui,
+        // est traversé par toutes les pages, quelle qu'en soit la fabrique.
+        //
+        // Le repli sur woocommerce_before_main_content garde les bandeaux
+        // visibles sur le catalogue si le thème n'est pas encore à jour ; le
+        // témoin de rendu empêche qu'ils sortent deux fois quand il l'est.
+        add_action( 'carto_apres_entete', [ __CLASS__, 'bandeaux' ], 10 );
+        add_action( 'woocommerce_before_main_content', [ __CLASS__, 'bandeaux' ], 5 );
+    }
 
     /**
      * Fait entrer les pages boutique dans la mise en page du thème.
@@ -131,27 +190,6 @@ class NPQ_WooCommerce {
 
         add_action( 'woocommerce_before_main_content', [ __CLASS__, 'ouvrir_enveloppe' ], 10 );
         add_action( 'woocommerce_after_main_content', [ __CLASS__, 'fermer_enveloppe' ], 10 );
-
-        // Le fil d'Ariane sort de l'enveloppe pour devenir une barre pleine
-        // largeur, comme dans la maquette. WooCommerce l'affiche à la
-        // priorité 20, donc APRÈS l'ouverture de nos conteneurs : il se
-        // retrouvait enfermé dans la colonne des produits, à côté des filtres.
-        remove_action( 'woocommerce_before_main_content', 'woocommerce_breadcrumb', 20 );
-        add_action( 'woocommerce_before_main_content', [ __CLASS__, 'barre_fil' ], 5 );
-
-        // « 4 résultats affichés » disait la même chose que le décompte de la
-        // barre, deux fois sur le même écran. On garde celui de la barre : il
-        // est à sa place dans la maquette, et discret. Sous le titre, la
-        // maquette ne montre que le tri.
-        remove_action( 'woocommerce_before_shop_loop', 'woocommerce_result_count', 20 );
-
-        // La boutique manquait au fil d'Ariane des fiches produit.
-        add_filter( 'woocommerce_get_breadcrumb', [ __CLASS__, 'fil_avec_boutique' ], 10, 2 );
-
-        // Fil d'étapes du tunnel d'achat, en tête de chacune de ses pages.
-        add_action( 'woocommerce_before_cart', [ __CLASS__, 'fil_etapes' ], 5 );
-        add_action( 'woocommerce_before_checkout_form', [ __CLASS__, 'fil_etapes' ], 5 );
-        add_action( 'woocommerce_before_thankyou', [ __CLASS__, 'fil_etapes' ], 5 );
 
 
         // CARTO n'a pas de barre latérale. WooCommerce en réclame une sur
@@ -189,6 +227,35 @@ class NPQ_WooCommerce {
     }
 
     /**
+     * Les bandeaux pleine largeur, sous l'en-tête.
+     *
+     * Une seule sortie par page : deux points d'accroche y mènent, et le
+     * premier arrivé ferme la porte derrière lui.
+     */
+    public static function bandeaux() {
+        if ( self::$bandeaux_rendus ) {
+            return;
+        }
+
+        if ( ! function_exists( 'is_woocommerce' ) ) {
+            return;
+        }
+
+        // Toutes les pages de la boutique, tunnel d'achat et compte client
+        // compris : c'est là que le fil d'Ariane du thème s'efface au profit
+        // de celui-ci, et il ne doit pas laisser de trou.
+        $sur_boutique = is_woocommerce() || is_cart() || is_checkout() || is_account_page();
+        if ( ! $sur_boutique ) {
+            return;
+        }
+
+        self::$bandeaux_rendus = true;
+
+        self::barre_fil();
+        self::fil_etapes();
+    }
+
+    /**
      * Fil d'étapes du tunnel d'achat.
      *
      * Trois écrans séparent le panier de l'accès ouvert. Sans repère, on ne
@@ -199,7 +266,7 @@ class NPQ_WooCommerce {
      * saute pas à l'étape 3, et proposer des liens inertes serait pire que
      * n'en proposer aucun.
      */
-    public static function fil_etapes() {
+    private static function fil_etapes() {
         $etapes = [
             [ '01', 'Panier' ],
             [ '02', 'Commande' ],
@@ -211,7 +278,7 @@ class NPQ_WooCommerce {
             return;
         }
 
-        echo '<ol class="npq-etapes">';
+        echo '<div class="npq-tunnel"><div class="carto-wrap"><ol class="npq-etapes">';
 
         foreach ( $etapes as $rang => $etape ) {
             $numero = $rang + 1;
@@ -230,7 +297,7 @@ class NPQ_WooCommerce {
                . '</li>';
         }
 
-        echo '</ol>';
+        echo '</ol></div></div>';
     }
 
     /**
@@ -311,13 +378,8 @@ class NPQ_WooCommerce {
      * sans objet ici, où l'on vend un accès à une plateforme et non des
      * pièces en réserve. La place revient donc à ce qui compte vraiment
      * selon la page : un décompte de produits, ou une référence.
-     *
-     * PORTÉE : catalogue et fiches produit seulement. Le panier et la
-     * commande sont des pages WordPress ordinaires, rendues par le page.php
-     * du thème ; WooCommerce n'y déclenche pas ce hook, et la barre n'y
-     * apparaît donc pas.
      */
-    public static function barre_fil() {
+    private static function barre_fil() {
         // Le fil est bufferisé : WooCommerce n'affiche rien sur certaines
         // pages, et une barre vide vaudrait moins que pas de barre du tout.
         ob_start();
@@ -351,6 +413,11 @@ class NPQ_WooCommerce {
             require_once NPQ_PATH . 'includes/class-npq-boutique-vignette.php';
             $product = wc_get_product( get_queried_object_id() );
             return $product ? '// ' . NPQ_Boutique_Vignette::reference( $product ) : '';
+        }
+
+        if ( is_cart() ) {
+            $n = ( function_exists( 'WC' ) && WC()->cart ) ? (int) WC()->cart->get_cart_contents_count() : 0;
+            return sprintf( _n( '%s article', '%s articles', $n, 'normaprep-quiz' ), number_format_i18n( $n ) );
         }
 
         if ( is_shop() || is_product_taxonomy() ) {
