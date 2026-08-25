@@ -156,6 +156,15 @@
         scope.querySelectorAll( '.npq-app select, .npq-espace select' ).forEach( function ( sel ) {
             ameliorer( sel );
         } );
+
+        // Le tri du catalogue WooCommerce. Cible par son conteneur, et non
+        // par un attribut : WooCommerce genere ce <select> lui-meme, sans
+        // offrir de filtre sur ses attributs. Le marquer obligeait a
+        // reecrire sa sortie au moment du rendu — une dependance de plus,
+        // qui casse en silence le jour ou il change son gabarit.
+        scope.querySelectorAll( '.woocommerce-ordering select' ).forEach( function ( sel ) {
+            ameliorer( sel );
+        } );
     }
 
     if ( document.readyState === 'loading' ) {

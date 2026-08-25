@@ -28,8 +28,15 @@
  * évoluent.
  */
 
+/* Les classes de page du tunnel d'achat sont listées à côté de .woocommerce
+   parce que les blocs Gutenberg de WooCommerce ne posent AUCUN conteneur
+   .woocommerce : sans elles, les jetons ci-dessous ne descendraient pas
+   jusqu'au panier ni à la commande. */
 .woocommerce,
-.woocommerce-page {
+.woocommerce-page,
+.woocommerce-cart,
+.woocommerce-checkout,
+.woocommerce-order-received {
   --npqb-bg:         var(--carto-bg, #070C18);
   --npqb-surface:    var(--carto-surface, #0C1428);
   --npqb-surface-2:  var(--carto-surface-2, #111E36);
@@ -46,6 +53,30 @@
   --npqb-mono:       var(--carto-font-mono, 'Inconsolata', monospace);
   --npqb-display:    var(--carto-font-display, 'Syncopate', sans-serif);
   --npqb-glow:       var(--carto-glow-teal, 0 0 24px rgba(0,207,207,0.30));
+
+  /* Le composant de menu déroulant (npq-select.css) est écrit pour l'espace
+     membre et lit SES jetons : --surface, --border, --teal… Plutôt que de le
+     dupliquer pour la boutique, on lui tend ici les jetons CARTO sous les
+     noms qu'il attend. Un seul composant, deux habillages. */
+  --surface:   var(--npqb-surface);
+  --surface-2: var(--npqb-surface-2);
+  --border:    var(--npqb-border);
+  --text:      var(--npqb-text);
+  --text-lo:   var(--npqb-text-lo);
+  --muted:     var(--npqb-muted);
+  --teal:      var(--npqb-teal);
+  --teal-dim:  var(--npqb-teal-12);
+  --ease:      var(--npqb-ease);
+
+  /* LARGEUR DES PAGES DE VENTE
+     La maquette de la boutique est dessinée sur 1400px, le thème travaille
+     sur 1200px. Un catalogue perd plus qu'une page d'article à être étroit :
+     à 1200px, trois cartes plus la colonne de filtres ne laissaient pas
+     respirer les cartes.
+     On redéfinit donc le jeton du thème, sans le modifier : .carto-wrap le
+     lit comme d'habitude, et seules les pages qui portent une classe
+     WooCommerce sur <body> sont concernées. Le reste du site ne bouge pas. */
+  --carto-max-width: 1400px;
 }
 
 /* =====================================================================
@@ -56,6 +87,175 @@
 
 .npq-boutique {
   padding: 44px 0 90px;
+}
+
+/* =====================================================================
+ * COLONNE DE FILTRES
+ * Deux colonnes sur les pages de catalogue : 232px de filtres, le reste
+ * pour les produits. Les valeurs viennent de la maquette (232 / 44).
+ *
+ * La grille n'existe QUE si la colonne a quelque chose à dire : c'est
+ * NPQ_WooCommerce::ouvrir_enveloppe() qui décide, et rend l'enveloppe
+ * simple sinon. Une colonne vide de 232px serait pire que pas de colonne.
+ * ===================================================================== */
+
+.npq-boutique-grille {
+  display: grid;
+  grid-template-columns: 232px 1fr;
+  gap: 44px;
+  align-items: start;
+}
+
+/* min-width: 0 — sans quoi une grille de produits large refuse de se
+   réduire et déborde de sa colonne : le défaut de CSS Grid, dont les
+   pistes ne descendent pas sous la taille minimale de leur contenu. */
+.npq-boutique-colonne { min-width: 0; }
+
+.npq-filtres {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  position: sticky;
+  top: 88px;   /* hauteur de l'en-tête fixe du thème, plus une respiration */
+}
+
+.npq-filtres__groupe {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.npq-filtres__titre {
+  font-family: var(--npqb-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--npqb-teal);
+}
+
+/* Le filet dégradé de la maquette : il s'éteint vers la droite plutôt que
+   de s'arrêter net, pour ne pas dessiner une seconde bordure. */
+.npq-filtres__filet {
+  height: 1px;
+  width: 170px;
+  margin-top: -4px;
+  background: linear-gradient(to right, var(--npqb-teal), transparent);
+}
+
+/* ── Liens de rayon ──
+   Le repère d'état est un liseré à GAUCHE, pas un fond plein : la colonne
+   doit rester lisible d'un coup d'œil, sans blocs qui se disputent
+   l'attention avec les cartes produit. */
+.npq-filtres__liens {
+  display: flex;
+  flex-direction: column;
+}
+
+.npq-filtre-lien {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  border-left: 2px solid transparent;
+  font-size: 15px;
+  color: var(--npqb-text-lo);
+  text-decoration: none;
+  transition: color .25s var(--npqb-ease), background .25s, border-color .25s;
+}
+
+.npq-filtre-lien:hover {
+  color: var(--npqb-text);
+  background: rgba(0,207,207,0.04);
+}
+
+.npq-filtre-lien.est-actif {
+  color: var(--npqb-teal);
+  background: var(--npqb-teal-12);
+  border-left-color: var(--npqb-teal);
+}
+
+.npq-filtre-lien__lbl { flex: 1; }
+
+.npq-filtre-lien__nb {
+  font-family: var(--npqb-mono);
+  font-size: 11px;
+  color: var(--npqb-muted);
+}
+
+/* ── Cases à cocher ──
+   Dessinées, pas natives : un <input type=checkbox> n'aurait pas de sens
+   pour un lien, et les carrés à angles droits de la maquette ne sont de
+   toute façon pas obtenables sur un contrôle du navigateur. */
+.npq-filtres__cases {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.npq-filtre-case {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--npqb-text-lo);
+  text-decoration: none;
+  transition: color .25s var(--npqb-ease);
+}
+
+.npq-filtre-case:hover { color: var(--npqb-text); }
+
+.npq-filtre-case__marque {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--npqb-border);
+  transition: border-color .25s, background .25s;
+}
+
+.npq-filtre-case:hover .npq-filtre-case__marque { border-color: var(--npqb-text-lo); }
+
+.npq-filtre-case.est-actif { color: var(--npqb-teal); }
+
+.npq-filtre-case.est-actif .npq-filtre-case__marque {
+  border-color: var(--npqb-teal);
+  background: var(--npqb-teal-12);
+}
+
+/* Ne s'affiche que si un filtre est posé : proposer d'effacer ce qui n'existe
+   pas ajoute une ligne pour rien. */
+.npq-filtres__reinit {
+  align-self: flex-start;
+  font-family: var(--npqb-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--npqb-text-lo);
+  text-decoration: none;
+  border-bottom: 1px solid var(--npqb-border);
+  padding-bottom: 3px;
+  transition: color .25s, border-color .25s;
+}
+
+.npq-filtres__reinit:hover {
+  color: var(--npqb-teal);
+  border-bottom-color: var(--npqb-teal);
+}
+
+/* Sous 900px la colonne passe au-dessus du catalogue : côte à côte, elle
+   laisserait moins de 300px aux produits. */
+@media (max-width: 900px) {
+  .npq-boutique-grille {
+    grid-template-columns: 1fr;
+    gap: 34px;
+  }
+  .npq-filtres {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 26px 40px;
+  }
+  .npq-filtres__groupe { flex: 1 1 220px; }
 }
 
 /* =====================================================================
@@ -84,8 +284,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  /* position: relative — le voyant d'attente de WooCommerce (.loading::after)
+     se place en absolu : sans référent ici, il irait se coller au coin d'un
+     ancêtre quelconque. */
+  position: relative;
   min-height: 46px;
-  padding: 0 26px;
+  /* Rembourrage vertical plutôt qu'une hauteur seule : un libellé qui passe
+     sur deux lignes fait grandir le bouton au lieu d'en déborder. C'est le
+     cas d'« Ajouter au panier » dans une colonne de catalogue étroite. */
+  padding: 12px 24px;
   border: 0;
   border-radius: 0;
   background: var(--npqb-teal) !important;
@@ -96,7 +303,9 @@
   letter-spacing: 0.16em;
   text-transform: uppercase;
   text-decoration: none;
-  line-height: 1;
+  text-align: center;
+  line-height: 1.25;
+  white-space: normal;
   cursor: pointer;
   transition: box-shadow .25s var(--npqb-ease);
 }
@@ -191,19 +400,26 @@
   color: var(--npqb-text-lo);
 }
 
-/* Compteur et tri : deux éléments monospace discrets, alignés. */
-.woocommerce .woocommerce-result-count {
-  font-family: var(--npqb-mono);
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--npqb-text-lo);
-}
-
+/* LE MENU DE TRI
+ *
+ * Le <select> natif est masqué par npq-select.js, qui le remplace par un
+ * menu qu'on peut habiller — le navigateur dessine sa propre liste, sur
+ * fond blanc, hors d'atteinte de toute feuille de style. Les règles
+ * ci-dessous restent utiles : elles habillent le natif tant que le script
+ * n'a pas pris la main, et pour toujours s'il ne s'exécute pas.
+ *
+ * (Le compteur « X résultats affichés » n'est plus affiché : il faisait
+ * doublon avec le décompte de la barre de fil d'Ariane.) */
 .woocommerce .woocommerce-ordering select {
   height: 40px;
   padding: 0 14px;
   background: transparent;
+  /* color-scheme: dark — la liste qu'ouvre un <select> natif est dessinée
+     par le navigateur, hors du document : aucun sélecteur ne l'atteint.
+     Cette propriété est le seul levier qui existe dessus, et elle suffit à
+     la faire basculer en sombre. Filet de sécurité : normalement le
+     composant a pris la main avant qu'on la voie. */
+  color-scheme: dark;
   border: 1px solid var(--npqb-border);
   border-radius: 0;
   color: var(--npqb-text-lo);
@@ -220,6 +436,47 @@
   border-color: var(--npqb-teal);
   color: var(--npqb-teal);
   outline: none;
+}
+
+/* Le composant habillé, une fois le natif remplacé. npq-select.css lui donne
+   la mesure de l'espace membre — Rajdhani 17px, cadres généreux. Ici c'est un
+   contrôle de barre d'outils, pas un champ de formulaire : on reprend le
+   monospace en capitales du reste de la boutique, et la hauteur de 40px des
+   autres commandes de l'en-tête de catalogue. */
+.woocommerce .woocommerce-ordering .npq-select {
+  min-width: 240px;
+}
+
+.woocommerce .woocommerce-ordering .npq-select__trigger {
+  height: 40px;
+  padding: 0 14px;
+  background: transparent;
+  border-color: var(--npqb-border);
+  color: var(--npqb-text-lo);
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.woocommerce .woocommerce-ordering .npq-select__trigger:hover,
+.woocommerce .woocommerce-ordering .npq-select.is-open .npq-select__trigger {
+  border-color: var(--npqb-teal);
+  color: var(--npqb-teal);
+}
+
+.woocommerce .woocommerce-ordering .npq-select__panel {
+  background: var(--npqb-surface);
+  border-color: var(--npqb-border);
+}
+
+.woocommerce .woocommerce-ordering .npq-select__option {
+  padding: 11px 14px;
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 /* =====================================================================
@@ -250,7 +507,7 @@
   position: relative; /* référent du badge « Promo », posé en absolu */
   background: var(--npqb-surface);
   border: 0;
-  border-top: 3px solid var(--npqb-teal);
+  border-top: 3px solid var(--npqb-accent, var(--npqb-teal));
   padding: 0 0 22px;
   text-align: left;
   display: flex;
@@ -262,18 +519,98 @@
   background: var(--npqb-surface-2);
 }
 
-/* Zone visuelle : fond grillé sombre, comme dans la maquette. Sans image de
-   produit, elle reste une surface graphique plutôt qu'un vide. */
-.woocommerce ul.products li.product a img {
+/* =====================================================================
+ * ZONE VISUELLE DU PRODUIT
+ *
+ * Rendue par NPQ_Boutique_Vignette, jamais par WooCommerce : son visuel
+ * de remplacement gris n'a rien à faire ici. Deux états, un seul cadre —
+ * l'image du produit quand il y en a une, un motif généré sinon.
+ *
+ * L'accent (teal / ambre / orange) suit la catégorie du produit. Il est
+ * posé sur la carte par une classe .npq-accent-*, et redescend par la
+ * variable --npqb-accent : le liseré haut de la carte et le drapeau
+ * changent ensemble, sans que chaque règle ait à connaître la couleur.
+ * ===================================================================== */
+
+.woocommerce .product.npq-accent-teal   { --npqb-accent: var(--npqb-teal); }
+.woocommerce .product.npq-accent-amber  { --npqb-accent: var(--npqb-amber); }
+.woocommerce .product.npq-accent-orange { --npqb-accent: var(--npqb-orange); }
+
+.npq-vignette {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--npqb-code-bg);
+  background-image: var(--carto-grid-image, none);
+  background-size: 40px 40px;
+  border-bottom: 1px solid var(--npqb-border);
+}
+
+.npq-vignette--boucle { height: 160px; }
+
+/* La fiche produit donne à la zone la place que la maquette lui accorde,
+   sans jamais dépasser la hauteur de l'écran : une zone décorative qui
+   repousse le prix hors de vue coûterait une vente. */
+.npq-vignette--fiche {
+  min-height: clamp(300px, 42vw, 560px);
+}
+
+.npq-vignette img {
   width: 100%;
-  height: 160px;
+  height: 100%;
   object-fit: cover;
   margin: 0;
-  border-bottom: 1px solid var(--npqb-border);
-  background: var(--npqb-code-bg);
-  background-image: var(--carto-grid-image);
-  background-size: 40px 40px;
+  display: block;
 }
+
+/* Le trigramme est en creux, pas en avant : c'est un fond, et le titre du
+   produit juste en dessous doit rester ce qu'on lit en premier. */
+.npq-vignette__marque {
+  font-family: var(--npqb-display);
+  font-weight: 700;
+  letter-spacing: -1px;
+  color: rgba(200, 216, 232, 0.15);
+  user-select: none;
+}
+
+.npq-vignette--boucle .npq-vignette__marque { font-size: 30px; }
+.npq-vignette--fiche  .npq-vignette__marque { font-size: clamp(64px, 11vw, 150px); }
+
+/* Drapeau et référence restent posés même par-dessus une image : ce sont
+   eux qui gardent la grille homogène quand seuls certains produits en ont
+   une. D'où le léger voile derrière, sans quoi ils deviendraient illisibles
+   sur une photo claire. */
+.npq-vignette__drapeau,
+.npq-vignette__ref {
+  position: absolute;
+  font-family: var(--npqb-mono);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.npq-vignette__drapeau {
+  top: 12px;
+  left: 14px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--npqb-accent, var(--npqb-teal));
+}
+
+.npq-vignette__ref {
+  bottom: 10px;
+  right: 14px;
+  color: var(--npqb-muted);
+}
+
+.npq-vignette--image .npq-vignette__drapeau,
+.npq-vignette--image .npq-vignette__ref {
+  padding: 4px 7px;
+  background: rgba(7, 12, 24, 0.78);
+}
+
+.npq-vignette--image .npq-vignette__ref { color: var(--npqb-text-lo); }
 
 .woocommerce ul.products li.product .woocommerce-loop-product__title,
 .woocommerce ul.products li.product h2 {
@@ -299,6 +636,38 @@
   margin: 11px 22px 0;
 }
 
+/* Le bouton du catalogue vit dans une colonne d'environ 300px, alors que
+   celui de la fiche produit a toute la largeur du bloc d'achat. Avec
+   l'interlettrage de la maquette, « Ajouter au panier » n'y tenait pas :
+   le libellé sortait du cadre. On resserre ici, et là seulement — la fiche
+   produit garde le bouton de la maquette. */
+.woocommerce ul.products li.product .button {
+  display: flex;
+  width: calc(100% - 44px);
+  padding: 12px 14px;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+}
+
+/* « Voir le panier », que WooCommerce ajoute après un ajout en AJAX. Sans
+   style il s'affichait en lien brut, collé sous le bouton. Ce n'est pas
+   l'action principale : il se lit comme un lien, pas comme un second
+   bouton qui rivaliserait avec le premier. */
+.woocommerce ul.products li.product a.added_to_cart {
+  display: block;
+  margin: 9px 22px 0;
+  font-family: var(--npqb-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--npqb-teal);
+  text-decoration: none;
+}
+
+.woocommerce ul.products li.product a.added_to_cart:hover {
+  color: var(--npqb-text);
+}
+
 .woocommerce ul.products li.product .price {
   display: block;
   font-family: var(--npqb-mono);
@@ -307,12 +676,16 @@
   color: var(--npqb-teal);
 }
 
-/* Badge « Promo » : pastille monospace en capitales, angles droits. */
+/* Badge « Promo » : pastille monospace en capitales, angles droits.
+   À DROITE, et non à gauche comme avant : le drapeau de catégorie occupe
+   désormais le coin haut-gauche de la zone visuelle, et les deux s'y
+   chevauchaient. */
 .woocommerce span.onsale {
   position: absolute;
+  z-index: 2;
   top: 12px;
-  left: 14px;
-  right: auto;
+  right: 14px;
+  left: auto;
   margin: 0;
   padding: 0;
   min-height: 0;
@@ -372,6 +745,86 @@
  * FICHE PRODUIT
  * ===================================================================== */
 
+/* MISE EN PAGE
+ *
+ * WooCommerce dispose la fiche en float : images à 48% à gauche, résumé à
+ * 48% à droite. Ce mécanisme ne survit pas au remplacement de sa galerie
+ * par notre zone visuelle — un élément qui ne flotte pas laisse le résumé
+ * lui passer dessus.
+ *
+ * On repasse donc en grille explicite. Tout ce que contient la fiche —
+ * onglets, produits liés, avis — occupe la pleine largeur par défaut ;
+ * seules la zone visuelle et la colonne d'achat sont placées côte à côte
+ * sur la première ligne. Une règle de placement plutôt qu'une liste de
+ * corrections : les blocs que WooCommerce ajoutera plus tard tomberont
+ * d'eux-mêmes au bon endroit.
+ */
+
+.woocommerce div.product {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr);
+  align-items: start;
+}
+
+.woocommerce div.product > * { grid-column: 1 / -1; }
+
+/* Le liseré haut de 3px traverse les deux colonnes : sur la fiche comme sur
+   la carte du catalogue, c'est lui qui porte la couleur de la catégorie. */
+.woocommerce div.product > .npq-vignette--fiche,
+.woocommerce div.product > .woocommerce-product-gallery {
+  grid-column: 1;
+  grid-row: 1;
+  border: 1px solid var(--npqb-border);
+  border-top: 3px solid var(--npqb-accent, var(--npqb-teal));
+}
+
+.woocommerce div.product > .summary {
+  grid-column: 2;
+  grid-row: 1;
+  padding: 30px 32px;
+  background: var(--npqb-surface);
+  border: 1px solid var(--npqb-border);
+  border-left: 0;
+  border-top: 3px solid var(--npqb-accent, var(--npqb-teal));
+}
+
+/* Ce qui suit le bloc d'achat — onglets, ventes croisées, produits liés —
+   touchait le bas de la zone visuelle. La grille ne pose pas d'écart entre
+   ses lignes, et ces blocs n'ont pas de marge propre : « Description »
+   venait donc se coller à l'image. */
+.woocommerce div.product > .woocommerce-tabs,
+.woocommerce div.product > .upsells,
+.woocommerce div.product > .related {
+  margin-top: 48px;
+}
+
+/* Les largeurs et flottements de WooCommerce se battraient avec la grille. */
+.woocommerce div.product div.images,
+.woocommerce div.product div.summary,
+.woocommerce div.product .woocommerce-product-gallery {
+  float: none !important;
+  width: auto !important;
+  margin: 0 !important;
+}
+
+/* Sous 900px, la colonne d'achat passe sous la zone visuelle : côte à côte,
+   il ne resterait pas de quoi lire un prix. */
+@media (max-width: 900px) {
+  .woocommerce div.product { grid-template-columns: 1fr; }
+
+  .woocommerce div.product > .npq-vignette--fiche,
+  .woocommerce div.product > .woocommerce-product-gallery,
+  .woocommerce div.product > .summary {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .woocommerce div.product > .summary {
+    border-left: 1px solid var(--npqb-border);
+    border-top: 0;
+  }
+}
+
 .woocommerce div.product .product_title {
   font-size: clamp(24px, 2.6vw, 30px);
   letter-spacing: -1.4px;
@@ -425,7 +878,21 @@
   display: none;
 }
 
+/* L'ONGLET ACTIF
+ *
+ * C'est ici qu'était le fond blanc — sur l'onglet, pas sur le panneau.
+ *
+ * WooCommerce dessine ses onglets comme des intercalaires de classeur :
+ * l'onglet actif se peint en blanc pour se fondre dans le panneau qu'il
+ * ouvre. La règle voisine remettait bien un fond transparent, mais sur
+ * « li » seul — moins spécifique que le « li.active » de WooCommerce, qui
+ * gardait donc le dessus. Un seul onglet suffisait à le rendre visible :
+ * étant seul, il est toujours actif.
+ *
+ * On repeint donc l'état actif explicitement. La maquette ne dessine pas
+ * d'intercalaire : l'onglet ouvert se signale par son seul filet teal. */
 .woocommerce div.product .woocommerce-tabs ul.tabs li.active {
+  background: transparent;
   border-bottom-color: var(--npqb-teal);
 }
 
@@ -442,6 +909,78 @@
 
 .woocommerce div.product .woocommerce-tabs ul.tabs li.active a {
   color: var(--npqb-teal);
+}
+
+/* UN SEUL ONGLET NE FAIT PAS UNE BARRE D'ONGLETS
+ *
+ * Avec un seul onglet, WooCommerce affiche quand même sa barre — et le
+ * panneau répète le titre juste en dessous. « Description » s'écrivait
+ * donc deux fois de suite. Une barre d'onglets sert à choisir : sans
+ * choix, elle ne fait que du bruit.
+ *
+ * :has() masque la barre entière. Sur un navigateur qui l'ignore, la
+ * seconde règle masque au moins l'onglet, et il ne reste qu'un filet. */
+.woocommerce div.product .woocommerce-tabs ul.tabs:has(li:only-child) {
+  display: none;
+}
+
+.woocommerce div.product .woocommerce-tabs ul.tabs li:only-child {
+  display: none;
+}
+
+/* LE PANNEAU DES ONGLETS
+ *
+ * Le panneau (#tab-description et ses voisins) s'affichait sur fond blanc.
+ * Ni le thème ni cette feuille ne le demandaient : le fond venait d'une
+ * feuille tierce — WooCommerce, ou les styles globaux que WordPress injecte
+ * pour les blocs. On ne cherche pas laquelle : on pose le fond ici, sur les
+ * sélecteurs du panneau, ce qui règle le cas quelle que soit la source.
+ *
+ * « transparent » et non une couleur : le panneau doit laisser voir le fond
+ * de la page, qui porte déjà le quadrillage du thème. */
+.woocommerce div.product .woocommerce-tabs .panel,
+.woocommerce div.product .woocommerce-tabs .wc-tab,
+.woocommerce div.product .woocommerce-Tabs-panel,
+.woocommerce div.product #tab-description,
+.woocommerce div.product #tab-additional_information,
+.woocommerce div.product #tab-reviews {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: var(--npqb-text-lo);
+}
+
+/* Le titre que WooCommerce pose en tête du panneau (« Description »). */
+.woocommerce div.product .woocommerce-tabs .panel > h2 {
+  font-family: var(--npqb-display);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.4px;
+  text-transform: uppercase;
+  color: #fff;
+  margin: 0 0 14px;
+}
+
+/* Le tableau des caractéristiques : WooCommerce y alterne des lignes sur
+   fond clair, pensées pour un thème clair. */
+.woocommerce div.product table.shop_attributes th,
+.woocommerce div.product table.shop_attributes td,
+.woocommerce div.product table.shop_attributes tr:nth-child(even) th,
+.woocommerce div.product table.shop_attributes tr:nth-child(even) td {
+  background: transparent;
+  border-bottom: 1px solid var(--npqb-border);
+  color: var(--npqb-text-lo);
+  font-style: normal;
+  padding: 10px 0;
+}
+
+.woocommerce div.product table.shop_attributes th {
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--npqb-muted);
+  font-weight: 400;
 }
 
 /* Sélecteur de quantité : cadre unique, chiffre blanc centré. */
@@ -492,6 +1031,638 @@
   min-height: 38px;
   padding: 0 18px;
   font-size: 12px;
+}
+
+/* =====================================================================
+ * TUNNEL D'ACHAT : PANIER ET COMMANDE
+ *
+ * La maquette range le panier en deux colonnes : les lignes à gauche, le
+ * récapitulatif à droite, dans un bloc qui suit le défilement. C'est ce
+ * qui permet de garder le total sous les yeux pendant qu'on ajuste les
+ * quantités — sans quoi on remonte et redescend pour vérifier l'effet de
+ * chaque changement.
+ * ===================================================================== */
+
+/* ── Fil d'étapes ──
+   Rendu par NPQ_WooCommerce::fil_etapes(). Le trait qui suit chaque étape
+   la relie à la suivante ; la dernière n'en a pas, elle ne mène nulle
+   part. */
+/* Le bandeau qui porte le fil, sous celui du fil d'Ariane. Il vit hors de
+   .carto-wrap pour occuper toute la largeur, et remet le wrap à l'intérieur
+   pour aligner les étapes sur le contenu. */
+.npq-tunnel {
+  padding: 30px 0 0;
+}
+
+.npq-etapes {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.npq-etape {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-right: 22px;
+}
+
+.npq-etape::after {
+  content: "";
+  width: 46px;
+  height: 1px;
+  background: var(--npqb-border);
+}
+
+.npq-etape:last-child { padding-right: 0; }
+.npq-etape:last-child::after { display: none; }
+
+.npq-etape__n {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid var(--npqb-border);
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  color: var(--npqb-muted);
+}
+
+.npq-etape__lbl {
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--npqb-muted);
+}
+
+/* Franchie : le contour teal dit « c'est acquis », sans le remplissage
+   qui signalerait « vous êtes ici ». */
+.npq-etape.est-faite .npq-etape__n {
+  border-color: var(--npqb-teal);
+  color: var(--npqb-teal);
+}
+.npq-etape.est-faite .npq-etape__lbl { color: var(--npqb-text-lo); }
+
+.npq-etape.est-active .npq-etape__n {
+  border-color: var(--npqb-teal);
+  background: var(--npqb-teal-12);
+  color: var(--npqb-teal);
+}
+.npq-etape.est-active .npq-etape__lbl { color: var(--npqb-teal); }
+
+/* ── Les deux colonnes ──
+   :has() — la grille ne se pose que s'il y a un panier à afficher. Sur un
+   panier vide, WooCommerce ne rend pas le formulaire : la grille laisserait
+   une colonne de 400px vide à côté du message. Un navigateur sans :has()
+   empile les blocs en pleine largeur, ce qui reste lisible. */
+.woocommerce-cart .woocommerce:has(.woocommerce-cart-form) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  gap: 32px;
+  align-items: start;
+}
+
+/* Les messages s'adressent à la page entière, pas à une colonne. */
+.woocommerce-cart .woocommerce > .woocommerce-notices-wrapper {
+  grid-column: 1 / -1;
+}
+
+/* WooCommerce fait flotter le récapitulatif à 48% : incompatible avec la
+   grille, qui décide déjà des largeurs. */
+.woocommerce-cart .cart-collaterals,
+.woocommerce-cart .cart-collaterals .cart_totals {
+  width: auto !important;
+  float: none !important;
+  margin: 0 !important;
+}
+
+/* Le liseré teal en tête des deux blocs, comme sur les cartes produit :
+   c'est la signature du système, on la garde d'un bout à l'autre. */
+.woocommerce-cart table.shop_table.cart,
+.woocommerce-cart .cart-collaterals .cart_totals {
+  background: var(--npqb-surface);
+  border: 1px solid var(--npqb-border);
+  border-top: 3px solid var(--npqb-teal);
+}
+
+.woocommerce-cart .cart-collaterals .cart_totals {
+  padding: 26px 26px 28px;
+  position: sticky;
+  top: 88px;   /* en-tête fixe du thème, plus une respiration */
+}
+
+/* Dans le récapitulatif, le tableau n'est plus qu'une liste de lignes :
+   son propre cadre ferait un cadre dans un cadre. */
+.woocommerce-cart .cart_totals table.shop_table {
+  border: 0;
+  width: 100%;
+}
+
+.woocommerce-cart .cart_totals table.shop_table th,
+.woocommerce-cart .cart_totals table.shop_table td {
+  padding: 11px 0;
+  border: 0;
+}
+
+.woocommerce-cart .cart_totals tr.order-total th,
+.woocommerce-cart .cart_totals tr.order-total td {
+  border-top: 1px solid var(--npqb-border);
+  padding-top: 16px;
+}
+
+.woocommerce-cart .cart_totals tr.order-total .amount {
+  font-size: 26px;
+}
+
+.woocommerce-cart .wc-proceed-to-checkout { padding: 18px 0 0; }
+
+.woocommerce-cart .wc-proceed-to-checkout a.checkout-button {
+  display: flex;
+  width: 100%;
+}
+
+/* ── Panier vide ──
+   La maquette en fait un moment à part entière : le constat, puis une
+   sortie. Un panier vide n'est pas une erreur, c'est un début. */
+.woocommerce-cart .cart-empty,
+.woocommerce-cart .wc-empty-cart-message .cart-empty {
+  border: 1px solid var(--npqb-border);
+  border-top: 3px solid var(--npqb-teal);
+  background: var(--npqb-surface);
+  margin: 0;
+  padding: 60px 24px 24px;
+  text-align: center;
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--npqb-muted);
+}
+
+.woocommerce-cart .return-to-shop {
+  background: var(--npqb-surface);
+  border: 1px solid var(--npqb-border);
+  border-top: 0;
+  margin: 0;
+  padding: 0 24px 60px;
+  text-align: center;
+}
+
+/* Retour au catalogue : une sortie, pas l'action principale — d'où le
+   cadre creux plutôt que le bouton plein. */
+.woocommerce-cart .return-to-shop a.button {
+  background: transparent !important;
+  border: 1px solid var(--npqb-teal);
+  color: var(--npqb-teal) !important;
+}
+
+.woocommerce-cart .return-to-shop a.button:hover {
+  background: var(--npqb-teal-12) !important;
+  color: var(--npqb-teal) !important;
+}
+
+/* Sous 1000px, le récapitulatif passe sous les lignes : à côté, il ne
+   resterait pas de quoi lire un nom de produit. */
+@media (max-width: 1000px) {
+  .woocommerce-cart .woocommerce:has(.woocommerce-cart-form) {
+    grid-template-columns: 1fr;
+  }
+  .woocommerce-cart .cart-collaterals .cart_totals { position: static; }
+}
+
+/* =====================================================================
+ * LES BLOCS WOOCOMMERCE (panier, commande, confirmation)
+ *
+ * Depuis WooCommerce 8.3, les pages du tunnel d'achat sont faites de
+ * BLOCS Gutenberg et non plus des anciens gabarits PHP. Deux façons de
+ * fabriquer la même page, avec des balisages sans rapport : les règles
+ * écrites pour .shop_table ou .cart_totals ne rencontrent jamais rien.
+ *
+ * D'où cette section, écrite pour les classes wc-block-*. Les règles de
+ * l'ancien balisage restent en place — une boutique peut basculer d'un
+ * mode à l'autre en changeant le contenu d'une page, et les deux doivent
+ * rester présentables.
+ *
+ * On ne touche qu'à l'apparence. Les blocs apportent leur propre
+ * mécanique — quantité modifiable sans rechargement, panneau de code
+ * promo, totaux recalculés en direct — et c'est justement le sélecteur
+ * « − 1 + » que dessinait la maquette. La réécrire aurait été une perte.
+ * ===================================================================== */
+
+/* ── Charpente commune ──
+   Les blocs posent leurs propres variables. Les rediriger vers les jetons
+   CARTO règle d'un coup les bordures et les fonds de toute leur
+   arborescence, sans avoir à traquer chaque composant. */
+.woocommerce-cart,
+.woocommerce-checkout,
+.woocommerce-order-received {
+  --wc-blocks-color-border: var(--npqb-border);
+}
+
+.wp-block-woocommerce-cart,
+.wp-block-woocommerce-checkout,
+.wc-block-order-confirmation-status {
+  color: var(--npqb-text-lo);
+}
+
+.wc-block-components-title,
+.wc-block-components-checkout-step__title,
+.wc-block-cart-items__header,
+.wc-block-components-totals-item__label {
+  font-family: var(--npqb-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* ── Panier : les deux blocs ──
+   Le bloc range déjà les articles à gauche et le récapitulatif à droite.
+   On ne refait pas sa mise en page : on lui donne les cadres de la
+   maquette, liseré teal compris. */
+.wp-block-woocommerce-cart .wc-block-cart-items,
+.wc-block-cart__sidebar,
+.wc-block-checkout__sidebar,
+.wc-block-components-sidebar {
+  background: var(--npqb-surface);
+  border: 1px solid var(--npqb-border);
+  border-top: 3px solid var(--npqb-teal);
+}
+
+/* Les blocs sont dessinés SANS cadre : leur contenu commence donc au ras du
+   bord, ce qui ne se voit pas tant qu'il n'y a pas de bord. En leur posant
+   une bordure, on a rendu visible un rembourrage qui n'existait pas. C'est à
+   nous de le donner, puisque c'est nous qui avons créé le besoin.
+
+   Le sélecteur vise .wc-block-cart__sidebar directement, et non un enfant :
+   selon la version de WooCommerce, .wc-block-components-sidebar est posée
+   sur ce même élément ou sur un enfant, et cibler l'enfant ne rencontrait
+   rien la moitié du temps. */
+.wc-block-cart__sidebar,
+.wc-block-checkout__sidebar,
+.wc-block-components-sidebar {
+  padding: 24px 26px 28px !important;
+}
+
+/* Un cadre imbriqué dans un autre n'a pas à répéter le cadre. */
+.wc-block-cart__sidebar .wc-block-components-sidebar,
+.wc-block-checkout__sidebar .wc-block-components-sidebar {
+  background: transparent;
+  border: 0;
+  padding: 0 !important;
+}
+
+/* Les cellules du tableau des articles. WooCommerce Blocks les met à zéro
+   avec une spécificité qu'il est plus court de dépasser ainsi que d'égaler
+   — même parti pris que pour ses boutons, plus haut dans ce fichier. */
+.wp-block-woocommerce-cart .wc-block-cart-items th,
+.wp-block-woocommerce-cart .wc-block-cart-items td {
+  padding-top: 20px !important;
+  padding-bottom: 20px !important;
+}
+
+.wp-block-woocommerce-cart .wc-block-cart-items th:first-child,
+.wp-block-woocommerce-cart .wc-block-cart-items td:first-child {
+  padding-left: 24px !important;
+}
+
+.wp-block-woocommerce-cart .wc-block-cart-items th:last-child,
+.wp-block-woocommerce-cart .wc-block-cart-items td:last-child {
+  padding-right: 24px !important;
+}
+
+.wp-block-woocommerce-cart .wc-block-cart-items__header {
+  background: transparent;
+  border-bottom: 1px solid var(--npqb-border);
+  font-size: 11px;
+  color: var(--npqb-muted);
+}
+
+.wp-block-woocommerce-cart .wc-block-cart-items__row {
+  border-bottom: 1px solid var(--npqb-border);
+}
+
+.wc-block-cart-item__wrap .wc-block-components-product-name {
+  font-family: var(--npqb-display);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: -0.3px;
+  text-transform: uppercase;
+  color: #fff;
+  text-decoration: none;
+}
+
+.wc-block-cart-item__wrap .wc-block-components-product-metadata,
+.wc-block-components-product-details {
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  color: var(--npqb-muted);
+}
+
+/* La vignette du panier : même fond quadrillé que les cartes du catalogue,
+   pour ne pas laisser réapparaître le visuel de remplacement gris que l'on
+   a chassé partout ailleurs. */
+.wc-block-cart-item__image img {
+  background: var(--npqb-code-bg);
+  background-image: var(--carto-grid-image, none);
+  background-size: 24px 24px;
+  border: 1px solid var(--npqb-border);
+}
+
+/* ── Le sélecteur de quantité, tel que la maquette le dessine ── */
+.wc-block-components-quantity-selector {
+  border: 1px solid var(--npqb-border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.wc-block-components-quantity-selector::after { display: none; }
+
+.wc-block-components-quantity-selector__input {
+  background: transparent;
+  color: #fff;
+  font-family: var(--npqb-mono);
+  font-size: 13px;
+}
+
+.wc-block-components-quantity-selector__button {
+  background: transparent;
+  border: 0;
+  color: var(--npqb-text-lo);
+  font-family: var(--npqb-mono);
+  opacity: 1;
+  transition: color .2s var(--npqb-ease);
+}
+
+.wc-block-components-quantity-selector__button:hover { color: var(--npqb-teal); }
+
+/* Retirer une ligne : discret au repos, orange au survol — la couleur de
+   ce qui défait, jamais celle de ce qui avance. */
+.wc-block-cart-item__remove-link,
+.wc-block-components-product-badge {
+  color: var(--npqb-muted);
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+}
+
+.wc-block-cart-item__remove-link:hover { color: var(--npqb-orange); }
+
+/* ── Totaux ── */
+.wc-block-components-totals-item {
+  color: var(--npqb-text-lo);
+  font-family: var(--npqb-mono);
+}
+
+.wc-block-components-totals-item__value { color: var(--npqb-text); }
+
+.wc-block-components-totals-item__label {
+  font-size: 11px;
+  color: var(--npqb-muted);
+}
+
+.wc-block-components-totals-footer-item,
+.wc-block-components-totals-wrapper {
+  border-top-color: var(--npqb-border) !important;
+}
+
+.wc-block-components-totals-footer-item .wc-block-components-totals-item__value {
+  font-family: var(--npqb-mono);
+  font-size: 26px;
+  color: var(--npqb-teal);
+}
+
+/* Le panneau « codes promo » : un accordéon, pas un bouton. */
+.wc-block-components-panel__button {
+  color: var(--npqb-text-lo) !important;
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.wc-block-components-panel__button:hover { color: var(--npqb-teal) !important; }
+
+/* ── Boutons des blocs ──
+   Les blocs ont leur propre composant de bouton, que les règles écrites
+   pour .button de WooCommerce ne touchent pas : d'où le bouton gris à
+   texte souligné qui traînait sous le récapitulatif. */
+.wc-block-components-button:not(.is-link),
+.wc-block-cart__submit-button,
+.wc-block-components-checkout-place-order-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 24px;
+  border: 0;
+  border-radius: 0;
+  background: var(--npqb-teal);
+  color: #04141C;
+  font-family: var(--npqb-mono);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: box-shadow .25s var(--npqb-ease);
+}
+
+.wc-block-components-button:not(.is-link):hover,
+.wc-block-cart__submit-button:hover,
+.wc-block-components-checkout-place-order-button:hover {
+  background: var(--npqb-teal);
+  color: #04141C;
+  box-shadow: var(--npqb-glow);
+  text-decoration: none;
+}
+
+/* Le libellé interne du bouton : sans lui, le soulignement des blocs
+   revient par la petite porte. */
+.wc-block-components-button__text { text-decoration: none; }
+
+.wc-block-components-button.is-link {
+  color: var(--npqb-teal);
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ── Commande : les champs ──
+   Les blocs dessinent des champs à étiquette flottante. Leur fond clair
+   par défaut ne tient pas sur fond sombre. */
+.wc-block-components-text-input input[type="text"],
+.wc-block-components-text-input input[type="email"],
+.wc-block-components-text-input input[type="tel"],
+.wc-block-components-text-input input[type="number"],
+.wc-block-components-textarea,
+.wc-block-components-combobox-control input.components-combobox-control__input,
+.wc-block-components-select__container {
+  background: var(--npqb-code-bg) !important;
+  border: 1px solid var(--npqb-border) !important;
+  border-radius: 0 !important;
+  color: #fff !important;
+}
+
+.wc-block-components-text-input.is-active input:focus,
+.wc-block-components-textarea:focus {
+  border-color: var(--npqb-teal) !important;
+  box-shadow: none !important;
+  outline: none;
+}
+
+.wc-block-components-text-input label,
+.wc-block-components-checkbox__label,
+.wc-block-components-radio-control__label {
+  color: var(--npqb-text-lo);
+}
+
+.wc-block-components-checkout-step__heading,
+.wc-block-components-title {
+  color: #fff;
+}
+
+.wc-block-components-checkout-step__description {
+  color: var(--npqb-text-lo);
+}
+
+/* Les cadres d'étape de la commande reprennent le liseré des autres blocs :
+   une étape est une station du tunnel, pas une simple zone de formulaire. */
+.wc-block-components-radio-control-accordion-option,
+.wc-block-components-radio-control__option {
+  border-color: var(--npqb-border) !important;
+}
+
+.wc-block-components-radio-control__option--checked-option-highlighted {
+  background: var(--npqb-teal-12) !important;
+}
+
+/* ── Confirmation ── */
+.wc-block-order-confirmation-status p,
+.wc-block-order-confirmation-summary,
+.wc-block-order-confirmation-totals,
+.wc-block-order-confirmation-additional-fields {
+  color: var(--npqb-text-lo);
+}
+
+.wc-block-order-confirmation-summary {
+  background: var(--npqb-surface);
+  border: 1px solid var(--npqb-border);
+  border-top: 3px solid var(--npqb-teal);
+  padding: 22px 24px;
+}
+
+.wc-block-order-confirmation-summary-list-item__key {
+  font-family: var(--npqb-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--npqb-muted);
+}
+
+.wc-block-order-confirmation-summary-list-item__value { color: var(--npqb-text); }
+
+/* ── Sortie de la confirmation ──
+   Posée par NPQ_WooCommerce::sorties_confirmation(). Deux directions, dans
+   l'ordre où on les veut : ce qu'on vient d'acheter d'abord, la boutique
+   ensuite. */
+.npq-sorties {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  /* Marge basse : le gabarit de page du thème n'en pose aucune sous son
+     contenu, et le dernier élément d'une page vient toucher le pied de
+     page. Ici ce dernier élément est le mot de la fin d'un achat — le pire
+     endroit pour donner l'impression que la page a été coupée. */
+  margin: 40px 0 60px;
+  padding-top: 30px;
+  border-top: 1px solid var(--npqb-border);
+}
+
+/* Sélecteurs préfixés par .npq-sorties, et non .npq-sortie seule : ces
+   boutons sont injectés dans le contenu de la page, où le thème pose
+   « .entry-content a { color: teal; text-decoration: underline } ». Cette
+   règle-là est plus spécifique qu'une classe seule — elle repeignait donc le
+   libellé en teal SUR un fond teal, illisible, et le soulignait. */
+.npq-sorties .npq-sortie {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 12px 26px;
+  border: 1px solid var(--npqb-teal);
+  background: var(--npqb-teal);
+  color: #04141C;
+  font-family: var(--npqb-mono);
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-decoration: none !important;
+  transition: box-shadow .25s var(--npqb-ease);
+}
+
+.npq-sorties .npq-sortie:hover {
+  color: #04141C;
+  box-shadow: var(--npqb-glow);
+}
+
+/* La seconde sortie est un cadre creux : deux boutons pleins côte à côte
+   ne diraient plus lequel est la suite naturelle. */
+.npq-sorties .npq-sortie--secondaire {
+  background: transparent;
+  border-color: var(--npqb-border);
+  color: var(--npqb-text-lo);
+}
+
+.npq-sorties .npq-sortie--secondaire:hover {
+  background: transparent;
+  border-color: var(--npqb-teal);
+  color: var(--npqb-teal);
+  box-shadow: none;
+}
+
+/* LA NOTE D'ATTENTE
+ *
+ * « Votre accès s'ouvrira dès la validation du paiement » est la phrase la
+ * plus importante de la page pour qui vient de régler par virement : elle
+ * répond à la question qu'il se pose en la lisant — ai-je déjà mon accès ?
+ * En gris muté, elle se lisait comme une mention légale.
+ *
+ * L'AMBRE, et non l'orange. Dans ce système de couleurs, l'orange signale
+ * ce qui est critique ou ce qui défait — il sert au lien « retirer du
+ * panier ». L'ambre signale une attente, une chose en cours. C'est
+ * exactement le statut de cette commande : rien n'a échoué, rien n'est
+ * fini. Le teal, lui, aurait dit « c'est acquis », ce qui serait faux.
+ *
+ * Le liseré à gauche reprend le motif d'encart de la maquette : il détache
+ * le bloc sans l'entourer, et laisse la couleur porter le signal.
+ *
+ * (Préfixée pour la même raison que les boutons : « .entry-content p » du
+ * thème pose une marge basse plus spécifique qu'une classe seule.)
+ */
+.npq-sorties .npq-sorties__note {
+  flex-basis: 100%;
+  margin: 6px 0 0;
+  padding: 15px 18px;
+  border-left: 3px solid var(--npqb-amber);
+  background: rgba(232, 184, 75, 0.06);
+  font-family: var(--npqb-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--npqb-text);
+}
+
+/* Le double slash du système, en tête de note. Purement décoratif : la
+   phrase se suffit à elle-même une fois lue à voix haute. */
+.npq-sorties .npq-sorties__note::before {
+  content: "// ";
+  color: var(--npqb-amber);
 }
 
 /* =====================================================================
@@ -644,16 +1815,55 @@
 }
 
 /* =====================================================================
- * FIL D'ARIANE
+ * BARRE DE FIL D'ARIANE
+ *
+ * Une barre pleine largeur sous l'en-tête, et non un fil posé au-dessus
+ * du contenu : c'est ce qui la rattache visuellement à la navigation
+ * plutôt qu'à la page. Elle est rendue par NPQ_WooCommerce::barre_fil(),
+ * en dehors de l'enveloppe — sans quoi elle serait enfermée dans la
+ * colonne des produits, à côté des filtres.
  * ===================================================================== */
 
+.npq-fil {
+  border-top: 1px solid var(--npqb-border);
+  border-bottom: 1px solid var(--npqb-border);
+  background: rgba(12, 20, 40, 0.75);
+}
+
+.npq-fil__inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 40px;
+  flex-wrap: wrap;
+}
+
+/* L'état est repoussé à l'autre bout ; le fil prend ce qui reste et se
+   tronque plutôt que de pousser l'état hors du cadre. */
+.npq-fil .woocommerce-breadcrumb {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.npq-fil__etat {
+  flex-shrink: 0;
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  color: var(--npqb-muted);
+}
+
+/* margin: 0 — et non la marge basse de 26px d'avant. Le fil ne vit plus
+   qu'à l'intérieur de la barre, qui centre ses éléments : une marge basse y
+   décale le texte vers le HAUT de la moitié de sa valeur, et le désaligne du
+   décompte d'en face. C'est à la barre de donner la respiration, pas au fil
+   de la porter. */
 .woocommerce .woocommerce-breadcrumb {
+  margin: 0;
   font-family: var(--npqb-mono);
   font-size: 11px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--npqb-muted);
-  margin-bottom: 26px;
 }
 
 .woocommerce .woocommerce-breadcrumb a {

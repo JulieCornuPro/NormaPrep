@@ -43,6 +43,29 @@ class NPQ_WooCommerce {
     const META_COMMANDE_TRAITEE = '_npq_acces_attribues';
 
     /**
+     * Colonne de filtres rendue à l'ouverture de l'enveloppe.
+     *
+     * Mémorisée parce que la fermeture doit refermer exactement ce que
+     * l'ouverture a ouvert : recalculer la condition en fin de page risquerait
+     * de fermer une balise qui n'a jamais été ouverte, et de casser la mise en
+     * page de tout ce qui suit.
+     *
+     * @var string
+     */
+    private static $colonne_filtres = '';
+
+    /**
+     * Les bandeaux sous l'en-tête ont-ils déjà été rendus sur cette page ?
+     *
+     * Deux points d'accroche peuvent y mener — celui du thème, et le repli
+     * sur WooCommerce quand le thème n'est pas à jour. Sans ce témoin, un
+     * thème à jour afficherait le fil d'Ariane deux fois sur le catalogue.
+     *
+     * @var bool
+     */
+    private static $bandeaux_rendus = false;
+
+    /**
      * WooCommerce est-il actif ?
      * On ne teste pas le fichier du plugin mais la présence de sa classe :
      * c'est le seul indicateur fiable qu'il est réellement chargé.
@@ -78,12 +101,143 @@ class NPQ_WooCommerce {
         // défaut), sans quoi current_theme_supports() répondrait avant que le
         // thème ait eu l'occasion de se déclarer.
         add_action( 'after_setup_theme', [ __CLASS__, 'passerelle_theme' ], 20 );
+
+        // Habillage de la boutique. SÉPARÉ DE LA PASSERELLE À DESSEIN : la
+        // passerelle est une rustine qui s'efface le jour où le thème déclare
+        // son support de WooCommerce, alors que ces réglages-ci sont
+        // l'intégration graphique elle-même. Les mélanger ferait disparaître
+        // le fil d'Ariane et le fil d'étapes avec la rustine.
+        add_action( 'after_setup_theme', [ __CLASS__, 'habillage_boutique' ], 20 );
+
         add_action( 'wp_enqueue_scripts', [ __CLASS__, 'charger_styles' ] );
+
+        // Zone visuelle des produits : image du produit s'il en a une, motif
+        // graphique généré sinon. Remplace le visuel de remplacement gris de
+        // WooCommerce, qui ne ressemble à rien du reste du site.
+        require_once NPQ_PATH . 'includes/class-npq-boutique-vignette.php';
+        NPQ_Boutique_Vignette::init();
     }
 
     /* =====================================================================
      * INTÉGRATION AU THÈME
      * ===================================================================== */
+
+    /**
+     * Réglages d'habillage de la boutique.
+     *
+     * Ce que WooCommerce affiche de lui-même et qu'on remplace, et ce qu'on
+     * ajoute par-dessus. Indépendant de la passerelle : ces choix valent que
+     * le thème déclare ou non son support de WooCommerce.
+     */
+    public static function habillage_boutique() {
+        // Le fil d'Ariane sort de l'enveloppe pour devenir une barre pleine
+        // largeur, comme dans la maquette. WooCommerce l'affiche à la
+        // priorité 20, donc APRÈS l'ouverture de nos conteneurs : il se
+        // retrouvait enfermé dans la colonne des produits, à côté des filtres.
+        remove_action( 'woocommerce_before_main_content', 'woocommerce_breadcrumb', 20 );
+
+        // « 4 résultats affichés » disait la même chose que le décompte de la
+        // barre, deux fois sur le même écran. On garde celui de la barre : il
+        // est à sa place dans la maquette, et discret. Sous le titre, la
+        // maquette ne montre que le tri.
+        remove_action( 'woocommerce_before_shop_loop', 'woocommerce_result_count', 20 );
+
+        // La boutique manquait au fil d'Ariane des fiches produit.
+        add_filter( 'woocommerce_get_breadcrumb', [ __CLASS__, 'fil_avec_boutique' ], 10, 2 );
+
+        // Les bandeaux (fil d'Ariane, fil d'étapes) se posent sous l'en-tête,
+        // par un point d'accroche du THÈME et non de WooCommerce.
+        //
+        // C'est ce qui les rend indépendants des gabarits : le panier et la
+        // commande sont des pages WordPress ordinaires, et selon la version de
+        // WooCommerce elles sont rendues par un shortcode ou par des blocs —
+        // deux chemins qui ne déclenchent pas les mêmes actions, et parfois
+        // aucune de celles qu'on attendait. Un point d'accroche du thème, lui,
+        // est traversé par toutes les pages, quelle qu'en soit la fabrique.
+        //
+        // Le repli sur woocommerce_before_main_content garde les bandeaux
+        // visibles sur le catalogue si le thème n'est pas encore à jour ; le
+        // témoin de rendu empêche qu'ils sortent deux fois quand il l'est.
+        add_action( 'carto_apres_entete', [ __CLASS__, 'bandeaux' ], 10 );
+        add_action( 'woocommerce_before_main_content', [ __CLASS__, 'bandeaux' ], 5 );
+
+        // Sorties de la page de confirmation.
+        //
+        // Par le contenu, et non par un point d'accroche de WooCommerce : la
+        // confirmation existe elle aussi en deux versions, ancien gabarit et
+        // bloc, qui n'exposent pas les mêmes actions. Le contenu de la page,
+        // lui, est filtré dans les deux cas.
+        add_filter( 'the_content', [ __CLASS__, 'sorties_confirmation' ], 20 );
+    }
+
+    /**
+     * Ajoute les sorties sous la confirmation de commande.
+     *
+     * La page dit « merci » et s'arrête là : rien n'indique où aller
+     * ensuite, et l'on reste sur un cul-de-sac au moment précis où l'on
+     * vient de payer.
+     *
+     * Deux directions, dans cet ordre :
+     *
+     *   1. L'ESPACE MEMBRE, en action principale. C'est là que se trouve ce
+     *      qu'on vient d'acheter. Quelqu'un qui achète un accès à une
+     *      certification veut s'en servir, pas retourner faire les courses.
+     *   2. La boutique, en second.
+     *
+     * L'espace n'est proposé que si la commande a RÉELLEMENT ouvert des
+     * accès. Un règlement par virement laisse la commande « en attente » :
+     * l'accès n'existe pas encore, et envoyer vers un espace vide serait
+     * pire que ne rien proposer. Dans ce cas on le dit, plutôt que de
+     * laisser chercher.
+     *
+     * @param string $contenu
+     * @return string
+     */
+    public static function sorties_confirmation( $contenu ) {
+        if ( ! is_order_received_page() || ! in_the_loop() || ! is_main_query() ) {
+            return $contenu;
+        }
+
+        $order = wc_get_order( absint( get_query_var( 'order-received' ) ) );
+        if ( ! $order ) {
+            return $contenu;
+        }
+
+        $boutons = '';
+        $note    = '';
+
+        $page_boutique = wc_get_page_id( 'shop' );
+        $url_boutique  = $page_boutique > 0 ? get_permalink( $page_boutique ) : home_url( '/' );
+
+        $page_espace = class_exists( 'NPQ_Espace' ) ? get_option( NPQ_Espace::OPT_PAGE_ESPACE ) : 0;
+        $url_espace  = $page_espace ? get_permalink( $page_espace ) : '';
+
+        $acces_ouverts = (bool) $order->get_meta( self::META_COMMANDE_TRAITEE );
+        $a_du_normaprep = ! empty( self::lignes_normaprep( $order ) );
+
+        if ( $url_espace && $acces_ouverts && $order->get_user_id() ) {
+            $boutons .= '<a class="npq-sortie" href="' . esc_url( $url_espace ) . '">Accéder à mon espace</a>';
+            $boutons .= '<a class="npq-sortie npq-sortie--secondaire" href="' . esc_url( $url_boutique ) . '">Retour à la boutique</a>';
+        } else {
+            $boutons .= '<a class="npq-sortie" href="' . esc_url( $url_boutique ) . '">Retour à la boutique</a>';
+
+            if ( $url_espace && $order->get_user_id() ) {
+                $boutons .= '<a class="npq-sortie npq-sortie--secondaire" href="' . esc_url( $url_espace ) . '">Mon espace</a>';
+            }
+
+            // On n'annonce l'attente que s'il y a bien un accès à attendre.
+            if ( $a_du_normaprep && ! $acces_ouverts ) {
+                $note = 'Votre accès s\'ouvrira dès la validation du paiement. '
+                      . 'Vous le retrouverez ensuite dans votre espace.';
+            }
+        }
+
+        $html = '<div class="npq-sorties">' . $boutons
+              . ( $note ? '<p class="npq-sorties__note">' . esc_html( $note ) . '</p>' : '' )
+              . '</div>';
+
+        return $contenu . $html;
+    }
 
     /**
      * Fait entrer les pages boutique dans la mise en page du thème.
@@ -114,20 +268,271 @@ class NPQ_WooCommerce {
         add_action( 'woocommerce_before_main_content', [ __CLASS__, 'ouvrir_enveloppe' ], 10 );
         add_action( 'woocommerce_after_main_content', [ __CLASS__, 'fermer_enveloppe' ], 10 );
 
+
         // CARTO n'a pas de barre latérale. WooCommerce en réclame une sur
         // plusieurs de ses gabarits ; sans ce retrait, on demande au thème un
         // fichier qui n'existe pas.
         remove_action( 'woocommerce_sidebar', 'woocommerce_get_sidebar', 10 );
     }
 
-    /** Ouvre l'enveloppe de page du thème (reprise de son page.php). */
+    /**
+     * Ouvre l'enveloppe de page du thème (reprise de son page.php).
+     *
+     * Sur les pages de catalogue, l'enveloppe se dédouble en deux colonnes :
+     * les filtres à gauche, les produits à droite. Ailleurs — fiche produit,
+     * panier, commande — le contenu prend toute la largeur.
+     */
     public static function ouvrir_enveloppe() {
         echo '<section class="npq-boutique"><div class="carto-wrap">';
+
+        self::$colonne_filtres = self::rendu_filtres();
+
+        if ( '' !== self::$colonne_filtres ) {
+            echo '<div class="npq-boutique-grille">';
+            echo self::$colonne_filtres;
+            echo '<div class="npq-boutique-colonne">';
+        }
     }
 
     /** Ferme l'enveloppe de page du thème. */
     public static function fermer_enveloppe() {
+        if ( '' !== self::$colonne_filtres ) {
+            echo '</div></div>';
+        }
+
         echo '</div></section>';
+    }
+
+    /**
+     * Les bandeaux pleine largeur, sous l'en-tête.
+     *
+     * Une seule sortie par page : deux points d'accroche y mènent, et le
+     * premier arrivé ferme la porte derrière lui.
+     */
+    public static function bandeaux() {
+        if ( self::$bandeaux_rendus ) {
+            return;
+        }
+
+        if ( ! function_exists( 'is_woocommerce' ) ) {
+            return;
+        }
+
+        // Toutes les pages de la boutique, tunnel d'achat et compte client
+        // compris : c'est là que le fil d'Ariane du thème s'efface au profit
+        // de celui-ci, et il ne doit pas laisser de trou.
+        $sur_boutique = is_woocommerce() || is_cart() || is_checkout() || is_account_page();
+        if ( ! $sur_boutique ) {
+            return;
+        }
+
+        self::$bandeaux_rendus = true;
+
+        self::barre_fil();
+        self::fil_etapes();
+    }
+
+    /**
+     * Fil d'étapes du tunnel d'achat.
+     *
+     * Trois écrans séparent le panier de l'accès ouvert. Sans repère, on ne
+     * sait ni combien il en reste, ni si valider le panier déclenche déjà le
+     * paiement — l'incertitude qui fait abandonner un achat.
+     *
+     * Le fil est décoratif au sens propre : il n'ouvre aucun raccourci. On ne
+     * saute pas à l'étape 3, et proposer des liens inertes serait pire que
+     * n'en proposer aucun.
+     */
+    private static function fil_etapes() {
+        $etapes = [
+            [ '01', 'Panier' ],
+            [ '02', 'Commande' ],
+            [ '03', 'Confirmation' ],
+        ];
+
+        $courante = self::etape_courante();
+        if ( $courante < 1 ) {
+            return;
+        }
+
+        echo '<div class="npq-tunnel"><div class="carto-wrap"><ol class="npq-etapes">';
+
+        foreach ( $etapes as $rang => $etape ) {
+            $numero = $rang + 1;
+
+            $classe = 'npq-etape';
+            if ( $numero < $courante ) {
+                $classe .= ' est-faite';
+            } elseif ( $numero === $courante ) {
+                $classe .= ' est-active';
+            }
+
+            echo '<li class="' . esc_attr( $classe ) . '"'
+               . ( $numero === $courante ? ' aria-current="step"' : '' ) . '>'
+               . '<span class="npq-etape__n">' . esc_html( $etape[0] ) . '</span>'
+               . '<span class="npq-etape__lbl">' . esc_html( $etape[1] ) . '</span>'
+               . '</li>';
+        }
+
+        echo '</ol></div></div>';
+    }
+
+    /**
+     * Rang de l'étape en cours, 0 si l'on n'est pas dans le tunnel.
+     *
+     * L'ordre des tests compte : is_checkout() reste vrai sur la page de
+     * remerciement, qui est techniquement une étape de la commande. On teste
+     * donc la fin avant le milieu.
+     */
+    private static function etape_courante() {
+        if ( is_order_received_page() ) {
+            return 3;
+        }
+        if ( is_checkout() ) {
+            return 2;
+        }
+        if ( is_cart() ) {
+            return 1;
+        }
+        return 0;
+    }
+
+    /**
+     * Insère la boutique dans le fil d'Ariane, après l'accueil.
+     *
+     * WooCommerce ne l'y met que si la base des permaliens produit contient
+     * le nom de la page boutique — autrement dit si les adresses ressemblent
+     * à /boutique/mon-produit/ et non à /produit/mon-produit/. C'est une
+     * condition sur la FORME DES ADRESSES, alors que la question posée est
+     * celle de la place du produit dans le site. Les deux n'ont pas de raison
+     * d'être liées : un produit appartient à la boutique quelle que soit son
+     * adresse.
+     *
+     * On ajoute donc l'échelon manquant, sans toucher aux permaliens — les
+     * changer réécrirait toutes les adresses de produits déjà en ligne.
+     *
+     * @param array $crumbs Échelons : [ libellé, url ].
+     * @param WC_Breadcrumb $breadcrumb
+     * @return array
+     */
+    public static function fil_avec_boutique( $crumbs, $breadcrumb = null ) {
+        if ( empty( $crumbs ) || ! ( is_product() || is_product_taxonomy() ) ) {
+            return $crumbs;
+        }
+
+        $page_boutique = wc_get_page_id( 'shop' );
+        if ( $page_boutique < 1 ) {
+            return $crumbs;
+        }
+
+        // Boutique en page d'accueil : l'accueil EST déjà la boutique, et
+        // l'ajouter écrirait deux fois le même échelon sous deux noms.
+        if ( (int) get_option( 'page_on_front' ) === $page_boutique ) {
+            return $crumbs;
+        }
+
+        $url = get_permalink( $page_boutique );
+
+        // Déjà présente ? C'est le cas si les permaliens sont réglés sur la
+        // base boutique : WooCommerce l'a alors mise lui-même.
+        foreach ( $crumbs as $echelon ) {
+            if ( ! empty( $echelon[1] ) && untrailingslashit( $echelon[1] ) === untrailingslashit( $url ) ) {
+                return $crumbs;
+            }
+        }
+
+        // Position 1 : juste après l'accueil, avant les catégories.
+        array_splice( $crumbs, 1, 0, [ [ get_the_title( $page_boutique ), $url ] ] );
+
+        return $crumbs;
+    }
+
+    /**
+     * Barre de fil d'Ariane, sous l'en-tête.
+     *
+     * Deux informations, aux deux bouts : où l'on se trouve, à gauche ; ce
+     * que la page contient, à droite. La maquette y met un état de stock —
+     * sans objet ici, où l'on vend un accès à une plateforme et non des
+     * pièces en réserve. La place revient donc à ce qui compte vraiment
+     * selon la page : un décompte de produits, ou une référence.
+     */
+    private static function barre_fil() {
+        // Le fil est bufferisé : WooCommerce n'affiche rien sur certaines
+        // pages, et une barre vide vaudrait moins que pas de barre du tout.
+        ob_start();
+        woocommerce_breadcrumb();
+        $fil = trim( ob_get_clean() );
+
+        $etat = self::etat_page();
+
+        if ( '' === $fil && '' === $etat ) {
+            return;
+        }
+
+        echo '<div class="npq-fil"><div class="carto-wrap npq-fil__inner">';
+        echo $fil;
+
+        if ( '' !== $etat ) {
+            echo '<span class="npq-fil__etat">' . esc_html( $etat ) . '</span>';
+        }
+
+        echo '</div></div>';
+    }
+
+    /**
+     * Ce que la page contient, en bout de barre.
+     *
+     * @return string Chaîne vide quand il n'y a rien d'utile à dire — la
+     *                barre reste alors muette plutôt que de meubler.
+     */
+    private static function etat_page() {
+        if ( is_product() ) {
+            require_once NPQ_PATH . 'includes/class-npq-boutique-vignette.php';
+            $product = wc_get_product( get_queried_object_id() );
+            return $product ? '// ' . NPQ_Boutique_Vignette::reference( $product ) : '';
+        }
+
+        if ( is_cart() ) {
+            $n = ( function_exists( 'WC' ) && WC()->cart ) ? (int) WC()->cart->get_cart_contents_count() : 0;
+            return sprintf( _n( '%s article', '%s articles', $n, 'normaprep-quiz' ), number_format_i18n( $n ) );
+        }
+
+        if ( is_shop() || is_product_taxonomy() ) {
+            $total = isset( $GLOBALS['wp_query'] ) ? (int) $GLOBALS['wp_query']->found_posts : 0;
+
+            $etat = sprintf( _n( '%s produit', '%s produits', $total, 'normaprep-quiz' ), number_format_i18n( $total ) );
+
+            // Le nom du rayon complète le décompte : « 3 produits » seul ne
+            // dit pas de quoi, quand on arrive par un lien de filtre.
+            if ( is_product_taxonomy() ) {
+                $terme = get_queried_object();
+                if ( $terme instanceof WP_Term ) {
+                    $etat .= ' · ' . $terme->name;
+                }
+            }
+
+            return $etat;
+        }
+
+        return '';
+    }
+
+    /**
+     * La colonne de filtres, si la page en attend une.
+     *
+     * Chargée à la demande : sur une fiche produit ou dans le tunnel d'achat,
+     * ce fichier n'a aucune raison d'être lu.
+     *
+     * @return string HTML, chaîne vide s'il n'y a rien à filtrer.
+     */
+    private static function rendu_filtres() {
+        require_once NPQ_PATH . 'includes/class-npq-boutique-filtres.php';
+
+        if ( ! NPQ_Boutique_Filtres::sur_catalogue() ) {
+            return '';
+        }
+
+        return NPQ_Boutique_Filtres::rendu();
     }
 
     /**
@@ -148,10 +553,29 @@ class NPQ_WooCommerce {
             return;
         }
 
+        // Le composant de menu déroulant, partagé avec l'espace membre. Il
+        // est déclaré AVANT la feuille de la boutique, qui en dépend : c'est
+        // cette dépendance qui garantit l'ordre de chargement, et donc que
+        // les réglages de la boutique aient le dernier mot.
+        wp_enqueue_style(
+            'npq-select',
+            NPQ_URL . 'assets/npq-select.css',
+            [],
+            NPQ_VERSION
+        );
+
+        wp_enqueue_script(
+            'npq-select',
+            NPQ_URL . 'assets/npq-select.js',
+            [],           // aucune dépendance : vanilla JS
+            NPQ_VERSION,
+            true          // dans le pied de page
+        );
+
         wp_enqueue_style(
             'npq-boutique',
             NPQ_URL . 'assets/npq-boutique.css',
-            [],
+            [ 'npq-select' ],
             NPQ_VERSION
         );
     }

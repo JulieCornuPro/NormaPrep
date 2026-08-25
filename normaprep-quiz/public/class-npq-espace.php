@@ -193,11 +193,37 @@ class NPQ_Espace {
               <span class="badge">à venir</span>
             </a>
 
+            <?php
+            /*
+             * « Facturation » ne menait nulle part, et ne disait pas non plus
+             * ce qu'on y aurait trouvé. WooCommerce a créé à son installation
+             * une page « Mon compte » qui contient déjà tout cela : commandes
+             * passées, factures téléchargeables, adresses, moyens de paiement.
+             *
+             * On y branche l'entrée plutôt que de reconstruire un écran qui
+             * existe. Le lien pointe directement sur l'onglet des commandes —
+             * c'est ce qu'on vient y chercher — et l'intitulé le dit.
+             *
+             * Sans WooCommerce, l'entrée reprend son état « à venir » : le
+             * plugin doit rester utilisable sans boutique.
+             */
+            $url_commandes = '';
+            if ( function_exists( 'wc_get_account_endpoint_url' ) && wc_get_page_id( 'myaccount' ) > 0 ) {
+                $url_commandes = wc_get_account_endpoint_url( 'orders' );
+            }
+            ?>
+            <?php if ( $url_commandes ) : ?>
+            <a class="side-link" href="<?php echo esc_url( $url_commandes ); ?>">
+              <span class="icon"><svg viewBox="0 0 24 24"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg></span>
+              <span class="lbl">Mes commandes</span>
+            </a>
+            <?php else : ?>
             <a class="side-link soon" href="#" title="Bientot disponible">
               <span class="icon"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13"/><path d="M3 10h18"/></svg></span>
-              <span class="lbl">Facturation</span>
+              <span class="lbl">Mes commandes</span>
               <span class="badge">à venir</span>
             </a>
+            <?php endif; ?>
           </nav>
 
           <div class="side-bottom">
