@@ -1576,11 +1576,13 @@
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
-  /* Marge basse : le gabarit de page du thème n'en pose aucune sous son
-     contenu, et le dernier élément d'une page vient toucher le pied de
-     page. Ici ce dernier élément est le mot de la fin d'un achat — le pire
-     endroit pour donner l'impression que la page a été coupée. */
-  margin: 40px 0 60px;
+  /* Pas de marge basse : c'est le gabarit du thème qui sépare le contenu du
+     pied de page, depuis CARTO 1.2.1. Elle était ici en attendant — un
+     contournement posé au bon endroit visible, pas au bon endroit tout
+     court. La cause corrigée, le contournement s'en va : les garder tous
+     les deux doublerait l'espace, et laisserait croire que celui-ci est
+     voulu pour cette page en particulier. */
+  margin: 40px 0 0;
   padding-top: 30px;
   border-top: 1px solid var(--npqb-border);
 }
