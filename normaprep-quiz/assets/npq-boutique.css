@@ -1286,16 +1286,54 @@
    On ne refait pas sa mise en page : on lui donne les cadres de la
    maquette, liseré teal compris. */
 .wp-block-woocommerce-cart .wc-block-cart-items,
-.wc-block-cart__sidebar > .wc-block-components-sidebar,
-.wc-block-checkout__sidebar > .wc-block-components-sidebar {
+.wc-block-cart__sidebar,
+.wc-block-checkout__sidebar,
+.wc-block-components-sidebar {
   background: var(--npqb-surface);
   border: 1px solid var(--npqb-border);
   border-top: 3px solid var(--npqb-teal);
 }
 
-.wc-block-cart__sidebar > .wc-block-components-sidebar,
-.wc-block-checkout__sidebar > .wc-block-components-sidebar {
-  padding: 24px 26px 28px;
+/* Les blocs sont dessinés SANS cadre : leur contenu commence donc au ras du
+   bord, ce qui ne se voit pas tant qu'il n'y a pas de bord. En leur posant
+   une bordure, on a rendu visible un rembourrage qui n'existait pas. C'est à
+   nous de le donner, puisque c'est nous qui avons créé le besoin.
+
+   Le sélecteur vise .wc-block-cart__sidebar directement, et non un enfant :
+   selon la version de WooCommerce, .wc-block-components-sidebar est posée
+   sur ce même élément ou sur un enfant, et cibler l'enfant ne rencontrait
+   rien la moitié du temps. */
+.wc-block-cart__sidebar,
+.wc-block-checkout__sidebar,
+.wc-block-components-sidebar {
+  padding: 24px 26px 28px !important;
+}
+
+/* Un cadre imbriqué dans un autre n'a pas à répéter le cadre. */
+.wc-block-cart__sidebar .wc-block-components-sidebar,
+.wc-block-checkout__sidebar .wc-block-components-sidebar {
+  background: transparent;
+  border: 0;
+  padding: 0 !important;
+}
+
+/* Les cellules du tableau des articles. WooCommerce Blocks les met à zéro
+   avec une spécificité qu'il est plus court de dépasser ainsi que d'égaler
+   — même parti pris que pour ses boutons, plus haut dans ce fichier. */
+.wp-block-woocommerce-cart .wc-block-cart-items th,
+.wp-block-woocommerce-cart .wc-block-cart-items td {
+  padding-top: 20px !important;
+  padding-bottom: 20px !important;
+}
+
+.wp-block-woocommerce-cart .wc-block-cart-items th:first-child,
+.wp-block-woocommerce-cart .wc-block-cart-items td:first-child {
+  padding-left: 24px !important;
+}
+
+.wp-block-woocommerce-cart .wc-block-cart-items th:last-child,
+.wp-block-woocommerce-cart .wc-block-cart-items td:last-child {
+  padding-right: 24px !important;
 }
 
 .wp-block-woocommerce-cart .wc-block-cart-items__header {
@@ -1543,7 +1581,12 @@
   border-top: 1px solid var(--npqb-border);
 }
 
-.npq-sortie {
+/* Sélecteurs préfixés par .npq-sorties, et non .npq-sortie seule : ces
+   boutons sont injectés dans le contenu de la page, où le thème pose
+   « .entry-content a { color: teal; text-decoration: underline } ». Cette
+   règle-là est plus spécifique qu'une classe seule — elle repeignait donc le
+   libellé en teal SUR un fond teal, illisible, et le soulignait. */
+.npq-sorties .npq-sortie {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1556,31 +1599,33 @@
   font-size: 13px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  text-decoration: none;
+  text-decoration: none !important;
   transition: box-shadow .25s var(--npqb-ease);
 }
 
-.npq-sortie:hover {
+.npq-sorties .npq-sortie:hover {
   color: #04141C;
   box-shadow: var(--npqb-glow);
 }
 
 /* La seconde sortie est un cadre creux : deux boutons pleins côte à côte
    ne diraient plus lequel est la suite naturelle. */
-.npq-sortie--secondaire {
+.npq-sorties .npq-sortie--secondaire {
   background: transparent;
   border-color: var(--npqb-border);
   color: var(--npqb-text-lo);
 }
 
-.npq-sortie--secondaire:hover {
+.npq-sorties .npq-sortie--secondaire:hover {
   background: transparent;
   border-color: var(--npqb-teal);
   color: var(--npqb-teal);
   box-shadow: none;
 }
 
-.npq-sorties__note {
+/* Préfixée pour la même raison que les boutons : « .entry-content p » du
+   thème pose une marge basse plus spécifique qu'une classe seule. */
+.npq-sorties .npq-sorties__note {
   flex-basis: 100%;
   margin: 0;
   font-family: var(--npqb-mono);
