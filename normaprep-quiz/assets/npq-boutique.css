@@ -1576,7 +1576,11 @@
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
-  margin: 40px 0 0;
+  /* Marge basse : le gabarit de page du thème n'en pose aucune sous son
+     contenu, et le dernier élément d'une page vient toucher le pied de
+     page. Ici ce dernier élément est le mot de la fin d'un achat — le pire
+     endroit pour donner l'impression que la page a été coupée. */
+  margin: 40px 0 60px;
   padding-top: 30px;
   border-top: 1px solid var(--npqb-border);
 }
@@ -1623,15 +1627,42 @@
   box-shadow: none;
 }
 
-/* Préfixée pour la même raison que les boutons : « .entry-content p » du
-   thème pose une marge basse plus spécifique qu'une classe seule. */
+/* LA NOTE D'ATTENTE
+ *
+ * « Votre accès s'ouvrira dès la validation du paiement » est la phrase la
+ * plus importante de la page pour qui vient de régler par virement : elle
+ * répond à la question qu'il se pose en la lisant — ai-je déjà mon accès ?
+ * En gris muté, elle se lisait comme une mention légale.
+ *
+ * L'AMBRE, et non l'orange. Dans ce système de couleurs, l'orange signale
+ * ce qui est critique ou ce qui défait — il sert au lien « retirer du
+ * panier ». L'ambre signale une attente, une chose en cours. C'est
+ * exactement le statut de cette commande : rien n'a échoué, rien n'est
+ * fini. Le teal, lui, aurait dit « c'est acquis », ce qui serait faux.
+ *
+ * Le liseré à gauche reprend le motif d'encart de la maquette : il détache
+ * le bloc sans l'entourer, et laisse la couleur porter le signal.
+ *
+ * (Préfixée pour la même raison que les boutons : « .entry-content p » du
+ * thème pose une marge basse plus spécifique qu'une classe seule.)
+ */
 .npq-sorties .npq-sorties__note {
   flex-basis: 100%;
-  margin: 0;
+  margin: 6px 0 0;
+  padding: 15px 18px;
+  border-left: 3px solid var(--npqb-amber);
+  background: rgba(232, 184, 75, 0.06);
   font-family: var(--npqb-mono);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
-  color: var(--npqb-muted);
+  color: var(--npqb-text);
+}
+
+/* Le double slash du système, en tête de note. Purement décoratif : la
+   phrase se suffit à elle-même une fois lue à voix haute. */
+.npq-sorties .npq-sorties__note::before {
+  content: "// ";
+  color: var(--npqb-amber);
 }
 
 /* =====================================================================
