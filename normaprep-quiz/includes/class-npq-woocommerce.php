@@ -148,6 +148,11 @@ class NPQ_WooCommerce {
         // La boutique manquait au fil d'Ariane des fiches produit.
         add_filter( 'woocommerce_get_breadcrumb', [ __CLASS__, 'fil_avec_boutique' ], 10, 2 );
 
+        // Fil d'étapes du tunnel d'achat, en tête de chacune de ses pages.
+        add_action( 'woocommerce_before_cart', [ __CLASS__, 'fil_etapes' ], 5 );
+        add_action( 'woocommerce_before_checkout_form', [ __CLASS__, 'fil_etapes' ], 5 );
+        add_action( 'woocommerce_before_thankyou', [ __CLASS__, 'fil_etapes' ], 5 );
+
 
         // CARTO n'a pas de barre latérale. WooCommerce en réclame une sur
         // plusieurs de ses gabarits ; sans ce retrait, on demande au thème un
@@ -181,6 +186,71 @@ class NPQ_WooCommerce {
         }
 
         echo '</div></section>';
+    }
+
+    /**
+     * Fil d'étapes du tunnel d'achat.
+     *
+     * Trois écrans séparent le panier de l'accès ouvert. Sans repère, on ne
+     * sait ni combien il en reste, ni si valider le panier déclenche déjà le
+     * paiement — l'incertitude qui fait abandonner un achat.
+     *
+     * Le fil est décoratif au sens propre : il n'ouvre aucun raccourci. On ne
+     * saute pas à l'étape 3, et proposer des liens inertes serait pire que
+     * n'en proposer aucun.
+     */
+    public static function fil_etapes() {
+        $etapes = [
+            [ '01', 'Panier' ],
+            [ '02', 'Commande' ],
+            [ '03', 'Confirmation' ],
+        ];
+
+        $courante = self::etape_courante();
+        if ( $courante < 1 ) {
+            return;
+        }
+
+        echo '<ol class="npq-etapes">';
+
+        foreach ( $etapes as $rang => $etape ) {
+            $numero = $rang + 1;
+
+            $classe = 'npq-etape';
+            if ( $numero < $courante ) {
+                $classe .= ' est-faite';
+            } elseif ( $numero === $courante ) {
+                $classe .= ' est-active';
+            }
+
+            echo '<li class="' . esc_attr( $classe ) . '"'
+               . ( $numero === $courante ? ' aria-current="step"' : '' ) . '>'
+               . '<span class="npq-etape__n">' . esc_html( $etape[0] ) . '</span>'
+               . '<span class="npq-etape__lbl">' . esc_html( $etape[1] ) . '</span>'
+               . '</li>';
+        }
+
+        echo '</ol>';
+    }
+
+    /**
+     * Rang de l'étape en cours, 0 si l'on n'est pas dans le tunnel.
+     *
+     * L'ordre des tests compte : is_checkout() reste vrai sur la page de
+     * remerciement, qui est techniquement une étape de la commande. On teste
+     * donc la fin avant le milieu.
+     */
+    private static function etape_courante() {
+        if ( is_order_received_page() ) {
+            return 3;
+        }
+        if ( is_checkout() ) {
+            return 2;
+        }
+        if ( is_cart() ) {
+            return 1;
+        }
+        return 0;
     }
 
     /**

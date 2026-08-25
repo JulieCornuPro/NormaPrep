@@ -1027,6 +1027,204 @@
 }
 
 /* =====================================================================
+ * TUNNEL D'ACHAT : PANIER ET COMMANDE
+ *
+ * La maquette range le panier en deux colonnes : les lignes à gauche, le
+ * récapitulatif à droite, dans un bloc qui suit le défilement. C'est ce
+ * qui permet de garder le total sous les yeux pendant qu'on ajuste les
+ * quantités — sans quoi on remonte et redescend pour vérifier l'effet de
+ * chaque changement.
+ * ===================================================================== */
+
+/* ── Fil d'étapes ──
+   Rendu par NPQ_WooCommerce::fil_etapes(). Le trait qui suit chaque étape
+   la relie à la suivante ; la dernière n'en a pas, elle ne mène nulle
+   part. */
+.npq-etapes {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+  list-style: none;
+  margin: 0 0 34px;
+  padding: 0;
+}
+
+.npq-etape {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-right: 22px;
+}
+
+.npq-etape::after {
+  content: "";
+  width: 46px;
+  height: 1px;
+  background: var(--npqb-border);
+}
+
+.npq-etape:last-child { padding-right: 0; }
+.npq-etape:last-child::after { display: none; }
+
+.npq-etape__n {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid var(--npqb-border);
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  color: var(--npqb-muted);
+}
+
+.npq-etape__lbl {
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--npqb-muted);
+}
+
+/* Franchie : le contour teal dit « c'est acquis », sans le remplissage
+   qui signalerait « vous êtes ici ». */
+.npq-etape.est-faite .npq-etape__n {
+  border-color: var(--npqb-teal);
+  color: var(--npqb-teal);
+}
+.npq-etape.est-faite .npq-etape__lbl { color: var(--npqb-text-lo); }
+
+.npq-etape.est-active .npq-etape__n {
+  border-color: var(--npqb-teal);
+  background: var(--npqb-teal-12);
+  color: var(--npqb-teal);
+}
+.npq-etape.est-active .npq-etape__lbl { color: var(--npqb-teal); }
+
+/* ── Les deux colonnes ──
+   :has() — la grille ne se pose que s'il y a un panier à afficher. Sur un
+   panier vide, WooCommerce ne rend pas le formulaire : la grille laisserait
+   une colonne de 400px vide à côté du message. Un navigateur sans :has()
+   empile les blocs en pleine largeur, ce qui reste lisible. */
+.woocommerce-cart .woocommerce:has(.woocommerce-cart-form) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  gap: 32px;
+  align-items: start;
+}
+
+/* Les messages s'adressent à la page entière, pas à une colonne. */
+.woocommerce-cart .woocommerce > .woocommerce-notices-wrapper,
+.woocommerce-cart .woocommerce > .npq-etapes {
+  grid-column: 1 / -1;
+}
+
+/* WooCommerce fait flotter le récapitulatif à 48% : incompatible avec la
+   grille, qui décide déjà des largeurs. */
+.woocommerce-cart .cart-collaterals,
+.woocommerce-cart .cart-collaterals .cart_totals {
+  width: auto !important;
+  float: none !important;
+  margin: 0 !important;
+}
+
+/* Le liseré teal en tête des deux blocs, comme sur les cartes produit :
+   c'est la signature du système, on la garde d'un bout à l'autre. */
+.woocommerce-cart table.shop_table.cart,
+.woocommerce-cart .cart-collaterals .cart_totals {
+  background: var(--npqb-surface);
+  border: 1px solid var(--npqb-border);
+  border-top: 3px solid var(--npqb-teal);
+}
+
+.woocommerce-cart .cart-collaterals .cart_totals {
+  padding: 26px 26px 28px;
+  position: sticky;
+  top: 88px;   /* en-tête fixe du thème, plus une respiration */
+}
+
+/* Dans le récapitulatif, le tableau n'est plus qu'une liste de lignes :
+   son propre cadre ferait un cadre dans un cadre. */
+.woocommerce-cart .cart_totals table.shop_table {
+  border: 0;
+  width: 100%;
+}
+
+.woocommerce-cart .cart_totals table.shop_table th,
+.woocommerce-cart .cart_totals table.shop_table td {
+  padding: 11px 0;
+  border: 0;
+}
+
+.woocommerce-cart .cart_totals tr.order-total th,
+.woocommerce-cart .cart_totals tr.order-total td {
+  border-top: 1px solid var(--npqb-border);
+  padding-top: 16px;
+}
+
+.woocommerce-cart .cart_totals tr.order-total .amount {
+  font-size: 26px;
+}
+
+.woocommerce-cart .wc-proceed-to-checkout { padding: 18px 0 0; }
+
+.woocommerce-cart .wc-proceed-to-checkout a.checkout-button {
+  display: flex;
+  width: 100%;
+}
+
+/* ── Panier vide ──
+   La maquette en fait un moment à part entière : le constat, puis une
+   sortie. Un panier vide n'est pas une erreur, c'est un début. */
+.woocommerce-cart .cart-empty,
+.woocommerce-cart .wc-empty-cart-message .cart-empty {
+  border: 1px solid var(--npqb-border);
+  border-top: 3px solid var(--npqb-teal);
+  background: var(--npqb-surface);
+  margin: 0;
+  padding: 60px 24px 24px;
+  text-align: center;
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--npqb-muted);
+}
+
+.woocommerce-cart .return-to-shop {
+  background: var(--npqb-surface);
+  border: 1px solid var(--npqb-border);
+  border-top: 0;
+  margin: 0;
+  padding: 0 24px 60px;
+  text-align: center;
+}
+
+/* Retour au catalogue : une sortie, pas l'action principale — d'où le
+   cadre creux plutôt que le bouton plein. */
+.woocommerce-cart .return-to-shop a.button {
+  background: transparent !important;
+  border: 1px solid var(--npqb-teal);
+  color: var(--npqb-teal) !important;
+}
+
+.woocommerce-cart .return-to-shop a.button:hover {
+  background: var(--npqb-teal-12) !important;
+  color: var(--npqb-teal) !important;
+}
+
+/* Sous 1000px, le récapitulatif passe sous les lignes : à côté, il ne
+   resterait pas de quoi lire un nom de produit. */
+@media (max-width: 1000px) {
+  .woocommerce-cart .woocommerce:has(.woocommerce-cart-form) {
+    grid-template-columns: 1fr;
+  }
+  .woocommerce-cart .cart-collaterals .cart_totals { position: static; }
+}
+
+/* =====================================================================
  * TABLEAUX (panier, commande, compte)
  * ===================================================================== */
 
