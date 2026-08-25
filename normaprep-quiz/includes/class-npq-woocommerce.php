@@ -160,6 +160,83 @@ class NPQ_WooCommerce {
         // témoin de rendu empêche qu'ils sortent deux fois quand il l'est.
         add_action( 'carto_apres_entete', [ __CLASS__, 'bandeaux' ], 10 );
         add_action( 'woocommerce_before_main_content', [ __CLASS__, 'bandeaux' ], 5 );
+
+        // Sorties de la page de confirmation.
+        //
+        // Par le contenu, et non par un point d'accroche de WooCommerce : la
+        // confirmation existe elle aussi en deux versions, ancien gabarit et
+        // bloc, qui n'exposent pas les mêmes actions. Le contenu de la page,
+        // lui, est filtré dans les deux cas.
+        add_filter( 'the_content', [ __CLASS__, 'sorties_confirmation' ], 20 );
+    }
+
+    /**
+     * Ajoute les sorties sous la confirmation de commande.
+     *
+     * La page dit « merci » et s'arrête là : rien n'indique où aller
+     * ensuite, et l'on reste sur un cul-de-sac au moment précis où l'on
+     * vient de payer.
+     *
+     * Deux directions, dans cet ordre :
+     *
+     *   1. L'ESPACE MEMBRE, en action principale. C'est là que se trouve ce
+     *      qu'on vient d'acheter. Quelqu'un qui achète un accès à une
+     *      certification veut s'en servir, pas retourner faire les courses.
+     *   2. La boutique, en second.
+     *
+     * L'espace n'est proposé que si la commande a RÉELLEMENT ouvert des
+     * accès. Un règlement par virement laisse la commande « en attente » :
+     * l'accès n'existe pas encore, et envoyer vers un espace vide serait
+     * pire que ne rien proposer. Dans ce cas on le dit, plutôt que de
+     * laisser chercher.
+     *
+     * @param string $contenu
+     * @return string
+     */
+    public static function sorties_confirmation( $contenu ) {
+        if ( ! is_order_received_page() || ! in_the_loop() || ! is_main_query() ) {
+            return $contenu;
+        }
+
+        $order = wc_get_order( absint( get_query_var( 'order-received' ) ) );
+        if ( ! $order ) {
+            return $contenu;
+        }
+
+        $boutons = '';
+        $note    = '';
+
+        $page_boutique = wc_get_page_id( 'shop' );
+        $url_boutique  = $page_boutique > 0 ? get_permalink( $page_boutique ) : home_url( '/' );
+
+        $page_espace = class_exists( 'NPQ_Espace' ) ? get_option( NPQ_Espace::OPT_PAGE_ESPACE ) : 0;
+        $url_espace  = $page_espace ? get_permalink( $page_espace ) : '';
+
+        $acces_ouverts = (bool) $order->get_meta( self::META_COMMANDE_TRAITEE );
+        $a_du_normaprep = ! empty( self::lignes_normaprep( $order ) );
+
+        if ( $url_espace && $acces_ouverts && $order->get_user_id() ) {
+            $boutons .= '<a class="npq-sortie" href="' . esc_url( $url_espace ) . '">Accéder à mon espace</a>';
+            $boutons .= '<a class="npq-sortie npq-sortie--secondaire" href="' . esc_url( $url_boutique ) . '">Retour à la boutique</a>';
+        } else {
+            $boutons .= '<a class="npq-sortie" href="' . esc_url( $url_boutique ) . '">Retour à la boutique</a>';
+
+            if ( $url_espace && $order->get_user_id() ) {
+                $boutons .= '<a class="npq-sortie npq-sortie--secondaire" href="' . esc_url( $url_espace ) . '">Mon espace</a>';
+            }
+
+            // On n'annonce l'attente que s'il y a bien un accès à attendre.
+            if ( $a_du_normaprep && ! $acces_ouverts ) {
+                $note = 'Votre accès s\'ouvrira dès la validation du paiement. '
+                      . 'Vous le retrouverez ensuite dans votre espace.';
+            }
+        }
+
+        $html = '<div class="npq-sorties">' . $boutons
+              . ( $note ? '<p class="npq-sorties__note">' . esc_html( $note ) . '</p>' : '' )
+              . '</div>';
+
+        return $contenu . $html;
     }
 
     /**

@@ -28,8 +28,15 @@
  * évoluent.
  */
 
+/* Les classes de page du tunnel d'achat sont listées à côté de .woocommerce
+   parce que les blocs Gutenberg de WooCommerce ne posent AUCUN conteneur
+   .woocommerce : sans elles, les jetons ci-dessous ne descendraient pas
+   jusqu'au panier ni à la commande. */
 .woocommerce,
-.woocommerce-page {
+.woocommerce-page,
+.woocommerce-cart,
+.woocommerce-checkout,
+.woocommerce-order-received {
   --npqb-bg:         var(--carto-bg, #070C18);
   --npqb-surface:    var(--carto-surface, #0C1428);
   --npqb-surface-2:  var(--carto-surface-2, #111E36);
@@ -1228,6 +1235,358 @@
     grid-template-columns: 1fr;
   }
   .woocommerce-cart .cart-collaterals .cart_totals { position: static; }
+}
+
+/* =====================================================================
+ * LES BLOCS WOOCOMMERCE (panier, commande, confirmation)
+ *
+ * Depuis WooCommerce 8.3, les pages du tunnel d'achat sont faites de
+ * BLOCS Gutenberg et non plus des anciens gabarits PHP. Deux façons de
+ * fabriquer la même page, avec des balisages sans rapport : les règles
+ * écrites pour .shop_table ou .cart_totals ne rencontrent jamais rien.
+ *
+ * D'où cette section, écrite pour les classes wc-block-*. Les règles de
+ * l'ancien balisage restent en place — une boutique peut basculer d'un
+ * mode à l'autre en changeant le contenu d'une page, et les deux doivent
+ * rester présentables.
+ *
+ * On ne touche qu'à l'apparence. Les blocs apportent leur propre
+ * mécanique — quantité modifiable sans rechargement, panneau de code
+ * promo, totaux recalculés en direct — et c'est justement le sélecteur
+ * « − 1 + » que dessinait la maquette. La réécrire aurait été une perte.
+ * ===================================================================== */
+
+/* ── Charpente commune ──
+   Les blocs posent leurs propres variables. Les rediriger vers les jetons
+   CARTO règle d'un coup les bordures et les fonds de toute leur
+   arborescence, sans avoir à traquer chaque composant. */
+.woocommerce-cart,
+.woocommerce-checkout,
+.woocommerce-order-received {
+  --wc-blocks-color-border: var(--npqb-border);
+}
+
+.wp-block-woocommerce-cart,
+.wp-block-woocommerce-checkout,
+.wc-block-order-confirmation-status {
+  color: var(--npqb-text-lo);
+}
+
+.wc-block-components-title,
+.wc-block-components-checkout-step__title,
+.wc-block-cart-items__header,
+.wc-block-components-totals-item__label {
+  font-family: var(--npqb-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* ── Panier : les deux blocs ──
+   Le bloc range déjà les articles à gauche et le récapitulatif à droite.
+   On ne refait pas sa mise en page : on lui donne les cadres de la
+   maquette, liseré teal compris. */
+.wp-block-woocommerce-cart .wc-block-cart-items,
+.wc-block-cart__sidebar > .wc-block-components-sidebar,
+.wc-block-checkout__sidebar > .wc-block-components-sidebar {
+  background: var(--npqb-surface);
+  border: 1px solid var(--npqb-border);
+  border-top: 3px solid var(--npqb-teal);
+}
+
+.wc-block-cart__sidebar > .wc-block-components-sidebar,
+.wc-block-checkout__sidebar > .wc-block-components-sidebar {
+  padding: 24px 26px 28px;
+}
+
+.wp-block-woocommerce-cart .wc-block-cart-items__header {
+  background: transparent;
+  border-bottom: 1px solid var(--npqb-border);
+  font-size: 11px;
+  color: var(--npqb-muted);
+}
+
+.wp-block-woocommerce-cart .wc-block-cart-items__row {
+  border-bottom: 1px solid var(--npqb-border);
+}
+
+.wc-block-cart-item__wrap .wc-block-components-product-name {
+  font-family: var(--npqb-display);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: -0.3px;
+  text-transform: uppercase;
+  color: #fff;
+  text-decoration: none;
+}
+
+.wc-block-cart-item__wrap .wc-block-components-product-metadata,
+.wc-block-components-product-details {
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  color: var(--npqb-muted);
+}
+
+/* La vignette du panier : même fond quadrillé que les cartes du catalogue,
+   pour ne pas laisser réapparaître le visuel de remplacement gris que l'on
+   a chassé partout ailleurs. */
+.wc-block-cart-item__image img {
+  background: var(--npqb-code-bg);
+  background-image: var(--carto-grid-image, none);
+  background-size: 24px 24px;
+  border: 1px solid var(--npqb-border);
+}
+
+/* ── Le sélecteur de quantité, tel que la maquette le dessine ── */
+.wc-block-components-quantity-selector {
+  border: 1px solid var(--npqb-border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.wc-block-components-quantity-selector::after { display: none; }
+
+.wc-block-components-quantity-selector__input {
+  background: transparent;
+  color: #fff;
+  font-family: var(--npqb-mono);
+  font-size: 13px;
+}
+
+.wc-block-components-quantity-selector__button {
+  background: transparent;
+  border: 0;
+  color: var(--npqb-text-lo);
+  font-family: var(--npqb-mono);
+  opacity: 1;
+  transition: color .2s var(--npqb-ease);
+}
+
+.wc-block-components-quantity-selector__button:hover { color: var(--npqb-teal); }
+
+/* Retirer une ligne : discret au repos, orange au survol — la couleur de
+   ce qui défait, jamais celle de ce qui avance. */
+.wc-block-cart-item__remove-link,
+.wc-block-components-product-badge {
+  color: var(--npqb-muted);
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+}
+
+.wc-block-cart-item__remove-link:hover { color: var(--npqb-orange); }
+
+/* ── Totaux ── */
+.wc-block-components-totals-item {
+  color: var(--npqb-text-lo);
+  font-family: var(--npqb-mono);
+}
+
+.wc-block-components-totals-item__value { color: var(--npqb-text); }
+
+.wc-block-components-totals-item__label {
+  font-size: 11px;
+  color: var(--npqb-muted);
+}
+
+.wc-block-components-totals-footer-item,
+.wc-block-components-totals-wrapper {
+  border-top-color: var(--npqb-border) !important;
+}
+
+.wc-block-components-totals-footer-item .wc-block-components-totals-item__value {
+  font-family: var(--npqb-mono);
+  font-size: 26px;
+  color: var(--npqb-teal);
+}
+
+/* Le panneau « codes promo » : un accordéon, pas un bouton. */
+.wc-block-components-panel__button {
+  color: var(--npqb-text-lo) !important;
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.wc-block-components-panel__button:hover { color: var(--npqb-teal) !important; }
+
+/* ── Boutons des blocs ──
+   Les blocs ont leur propre composant de bouton, que les règles écrites
+   pour .button de WooCommerce ne touchent pas : d'où le bouton gris à
+   texte souligné qui traînait sous le récapitulatif. */
+.wc-block-components-button:not(.is-link),
+.wc-block-cart__submit-button,
+.wc-block-components-checkout-place-order-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 24px;
+  border: 0;
+  border-radius: 0;
+  background: var(--npqb-teal);
+  color: #04141C;
+  font-family: var(--npqb-mono);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: box-shadow .25s var(--npqb-ease);
+}
+
+.wc-block-components-button:not(.is-link):hover,
+.wc-block-cart__submit-button:hover,
+.wc-block-components-checkout-place-order-button:hover {
+  background: var(--npqb-teal);
+  color: #04141C;
+  box-shadow: var(--npqb-glow);
+  text-decoration: none;
+}
+
+/* Le libellé interne du bouton : sans lui, le soulignement des blocs
+   revient par la petite porte. */
+.wc-block-components-button__text { text-decoration: none; }
+
+.wc-block-components-button.is-link {
+  color: var(--npqb-teal);
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ── Commande : les champs ──
+   Les blocs dessinent des champs à étiquette flottante. Leur fond clair
+   par défaut ne tient pas sur fond sombre. */
+.wc-block-components-text-input input[type="text"],
+.wc-block-components-text-input input[type="email"],
+.wc-block-components-text-input input[type="tel"],
+.wc-block-components-text-input input[type="number"],
+.wc-block-components-textarea,
+.wc-block-components-combobox-control input.components-combobox-control__input,
+.wc-block-components-select__container {
+  background: var(--npqb-code-bg) !important;
+  border: 1px solid var(--npqb-border) !important;
+  border-radius: 0 !important;
+  color: #fff !important;
+}
+
+.wc-block-components-text-input.is-active input:focus,
+.wc-block-components-textarea:focus {
+  border-color: var(--npqb-teal) !important;
+  box-shadow: none !important;
+  outline: none;
+}
+
+.wc-block-components-text-input label,
+.wc-block-components-checkbox__label,
+.wc-block-components-radio-control__label {
+  color: var(--npqb-text-lo);
+}
+
+.wc-block-components-checkout-step__heading,
+.wc-block-components-title {
+  color: #fff;
+}
+
+.wc-block-components-checkout-step__description {
+  color: var(--npqb-text-lo);
+}
+
+/* Les cadres d'étape de la commande reprennent le liseré des autres blocs :
+   une étape est une station du tunnel, pas une simple zone de formulaire. */
+.wc-block-components-radio-control-accordion-option,
+.wc-block-components-radio-control__option {
+  border-color: var(--npqb-border) !important;
+}
+
+.wc-block-components-radio-control__option--checked-option-highlighted {
+  background: var(--npqb-teal-12) !important;
+}
+
+/* ── Confirmation ── */
+.wc-block-order-confirmation-status p,
+.wc-block-order-confirmation-summary,
+.wc-block-order-confirmation-totals,
+.wc-block-order-confirmation-additional-fields {
+  color: var(--npqb-text-lo);
+}
+
+.wc-block-order-confirmation-summary {
+  background: var(--npqb-surface);
+  border: 1px solid var(--npqb-border);
+  border-top: 3px solid var(--npqb-teal);
+  padding: 22px 24px;
+}
+
+.wc-block-order-confirmation-summary-list-item__key {
+  font-family: var(--npqb-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--npqb-muted);
+}
+
+.wc-block-order-confirmation-summary-list-item__value { color: var(--npqb-text); }
+
+/* ── Sortie de la confirmation ──
+   Posée par NPQ_WooCommerce::sorties_confirmation(). Deux directions, dans
+   l'ordre où on les veut : ce qu'on vient d'acheter d'abord, la boutique
+   ensuite. */
+.npq-sorties {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 40px 0 0;
+  padding-top: 30px;
+  border-top: 1px solid var(--npqb-border);
+}
+
+.npq-sortie {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 12px 26px;
+  border: 1px solid var(--npqb-teal);
+  background: var(--npqb-teal);
+  color: #04141C;
+  font-family: var(--npqb-mono);
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: box-shadow .25s var(--npqb-ease);
+}
+
+.npq-sortie:hover {
+  color: #04141C;
+  box-shadow: var(--npqb-glow);
+}
+
+/* La seconde sortie est un cadre creux : deux boutons pleins côte à côte
+   ne diraient plus lequel est la suite naturelle. */
+.npq-sortie--secondaire {
+  background: transparent;
+  border-color: var(--npqb-border);
+  color: var(--npqb-text-lo);
+}
+
+.npq-sortie--secondaire:hover {
+  background: transparent;
+  border-color: var(--npqb-teal);
+  color: var(--npqb-teal);
+  box-shadow: none;
+}
+
+.npq-sorties__note {
+  flex-basis: 100%;
+  margin: 0;
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--npqb-muted);
 }
 
 /* =====================================================================
