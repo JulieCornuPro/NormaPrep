@@ -1577,3 +1577,111 @@
 .npq-app .npq-acces-vide, .npq-app .npq-acces-plus{
   color:var(--text-lo); font-size:14px; margin:0 0 14px;
 }
+
+
+/* ============================================================
+   « MES COMMANDES » — la page Mon compte de WooCommerce dans
+   la coquille de l'espace membre.
+   ------------------------------------------------------------
+   Le gabarit public/page-compte-normaprep.php lui prête la
+   barre latérale et la mise en page de l'espace. Reste à
+   régler un conflit de navigation : WooCommerce affiche SA
+   propre liste (Commandes, Adresses, Détails du compte…) en
+   colonne, à gauche de son contenu. Posée à côté de la barre
+   latérale de l'espace, elle donnait deux colonnes de menu
+   pour une seule page.
+
+   On la couche donc à l'horizontale, en onglets au-dessus du
+   contenu : la barre latérale dit où l'on est dans le site,
+   les onglets disent où l'on est dans le compte. Deux
+   questions différentes, deux formes différentes.
+
+   Ces règles sont ici, et non dans npq-boutique.css, parce
+   qu'elles décrivent la coquille de l'espace et non la
+   boutique — et parce que cette feuille est chargée après,
+   donc elle a le dernier mot sur les deux.
+   ============================================================ */
+
+.npq-app--compte .woocommerce-MyAccount-navigation {
+  width: 100%;
+  float: none;
+  margin: 0 0 28px;
+}
+
+.npq-app--compte .woocommerce-MyAccount-navigation ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Le repère d'onglet actif passe du liseré GAUCHE au liseré
+   BAS : c'est le même signal, tourné dans le sens de la
+   lecture. Le liseré gauche reste celui de la barre latérale,
+   et deux repères identiques dans deux navigations voisines
+   se confondraient. */
+.npq-app--compte .woocommerce-MyAccount-navigation li {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  margin: 0 24px 0 0;
+}
+
+.npq-app--compte .woocommerce-MyAccount-navigation li a {
+  display: block;
+  padding: 12px 0;
+  background: none;
+  color: var(--text-lo);
+  font-family: 'Inconsolata', monospace;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: color .25s var(--ease);
+}
+
+.npq-app--compte .woocommerce-MyAccount-navigation li.is-active {
+  border-bottom-color: var(--teal);
+  background: none;
+}
+
+.npq-app--compte .woocommerce-MyAccount-navigation li.is-active a,
+.npq-app--compte .woocommerce-MyAccount-navigation li a:hover {
+  color: var(--teal);
+}
+
+.npq-app--compte .woocommerce-MyAccount-content {
+  width: 100%;
+  float: none;
+  margin: 0;
+}
+
+/* WooCommerce ouvre son contenu par une phrase d'accueil qui
+   redit le prénom et propose de se déconnecter. La barre
+   latérale porte déjà les deux, à trois centimètres de là. */
+.npq-app--compte .woocommerce-MyAccount-content > p:first-child {
+  color: var(--text-lo);
+  font-size: 15px;
+}
+
+/* Les tableaux de commandes sont habillés par npq-boutique.css,
+   qui est chargé ici aussi. On ne reprend que ce qui dépend de
+   la coquille : la largeur disponible n'est plus la même. */
+.npq-app--compte table.shop_table {
+  width: 100%;
+}
+
+/* Sous 900px, les onglets défilent latéralement plutôt que de
+   se replier sur trois lignes et de repousser le contenu. */
+@media (max-width: 900px) {
+  .npq-app--compte .woocommerce-MyAccount-navigation ul {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .npq-app--compte .woocommerce-MyAccount-navigation li {
+    flex-shrink: 0;
+  }
+}
