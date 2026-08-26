@@ -163,7 +163,6 @@ class NPQ_WooCommerce {
 
         // Onglets du compte client.
         add_filter( 'woocommerce_account_menu_items', [ __CLASS__, 'onglets_compte' ] );
-        add_action( 'template_redirect', [ __CLASS__, 'rediriger_edition_compte' ] );
 
         // Sorties de la page de confirmation.
         //
@@ -177,35 +176,28 @@ class NPQ_WooCommerce {
     /**
      * Onglets du compte client.
      *
-     * Retire « Se déconnecter ». L'en-tête du site porte déjà ce lien, sur
-     * toutes les pages : une action aussi fréquente doit se trouver toujours
-     * au même endroit, pas à deux endroits dont l'un n'existe que sur
-     * certains écrans. Le doublon n'ajoutait rien et occupait un onglet.
+     * Deux entrées disparaissent, pour des raisons différentes.
      *
-     * Le point de sortie de WooCommerce reste actif : seule sa présence dans
-     * ce menu disparaît.
+     * « Se déconnecter » : l'en-tête du site porte déjà ce lien, sur toutes
+     * les pages. Une action aussi fréquente doit se trouver toujours au même
+     * endroit, pas à deux endroits dont l'un n'existe que sur certains
+     * écrans. Le point de sortie de WooCommerce reste actif : seule sa
+     * présence dans ce menu disparaît.
+     *
+     * « Téléchargements » : on ne vend pas de fichier.
+     *
+     * « DÉTAILS DU COMPTE » RESTE, sur décision explicite. Il fait donc
+     * doublon avec /mon-profil/ pour le mot de passe et l'adresse email. À
+     * savoir : le formulaire de WooCommerce applique un changement d'adresse
+     * SANS la faire confirmer, là où NPQ_Profil n'y touche qu'après clic sur
+     * un lien envoyé à la nouvelle adresse. Une faute de frappe rend le
+     * compte injoignable par ce chemin-ci, sans effet par l'autre.
      *
      * @param array $onglets
      * @return array
      */
     public static function onglets_compte( $onglets ) {
         unset( $onglets['customer-logout'] );
-
-        // « Détails du compte » cède la place à « Mon profil ».
-        //
-        // Les deux écrans changent le mot de passe et l'adresse email du même
-        // compte. Deux formulaires pour une même donnée posent une question
-        // sans réponse : lequel fait foi ? Et celui de WooCommerce ignore les
-        // règles de NormaPrep — il applique un changement d'adresse sans la
-        // faire confirmer, alors que NPQ_Profil n'y touche qu'après clic sur
-        // un lien envoyé à la NOUVELLE adresse. Une faute de frappe rend le
-        // compte injoignable chez l'un, sans effet chez l'autre.
-        //
-        // On ne la remplace pas par un lien : « Mon profil » vit déjà dans la
-        // barre latérale de l'espace, qui est la navigation du site. Ces
-        // onglets-ci disent où l'on est dans le COMPTE marchand, et l'identité
-        // n'en fait pas partie.
-        unset( $onglets['edit-account'] );
 
         // « Téléchargements » : on ne vend pas de fichier.
         //
@@ -220,32 +212,6 @@ class NPQ_WooCommerce {
         unset( $onglets['downloads'] );
 
         return $onglets;
-    }
-
-    /**
-     * Renvoie « Mon profil » vers la page de NormaPrep.
-     *
-     * Retirer l'entrée du menu ne suffit pas : l'adresse
-     * /mon-compte/edit-account/ reste atteignable, par un marque-page ou un
-     * lien d'email. Une page qu'on a désignée comme n'étant plus la bonne ne
-     * doit pas continuer de répondre.
-     */
-    public static function rediriger_edition_compte() {
-        if ( ! function_exists( 'is_account_page' ) || ! is_account_page() ) {
-            return;
-        }
-
-        if ( ! function_exists( 'is_wc_endpoint_url' ) || ! is_wc_endpoint_url( 'edit-account' ) ) {
-            return;
-        }
-
-        $page_profil = get_option( 'npq_page_profil_id' );
-        if ( ! $page_profil ) {
-            return; // sans page de profil, mieux vaut l'écran de WooCommerce que rien
-        }
-
-        wp_safe_redirect( get_permalink( $page_profil ) );
-        exit;
     }
 
     /**
