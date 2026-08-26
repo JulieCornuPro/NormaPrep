@@ -207,6 +207,18 @@ class NPQ_WooCommerce {
         // n'en fait pas partie.
         unset( $onglets['edit-account'] );
 
+        // « Téléchargements » : on ne vend pas de fichier.
+        //
+        // Ce qui s'achète ici est un ACCÈS à une certification, ouvert dans la
+        // bibliothèque et consulté depuis l'espace membre. Il n'y a aucun
+        // fichier à récupérer, et un onglet toujours vide use la confiance
+        // qu'on accorde aux autres.
+        //
+        // À RETIRER DE CE CODE le jour où un produit téléchargeable existera
+        // — un support de cours en PDF, par exemple : l'onglet redeviendrait
+        // le seul endroit où le client va le chercher.
+        unset( $onglets['downloads'] );
+
         return $onglets;
     }
 
