@@ -1775,6 +1775,34 @@
   line-height: 1.3;
 }
 
+/* LE SÉLECTEUR DE PAYS
+ *
+ * Un <select> natif n'applique pas le rembourrage vertical comme un
+ * <input> : le navigateur lui impose sa propre hauteur, plus courte. Dans
+ * une colonne de champs, il tombait d'un cran par rapport à ses voisins.
+ *
+ * On lui retire donc son apparence native (appearance: none), on fixe la
+ * hauteur des autres champs, et on redessine la flèche — un SVG en ligne,
+ * pour ne dépendre d'aucun fichier.
+ *
+ * color-scheme: dark — la liste qu'il ouvre est dessinée par le navigateur,
+ * hors du document : c'est le seul levier qui existe dessus. Même remède
+ * que le menu de tri de la boutique.
+ */
+.npq-app--compte .woocommerce-MyAccount-content form select,
+.npq-app--compte .form-row select {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 47px;
+  padding: 0 40px 0 14px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238B98B3' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 13px center;
+  background-size: 16px 16px;
+  color-scheme: dark;
+  cursor: pointer;
+}
+
 .npq-app--compte .form-row input:focus,
 .npq-app--compte .form-row select:focus {
   outline: none;
@@ -1881,12 +1909,38 @@
 /* ── Messages ──
    La forme et les trois niveaux de gravité sont définis dans
    npq-boutique.css, qui les applique partout — boutique, panier,
-   commande, compte. On ne reprend ici que ce qui dépend de la
-   coquille : l'espace membre a ses propres jetons de couleur,
-   et un fond de cadre plus clair que celui de la boutique. */
+   commande, compte.
+
+   MAIS : la coquille de l'espace ouvre sur « .npq-app * » un
+   reset qui met margin et padding à zéro sur TOUS ses
+   descendants. Ce sélecteur pèse autant qu'une classe simple, et
+   cette feuille est chargée après celle de la boutique : il
+   gagnait donc, et le texte des messages venait se coller dans
+   l'angle de son cadre.
+
+   On les repose ici, où la spécificité est de notre côté. La
+   règle vaut au-delà des messages : tout ce que la feuille
+   boutique rembourre à l'intérieur de .npq-app doit être reposé
+   de ce côté-ci. */
 .npq-app--compte .woocommerce-error,
 .npq-app--compte .woocommerce-message,
 .npq-app--compte .woocommerce-info {
+  padding: 16px 20px;
+  margin: 0 0 22px;
   border-color: var(--border);
   border-left-color: var(--npqb-signal);
+}
+
+.npq-app--compte .woocommerce-error li,
+.npq-app--compte .woocommerce-message li,
+.npq-app--compte .woocommerce-info li {
+  padding: 0;
+  margin: 0;
+}
+
+/* Le rembourrage des cadres de commande et de la pagination, victimes
+   du même reset. */
+.npq-app--compte table.shop_table th,
+.npq-app--compte table.shop_table td {
+  padding: 14px 16px;
 }

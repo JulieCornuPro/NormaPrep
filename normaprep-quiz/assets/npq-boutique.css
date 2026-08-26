@@ -1638,12 +1638,58 @@ div.woocommerce-error::before,
    Le liseré à gauche, et non en haut : en haut, c'est la signature des
    cartes de catalogue et des blocs de récapitulatif. Deux motifs, deux
    familles d'objets. */
-.wc-block-components-checkout-step {
+/* Deux sélecteurs : les blocs nomment ce conteneur tantôt par sa classe
+   de composant, tantôt par celle du bloc Gutenberg qui l'enveloppe. Selon
+   la version, l'une des deux seulement existe — et une règle qui ne
+   rencontre rien ne le dit pas. */
+.wc-block-components-checkout-step,
+.wp-block-woocommerce-checkout-fields-block > .wc-block-components-checkout-step {
   background: var(--npqb-surface);
   border: 1px solid var(--npqb-border);
   border-left: 3px solid var(--npqb-teal);
   padding: 24px 26px;
   margin-bottom: 20px;
+}
+
+/* Les titres d'étape sont en Syncopate capitales dans la maquette : c'est
+   ce qui sépare les moments de la commande. Le monospace est réservé aux
+   intitulés de service (récapitulatif, référence). */
+.wc-block-components-checkout-step__title {
+  font-family: var(--npqb-display);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.2px;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+/* L'image du récapitulatif de commande : même fond quadrillé que les
+   cartes du catalogue. Sans cette règle, le visuel de remplacement gris
+   de WooCommerce réapparaît ici — le dernier endroit où il restait. */
+.wc-block-components-order-summary-item__image img,
+.wc-block-components-order-summary-item__image {
+  background: var(--npqb-code-bg);
+  background-image: var(--carto-grid-image, none);
+  background-size: 24px 24px;
+  border: 1px solid var(--npqb-border);
+}
+
+/* L'intitulé du récapitulatif, au monospace du système comme ses voisins. */
+.wc-block-components-order-summary .wc-block-components-panel__button,
+.wc-block-components-order-summary__title {
+  font-family: var(--npqb-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--npqb-teal) !important;
+}
+
+/* Le mode de paiement retenu : le cadre teal du système, et non le bleu
+   par défaut des blocs. */
+.wc-block-components-radio-control__option--checked-option-highlighted,
+.wc-block-components-radio-control-accordion-option:has(input:checked) {
+  border-color: var(--npqb-teal) !important;
+  background: var(--npqb-teal-12) !important;
 }
 
 /* Le numéro d'étape que les blocs posent en pastille : il redit ce que le
