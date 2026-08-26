@@ -1704,9 +1704,13 @@
    ============================================================ */
 
 /* ── Le cadre commun ── */
-.npq-app--compte form.woocommerce-address-form,
-.npq-app--compte form.woocommerce-EditAccountForm,
-.npq-app--compte form.edit-account {
+/* « .woocommerce-MyAccount-content form » plutôt qu'une liste de classes :
+   le formulaire d'édition d'adresse de WooCommerce n'en porte AUCUNE — son
+   gabarit ouvre un <form method="post"> nu. Le cadre se posait donc sur la
+   liste des adresses, mais disparaissait dès qu'on cliquait « Modifier ».
+   On désigne l'emplacement, que WooCommerce ne peut pas nous retirer,
+   plutôt que des noms qu'il n'a jamais promis de donner. */
+.npq-app--compte .woocommerce-MyAccount-content form {
   background: var(--surface);
   border: 1px solid var(--border);
   border-left: 3px solid var(--teal);
@@ -1804,9 +1808,7 @@
 }
 
 /* ── Bouton ── */
-.npq-app--compte form.woocommerce-address-form button.button,
-.npq-app--compte form.woocommerce-EditAccountForm button.button,
-.npq-app--compte form.edit-account button.button {
+.npq-app--compte .woocommerce-MyAccount-content form button.button {
   margin-top: 8px;
   padding: 14px 28px;
   border: none;
@@ -1822,9 +1824,7 @@
   transition: transform .2s var(--ease), box-shadow .2s var(--ease);
 }
 
-.npq-app--compte form.woocommerce-address-form button.button:hover,
-.npq-app--compte form.woocommerce-EditAccountForm button.button:hover,
-.npq-app--compte form.edit-account button.button:hover {
+.npq-app--compte .woocommerce-MyAccount-content form button.button:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 24px rgba(0, 207, 207, 0.25);
 }
@@ -1879,40 +1879,14 @@
 }
 
 /* ── Messages ──
-   .woocommerce-error est une LISTE : ses erreurs s'empilent.
-   Le flex horizontal hérité de la feuille boutique les mettait
-   sur une même ligne, où elles se disputaient la largeur. */
+   La forme et les trois niveaux de gravité sont définis dans
+   npq-boutique.css, qui les applique partout — boutique, panier,
+   commande, compte. On ne reprend ici que ce qui dépend de la
+   coquille : l'espace membre a ses propres jetons de couleur,
+   et un fond de cadre plus clair que celui de la boutique. */
 .npq-app--compte .woocommerce-error,
 .npq-app--compte .woocommerce-message,
 .npq-app--compte .woocommerce-info {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--teal);
-  border-top: 1px solid var(--border);
-  padding: 18px 22px;
-  margin-bottom: 22px;
-  color: var(--text);
-  font-size: 15px;
-}
-
-.npq-app--compte .woocommerce-error li,
-.npq-app--compte .woocommerce-message li,
-.npq-app--compte .woocommerce-info li {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* Une erreur se distingue par sa couleur, pas par sa forme :
-   même cadre, liseré rouge. C'est le code déjà employé par la
-   zone de suppression de compte de /mon-profil/. */
-.npq-app--compte .woocommerce-error {
-  border-left-color: #c0392b;
-}
-
-.npq-app--compte .woocommerce-message {
-  border-left-color: var(--teal);
+  border-color: var(--border);
+  border-left-color: var(--npqb-signal);
 }

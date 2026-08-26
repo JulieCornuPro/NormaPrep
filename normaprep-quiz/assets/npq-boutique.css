@@ -1001,56 +1001,105 @@
  * MESSAGES
  * ===================================================================== */
 
-/* En flex, et non en bloc : ces messages portent souvent un bouton à droite
-   (« Vérifier », « Voir la commande »), plus haut que le texte. En bloc, le
-   cadre prenait la hauteur du bouton et la phrase restait accrochée en haut
-   — d'où l'impression d'un texte perdu dans un cadre trop grand. Centrées
-   sur la hauteur, les deux se répondent. */
+/* TROIS NIVEAUX DE GRAVITÉ, UNE SEULE FORME
+ *
+ * Tous les messages partagent le cadre, le liseré à gauche et le double
+ * slash. Seule la COULEUR change, et elle suit ce que le message veut
+ * dire — c'est le même code que partout ailleurs dans la boutique :
+ *
+ *   teal   : c'est fait, c'est acquis        (.woocommerce-message)
+ *   ambre  : c'est en cours, il faut agir    (.woocommerce-info)
+ *   orange : ça n'a pas marché               (.woocommerce-error)
+ *
+ * Le liseré à GAUCHE et non en haut : c'est le motif d'encart de la
+ * maquette, et il laisse la couleur courir le long du texte plutôt que de
+ * la reléguer à un filet qu'on ne regarde plus une fois la page lue.
+ *
+ * --npqb-signal porte la couleur du niveau : les règles de forme ne la
+ * connaissent pas, elles la lisent. Ajouter un niveau, c'est déclarer une
+ * couleur, rien d'autre. */
 .woocommerce-message,
 .woocommerce-info,
 .woocommerce-error,
 .woocommerce-noreviews,
 .woocommerce p.no-comments {
+  --npqb-signal: var(--npqb-teal);
+  --npqb-signal-fond: rgba(0, 207, 207, 0.06);
+
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px 20px;
-  background: var(--npqb-surface);
-  color: var(--npqb-text-lo);
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  margin: 0 0 24px;
+  padding: 16px 20px;
+  background: var(--npqb-signal-fond);
   border: 1px solid var(--npqb-border);
-  border-top: 3px solid var(--npqb-teal);
+  border-left: 3px solid var(--npqb-signal);
   border-radius: 0;
-  padding: 18px 26px;
   list-style: none;
+  color: var(--npqb-text);
   font-size: 15px;
-  line-height: 1.5;
+  line-height: 1.6;
+}
+
+.woocommerce-info,
+.woocommerce-noreviews {
+  --npqb-signal: var(--npqb-amber);
+  --npqb-signal-fond: rgba(232, 184, 75, 0.06);
+}
+
+.woocommerce-error {
+  --npqb-signal: var(--npqb-orange);
+  --npqb-signal-fond: rgba(255, 107, 53, 0.06);
 }
 
 /* WooCommerce pose une pastille en caractère d'icône, calée en absolu sur
    le bord gauche. Elle suppose le rembourrage de 3.5em de son propre thème,
    qu'on ne reprend pas : ici elle venait chevaucher le début de la phrase.
-   Le liseré teal du cadre dit déjà de quoi il s'agit. */
+   Le liseré coloré dit déjà de quoi il s'agit. */
 .woocommerce-message::before,
 .woocommerce-info::before,
 .woocommerce-error::before {
-  display: none;
+  content: none;
 }
 
-/* Le bouton va se placer contre le bord droit ; le texte prend le reste. */
+/* Le double slash du système. Deux séries de sélecteurs parce que
+   WooCommerce rend ses messages tantôt en <div>, tantôt en <ul> de <li> :
+   poser la marque au même endroit dans les deux cas la ferait apparaître
+   deux fois sur les listes. */
+div.woocommerce-message::before,
+div.woocommerce-info::before,
+p.woocommerce-info::before,
+div.woocommerce-error::before,
+.woocommerce-error li::before,
+.woocommerce-message li::before,
+.woocommerce-info li::before {
+  content: "// ";
+  color: var(--npqb-signal);
+  font-family: var(--npqb-mono);
+}
+
+.woocommerce-error li,
+.woocommerce-message li,
+.woocommerce-info li {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Le bouton d'un message (« Vérifier », « Voir la commande ») prend sa
+   propre ligne, calé à gauche : côte à côte avec le texte, il l'écrasait
+   dès que la phrase dépassait une ligne. */
 .woocommerce-message > .button,
 .woocommerce-info > .button,
 .woocommerce-error > .button {
-  margin-left: auto;
-  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 4px;
 }
 
-/* Un formulaire à l'intérieur du message (la vérification d'adresse en pose
-   un) tient sur sa propre ligne : il est trop large pour partager celle du
-   texte sans l'écraser. */
 .woocommerce-info form,
 .woocommerce-message form {
-  flex-basis: 100%;
-  margin: 0;
+  margin: 4px 0 0;
 }
 
 .woocommerce-error {
@@ -1580,6 +1629,32 @@
   background: var(--npqb-teal-12) !important;
 }
 
+/* ── Commande : les étapes en cadres ──
+   Chaque étape du tunnel (contact, adresse, livraison, paiement) devient
+   un cadre à liseré gauche, le même que les formulaires de l'espace
+   membre. C'est le même geste — remplir des champs et valider — et il n'a
+   pas de raison de changer d'allure entre l'espace et la commande.
+
+   Le liseré à gauche, et non en haut : en haut, c'est la signature des
+   cartes de catalogue et des blocs de récapitulatif. Deux motifs, deux
+   familles d'objets. */
+.wc-block-components-checkout-step {
+  background: var(--npqb-surface);
+  border: 1px solid var(--npqb-border);
+  border-left: 3px solid var(--npqb-teal);
+  padding: 24px 26px;
+  margin-bottom: 20px;
+}
+
+/* Le numéro d'étape que les blocs posent en pastille : il redit ce que le
+   titre dit déjà, et se calait mal dans un cadre qui n'était pas prévu
+   pour lui. */
+.wc-block-components-checkout-step__title-wrapper {
+  align-items: baseline;
+}
+
+.wc-block-components-checkout-step:last-of-type { margin-bottom: 0; }
+
 /* ── Confirmation ── */
 .wc-block-order-confirmation-status p,
 .wc-block-order-confirmation-summary,
@@ -1588,11 +1663,37 @@
   color: var(--npqb-text-lo);
 }
 
-.wc-block-order-confirmation-summary {
+.wc-block-order-confirmation-summary,
+.wc-block-order-confirmation-totals,
+.wc-block-order-confirmation-shipping-address,
+.wc-block-order-confirmation-billing-address,
+.wc-block-order-confirmation-additional-fields {
   background: var(--npqb-surface);
   border: 1px solid var(--npqb-border);
   border-top: 3px solid var(--npqb-teal);
   padding: 22px 24px;
+  margin-bottom: 20px;
+}
+
+/* Les intitulés de section de la confirmation, au monospace du système. */
+.wc-block-order-confirmation-totals h2,
+.wc-block-order-confirmation-shipping-address h2,
+.wc-block-order-confirmation-billing-address h2,
+.wc-block-order-confirmation-additional-fields h2 {
+  font-family: var(--npqb-mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--npqb-teal);
+  margin: 0 0 14px;
+}
+
+.wc-block-order-confirmation-shipping-address address,
+.wc-block-order-confirmation-billing-address address {
+  font-style: normal;
+  line-height: 1.7;
+  color: var(--npqb-text-lo);
 }
 
 .wc-block-order-confirmation-summary-list-item__key {
