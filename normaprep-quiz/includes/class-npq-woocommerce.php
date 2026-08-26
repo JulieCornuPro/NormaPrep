@@ -161,6 +161,9 @@ class NPQ_WooCommerce {
         add_action( 'carto_apres_entete', [ __CLASS__, 'bandeaux' ], 10 );
         add_action( 'woocommerce_before_main_content', [ __CLASS__, 'bandeaux' ], 5 );
 
+        // Onglets du compte client.
+        add_filter( 'woocommerce_account_menu_items', [ __CLASS__, 'onglets_compte' ] );
+
         // Sorties de la page de confirmation.
         //
         // Par le contenu, et non par un point d'accroche de WooCommerce : la
@@ -168,6 +171,25 @@ class NPQ_WooCommerce {
         // bloc, qui n'exposent pas les mêmes actions. Le contenu de la page,
         // lui, est filtré dans les deux cas.
         add_filter( 'the_content', [ __CLASS__, 'sorties_confirmation' ], 20 );
+    }
+
+    /**
+     * Onglets du compte client.
+     *
+     * Retire « Se déconnecter ». L'en-tête du site porte déjà ce lien, sur
+     * toutes les pages : une action aussi fréquente doit se trouver toujours
+     * au même endroit, pas à deux endroits dont l'un n'existe que sur
+     * certains écrans. Le doublon n'ajoutait rien et occupait un onglet.
+     *
+     * Le point de sortie de WooCommerce reste actif : seule sa présence dans
+     * ce menu disparaît.
+     *
+     * @param array $onglets
+     * @return array
+     */
+    public static function onglets_compte( $onglets ) {
+        unset( $onglets['customer-logout'] );
+        return $onglets;
     }
 
     /**

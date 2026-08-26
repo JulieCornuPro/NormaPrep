@@ -1001,19 +1001,56 @@
  * MESSAGES
  * ===================================================================== */
 
+/* En flex, et non en bloc : ces messages portent souvent un bouton à droite
+   (« Vérifier », « Voir la commande »), plus haut que le texte. En bloc, le
+   cadre prenait la hauteur du bouton et la phrase restait accrochée en haut
+   — d'où l'impression d'un texte perdu dans un cadre trop grand. Centrées
+   sur la hauteur, les deux se répondent. */
 .woocommerce-message,
 .woocommerce-info,
 .woocommerce-error,
 .woocommerce-noreviews,
 .woocommerce p.no-comments {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 20px;
   background: var(--npqb-surface);
   color: var(--npqb-text-lo);
   border: 1px solid var(--npqb-border);
   border-top: 3px solid var(--npqb-teal);
   border-radius: 0;
-  padding: 18px 22px;
+  padding: 18px 26px;
   list-style: none;
   font-size: 15px;
+  line-height: 1.5;
+}
+
+/* WooCommerce pose une pastille en caractère d'icône, calée en absolu sur
+   le bord gauche. Elle suppose le rembourrage de 3.5em de son propre thème,
+   qu'on ne reprend pas : ici elle venait chevaucher le début de la phrase.
+   Le liseré teal du cadre dit déjà de quoi il s'agit. */
+.woocommerce-message::before,
+.woocommerce-info::before,
+.woocommerce-error::before {
+  display: none;
+}
+
+/* Le bouton va se placer contre le bord droit ; le texte prend le reste. */
+.woocommerce-message > .button,
+.woocommerce-info > .button,
+.woocommerce-error > .button {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Un formulaire à l'intérieur du message (la vérification d'adresse en pose
+   un) tient sur sa propre ligne : il est trop large pour partager celle du
+   texte sans l'écraser. */
+.woocommerce-info form,
+.woocommerce-message form {
+  flex-basis: 100%;
+  margin: 0;
 }
 
 .woocommerce-error {
