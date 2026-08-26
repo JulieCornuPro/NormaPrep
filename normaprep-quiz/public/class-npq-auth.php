@@ -255,11 +255,27 @@ class NPQ_Auth {
         }
 
         // Création du compte WordPress avec le rôle abonné NormaPrep.
+        // display_name : surtout PAS l'adresse email.
+        //
+        // Sans cette clé, WordPress recopie user_login — ici l'adresse. Or il
+        // REFUSE ensuite toute mise à jour d'un compte dont le nom affiché est
+        // une adresse email, par protection contre la collecte d'adresses. Le
+        // compte devient alors impossible à modifier, y compris pour un simple
+        // changement de mot de passe, et le message d'erreur parle du nom
+        // affiché alors qu'on n'y a jamais touché.
+        //
+        // On prend donc ce qui précède l'arobase. Ce n'est pas un vrai nom,
+        // mais c'est la seule chose qu'on connaisse de la personne à
+        // l'inscription, et elle pourra le changer.
+        $nom_affiche = NPQ_Comptes::nom_depuis_email( $email );
+
         $user_id = wp_insert_user( [
-            'user_login' => $email,
-            'user_email' => $email,
-            'user_pass'  => $mdp,
-            'role'       => NPQ_Comptes::ROLE,
+            'user_login'   => $email,
+            'user_email'   => $email,
+            'user_pass'    => $mdp,
+            'display_name' => $nom_affiche,
+            'nickname'     => $nom_affiche,
+            'role'         => NPQ_Comptes::ROLE,
         ] );
 
         if ( is_wp_error( $user_id ) ) {

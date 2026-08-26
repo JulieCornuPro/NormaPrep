@@ -574,6 +574,52 @@ class NPQ_Installer {
      *
      * @return array Compte-rendu : conserves, retires, sauvegardes.
      */
+    /**
+     * Répare les comptes dont le nom affiché est leur adresse email.
+     *
+     * Jusqu'à la version 2.42.2, l'inscription ne renseignait pas
+     * display_name : WordPress y recopiait user_login, c'est-à-dire l'adresse
+     * email. Ces comptes sont devenus IMPOSSIBLES À MODIFIER — WordPress
+     * refuse d'enregistrer un utilisateur dont le nom affiché est une adresse,
+     * par protection contre la collecte d'adresses.
+     *
+     * Le symptôme était trompeur : un changement de mot de passe échouait sur
+     * un message parlant du nom affiché, auquel on n'avait pas touché.
+     *
+     * Idempotente : ne touche qu'aux comptes encore dans ce cas.
+     *
+     * @return int Nombre de comptes réparés.
+     */
+    public static function migration_nom_affiche_non_email() {
+        $utilisateurs = get_users( [
+            'fields' => [ 'ID', 'display_name', 'user_email' ],
+            'number' => -1,
+        ] );
+
+        $repares = 0;
+
+        foreach ( $utilisateurs as $u ) {
+            if ( ! is_email( $u->display_name ) ) {
+                continue;
+            }
+
+            // On passe par la base plutôt que par wp_update_user() : cette
+            // fonction est précisément celle qui refuse ces comptes, et qui
+            // refuserait donc de les réparer.
+            global $wpdb;
+            $wpdb->update(
+                $wpdb->users,
+                [ 'display_name' => NPQ_Comptes::nom_depuis_email( $u->user_email ) ],
+                [ 'ID' => (int) $u->ID ]
+            );
+
+            clean_user_cache( (int) $u->ID );
+            $repares++;
+        }
+
+        return $repares;
+    }
+
     public static function migration_aligner_acces_sur_abonnement() {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;

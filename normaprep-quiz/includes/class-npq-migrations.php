@@ -65,6 +65,11 @@ class NPQ_Migrations {
             // Retire les accès qui n'étaient que le résidu de l'attribution
             // automatique. Sauvegarde les lignes retirées avant suppression.
             'alignement_acces' => [ 'NPQ_Installer', 'migration_aligner_acces_sur_abonnement' ],
+
+            // Répare les comptes dont le nom affiché est leur adresse email :
+            // WordPress refuse toute mise à jour de ces comptes, ce qui les
+            // rendait impossibles à modifier — mot de passe compris.
+            'nom_affiche_non_email' => [ 'NPQ_Installer', 'migration_nom_affiche_non_email' ],
         ];
     }
 
