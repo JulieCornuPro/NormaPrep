@@ -1751,24 +1751,78 @@ div.woocommerce-error::before,
  * l'administration : fond blanc, texte sombre. Il faut les reprendre, le
  * composant n'exposant aucune variable.
  */
-.wc-block-components-combobox .components-form-token-field__suggestions-list,
-.woocommerce-checkout .components-form-token-field__suggestions-list,
-.woocommerce-cart .components-form-token-field__suggestions-list {
-  background: var(--npqb-surface);
-  border: 1px solid var(--npqb-border);
-  border-radius: 0;
-  color: var(--npqb-text);
+/* LE CHAMP LUI-MÊME
+ *
+ * Le fond blanc n'était pas seulement dans la liste : le champ FERMÉ
+ * l'était aussi. Viser l'<input> ne suffisait pas — le composant l'enferme
+ * dans un conteneur qui porte le fond, et c'est ce conteneur qu'il faut
+ * atteindre.
+ *
+ * Ses noms varient d'une version à l'autre. Plutôt que de parier sur l'un
+ * d'eux, on les liste tous et on ajoute un filet : [class*="input-container"]
+ * attrape la famille entière, quel que soit le préfixe que WordPress lui
+ * donne cette saison. */
+.wc-block-components-combobox,
+.wc-block-components-combobox-control,
+.wc-block-components-country-input,
+.wc-block-components-state-input,
+.components-combobox-control,
+.components-combobox-control__suggestions-container,
+.woocommerce-checkout [class*="input-container"],
+.woocommerce-cart [class*="input-container"] {
+  background: var(--npqb-code-bg) !important;
+  border-color: var(--npqb-border) !important;
+  border-radius: 0 !important;
+  color: #fff !important;
+  box-shadow: none !important;
 }
 
+.wc-block-components-combobox input,
+.components-combobox-control input {
+  background: transparent !important;
+  color: #fff !important;
+}
+
+/* LA LISTE
+ *
+ * Ciblée par son RÔLE et non par sa classe. « listbox » et « option » sont
+ * des attributs d'accessibilité : le composant doit les porter pour être
+ * utilisable au clavier et par un lecteur d'écran, il ne peut donc pas les
+ * renommer. Une classe, si. Après trois tentatives sur des noms de classe,
+ * autant s'appuyer sur ce qui ne bouge pas.
+ *
+ * (Les classes restent listées : elles couvrent le cas où la liste sort du
+ * conteneur, hors de portée des sélecteurs préfixés.) */
+.woocommerce-checkout [role="listbox"],
+.woocommerce-cart [role="listbox"],
+.woocommerce-page [role="listbox"],
+.npq-app [role="listbox"],
+.components-form-token-field__suggestions-list {
+  background: var(--npqb-surface) !important;
+  border: 1px solid var(--npqb-border) !important;
+  border-radius: 0 !important;
+  color: var(--npqb-text) !important;
+}
+
+.woocommerce-checkout [role="option"],
+.woocommerce-cart [role="option"],
+.woocommerce-page [role="option"],
+.npq-app [role="option"],
 .components-form-token-field__suggestion {
-  color: var(--npqb-text-lo);
-  background: transparent;
+  background: transparent !important;
+  color: var(--npqb-text-lo) !important;
 }
 
+.woocommerce-checkout [role="option"]:hover,
+.woocommerce-checkout [role="option"][aria-selected="true"],
+.woocommerce-page [role="option"]:hover,
+.woocommerce-page [role="option"][aria-selected="true"],
+.npq-app [role="option"]:hover,
+.npq-app [role="option"][aria-selected="true"],
 .components-form-token-field__suggestion:hover,
 .components-form-token-field__suggestion.is-selected {
-  background: var(--npqb-teal-12);
-  color: var(--npqb-teal);
+  background: var(--npqb-teal-12) !important;
+  color: var(--npqb-teal) !important;
 }
 
 /* Et le repli pour les <select> natifs qui subsistent ailleurs dans le
