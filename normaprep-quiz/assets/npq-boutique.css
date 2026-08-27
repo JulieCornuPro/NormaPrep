@@ -1740,6 +1740,49 @@ div.woocommerce-error::before,
 
 .wc-block-components-checkout-step:last-of-type { margin-bottom: 0; }
 
+/* ── Le champ « Pays / région » de la commande ──
+ *
+ * Les blocs n'y mettent pas un <select> natif mais un COMBOBOX : un champ
+ * texte doublé d'une liste de suggestions. Bonne nouvelle — contrairement
+ * au menu d'un select, cette liste est rendue DANS le document, donc
+ * atteignable par une feuille de style.
+ *
+ * Elle arrive avec les couleurs des composants de WordPress, prévues pour
+ * l'administration : fond blanc, texte sombre. Il faut les reprendre, le
+ * composant n'exposant aucune variable.
+ */
+.wc-block-components-combobox .components-form-token-field__suggestions-list,
+.woocommerce-checkout .components-form-token-field__suggestions-list,
+.woocommerce-cart .components-form-token-field__suggestions-list {
+  background: var(--npqb-surface);
+  border: 1px solid var(--npqb-border);
+  border-radius: 0;
+  color: var(--npqb-text);
+}
+
+.components-form-token-field__suggestion {
+  color: var(--npqb-text-lo);
+  background: transparent;
+}
+
+.components-form-token-field__suggestion:hover,
+.components-form-token-field__suggestion.is-selected {
+  background: var(--npqb-teal-12);
+  color: var(--npqb-teal);
+}
+
+/* Et le repli pour les <select> natifs qui subsistent ailleurs dans le
+   tunnel. Leur menu, lui, est dessiné par le navigateur hors du document :
+   color-scheme est le seul levier qui existe dessus. La règle était déjà
+   posée sur le tri du catalogue ; elle vaut pour tous. */
+.woocommerce select,
+.woocommerce-page select,
+.woocommerce-cart select,
+.woocommerce-checkout select,
+.woocommerce-order-received select {
+  color-scheme: dark;
+}
+
 /* ── Confirmation ── */
 .wc-block-order-confirmation-status p,
 .wc-block-order-confirmation-summary,
