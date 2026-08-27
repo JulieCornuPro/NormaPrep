@@ -69,13 +69,11 @@
   --ease:      var(--npqb-ease);
 
   /* LARGEUR DES PAGES DE VENTE
-     La maquette de la boutique est dessinée sur 1400px, le thème travaille
-     sur 1200px. Un catalogue perd plus qu'une page d'article à être étroit :
-     à 1200px, trois cartes plus la colonne de filtres ne laissaient pas
-     respirer les cartes.
-     On redéfinit donc le jeton du thème, sans le modifier : .carto-wrap le
-     lit comme d'habitude, et seules les pages qui portent une classe
-     WooCommerce sur <body> sont concernées. Le reste du site ne bouge pas. */
+     CARTO 1.3.0 pose désormais 1400px pour tout le site, ce qui rend cette
+     ligne redondante — sur ce thème-là. On la garde quand même : le plugin
+     ne doit pas dépendre d'une version du thème pour que son catalogue
+     tienne. À 1200px, trois cartes plus la colonne de filtres n'ont pas de
+     quoi respirer, et c'est vrai quel que soit l'habillage du site. */
   --carto-max-width: 1400px;
 }
 
@@ -1758,10 +1756,14 @@ div.woocommerce-error::before,
  * dans un conteneur qui porte le fond, et c'est ce conteneur qu'il faut
  * atteindre.
  *
- * Ses noms varient d'une version à l'autre. Plutôt que de parier sur l'un
- * d'eux, on les liste tous et on ajoute un filet : [class*="input-container"]
- * attrape la famille entière, quel que soit le préfixe que WordPress lui
- * donne cette saison. */
+ * Le bon nom est « wc-BLOCKS-components-select__container », au pluriel :
+ * WooCommerce préfixe ses composants tantôt wc-block-, tantôt wc-blocks-.
+ * Trois tentatives ont échoué sur cette seule lettre, invisible à la
+ * relecture — un sélecteur qui ne rencontre rien ne se plaint pas.
+ *
+ * D'où le filet qui l'accompagne : [class*="input-container"] attrape la
+ * famille entière, quel que soit le préfixe du moment. */
+.wc-blocks-components-select__container,
 .wc-block-components-combobox,
 .wc-block-components-combobox-control,
 .wc-block-components-country-input,
@@ -1777,6 +1779,8 @@ div.woocommerce-error::before,
   box-shadow: none !important;
 }
 
+.wc-blocks-components-select__container select,
+.wc-blocks-components-select__container input,
 .wc-block-components-combobox input,
 .components-combobox-control input {
   background: transparent !important;

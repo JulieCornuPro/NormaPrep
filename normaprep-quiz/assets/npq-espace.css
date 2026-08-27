@@ -1964,6 +1964,25 @@
    qu'il porte un autre nom — l'inspecteur le dira en un clic.
    ============================================================ */
 
+/* Les actions d'une ligne de commande se touchaient. */
+.npq-app--compte .woocommerce-orders-table__cell-order-actions a {
+  margin-left: 10px;
+}
+
+.npq-app--compte .woocommerce-orders-table__cell-order-actions a:first-child {
+  margin-left: 0;
+}
+
+/* MÊME STYLE POUR « VOIR » ET « FACTURE »
+ *
+ * « Voir » arrivait en bouton teal plein, la facture en cadre creux : deux
+ * apparences pour deux actions de MÊME niveau. Consulter sa commande et
+ * récupérer son justificatif se valent — l'une n'est pas la suite de
+ * l'autre, et rien ne désigne l'une comme principale.
+ *
+ * Le cadre creux pour les deux plutôt que le plein : dans un tableau, deux
+ * pavés teal par ligne pèsent plus que les données qu'ils accompagnent. */
+.npq-app--compte .woocommerce-orders-table__cell-order-actions a.button,
 .npq-app--compte a.wpo_wcpdf,
 .npq-app--compte a.woocommerce-button.invoice,
 .npq-app--compte a.button.invoice,
@@ -1986,6 +2005,7 @@
   transition: border-color .2s var(--ease), color .2s var(--ease);
 }
 
+.npq-app--compte .woocommerce-orders-table__cell-order-actions a.button:hover,
 .npq-app--compte a.wpo_wcpdf:hover,
 .npq-app--compte a.woocommerce-button.invoice:hover,
 .npq-app--compte a.button.invoice:hover,
