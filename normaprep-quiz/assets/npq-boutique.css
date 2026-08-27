@@ -1709,6 +1709,20 @@ div.woocommerce-error::before,
   color: var(--npqb-muted);
 }
 
+/* Les blocs du formulaire de commande sont posés bord à bord : le cadre du
+   mode de paiement venait toucher la case « Ajouter une note ». Deux
+   contrôles collés se lisent comme un seul, et l'on coche par mégarde
+   celui qu'on ne visait pas. */
+.wc-block-components-radio-control {
+  margin-bottom: 22px;
+}
+
+.wp-block-woocommerce-checkout-order-note-block,
+.wc-block-checkout__add-note,
+.wp-block-woocommerce-checkout-terms-block {
+  margin-top: 10px;
+}
+
 /* Le mode de paiement retenu : le cadre teal du système, et non le bleu
    par défaut des blocs. */
 .wc-block-components-radio-control__option--checked-option-highlighted,
@@ -1785,13 +1799,16 @@ div.woocommerce-error::before,
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
-  /* Pas de marge basse : c'est le gabarit du thème qui sépare le contenu du
-     pied de page, depuis CARTO 1.2.1. Elle était ici en attendant — un
-     contournement posé au bon endroit visible, pas au bon endroit tout
-     court. La cause corrigée, le contournement s'en va : les garder tous
-     les deux doublerait l'espace, et laisserait croire que celui-ci est
-     voulu pour cette page en particulier. */
-  margin: 40px 0 0;
+  /* Une marge basse, malgré le padding que le gabarit du thème pose depuis
+     CARTO 1.2.1. Elle avait été retirée comme un contournement devenu
+     inutile ; à l'écran, le bloc touchait encore le pied de page.
+     
+     Elle revient donc, mais pour une raison qui lui est propre et non
+     comme rustine : ce bloc est le dernier mot d'un achat. Il a besoin de
+     respirer plus qu'un paragraphe ordinaire, et cela reste vrai quel que
+     soit le rembourrage du gabarit — y compris sur un thème plus ancien
+     qui n'en poserait aucun. */
+  margin: 40px 0 48px;
   padding-top: 30px;
   border-top: 1px solid var(--npqb-border);
 }
