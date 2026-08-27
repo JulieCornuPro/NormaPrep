@@ -1629,27 +1629,17 @@ div.woocommerce-error::before,
   background: var(--npqb-teal-12) !important;
 }
 
-/* ── Commande : les étapes en cadres ──
-   Chaque étape du tunnel (contact, adresse, livraison, paiement) devient
-   un cadre à liseré gauche, le même que les formulaires de l'espace
-   membre. C'est le même geste — remplir des champs et valider — et il n'a
-   pas de raison de changer d'allure entre l'espace et la commande.
-
-   Le liseré à gauche, et non en haut : en haut, c'est la signature des
-   cartes de catalogue et des blocs de récapitulatif. Deux motifs, deux
-   familles d'objets. */
-/* Deux sélecteurs : les blocs nomment ce conteneur tantôt par sa classe
-   de composant, tantôt par celle du bloc Gutenberg qui l'enveloppe. Selon
-   la version, l'une des deux seulement existe — et une règle qui ne
-   rencontre rien ne le dit pas. */
-.wc-block-components-checkout-step,
-.wp-block-woocommerce-checkout-fields-block > .wc-block-components-checkout-step {
-  background: var(--npqb-surface);
-  border: 1px solid var(--npqb-border);
-  border-left: 3px solid var(--npqb-teal);
-  padding: 24px 26px;
-  margin-bottom: 20px;
-}
+/* ── Commande : pas de cadre d'étape ──
+ *
+ * J'avais posé un cadre à liseré autour de chaque étape. À l'écran, il
+ * s'est révélé de trop : les zones de saisie de la commande portent DÉJÀ
+ * leur propre cadre — l'adresse, le mode de paiement — et l'étape en
+ * aurait ajouté un second autour du premier. C'est précisément ce qu'on
+ * évite ailleurs dans cette feuille.
+ *
+ * Les titres en Syncopate capitales séparent suffisamment les moments de
+ * la commande. Un trait de plus n'aurait rien dit de neuf.
+ */
 
 /* Les titres d'étape sont en Syncopate capitales dans la maquette : c'est
    ce qui sépare les moments de la commande. Le monospace est réservé aux
@@ -1664,9 +1654,7 @@ div.woocommerce-error::before,
 }
 
 /* L'image du récapitulatif de commande : même fond quadrillé que les
-   cartes du catalogue. Sans cette règle, le visuel de remplacement gris
-   de WooCommerce réapparaît ici — le dernier endroit où il restait. */
-.wc-block-components-order-summary-item__image img,
+   cartes du catalogue. */
 .wc-block-components-order-summary-item__image {
   background: var(--npqb-code-bg);
   background-image: var(--carto-grid-image, none);
@@ -1674,14 +1662,51 @@ div.woocommerce-error::before,
   border: 1px solid var(--npqb-border);
 }
 
-/* L'intitulé du récapitulatif, au monospace du système comme ses voisins. */
+/* LE VISUEL DE REMPLACEMENT DE WOOCOMMERCE
+ *
+ * Poser un fond derrière lui ne servait à rien : c'est une image OPAQUE,
+ * un PNG gris clair, qui recouvre tout ce qu'on met dessous. On l'efface
+ * donc, et le cadre quadrillé apparaît à sa place.
+ *
+ * On le reconnaît à son adresse, seule chose qui le distingue d'une vraie
+ * image de produit. Le sélecteur vaut partout d'un coup — panier,
+ * récapitulatif de commande, lignes de commande — plutôt que de le
+ * traquer écran par écran, ce qui a déjà échoué deux fois.
+ *
+ * opacity plutôt que display: none : la place reste occupée, et le cadre
+ * garde ses proportions. */
+.woocommerce img[src*="woocommerce-placeholder"],
+.woocommerce-page img[src*="woocommerce-placeholder"],
+.woocommerce-cart img[src*="woocommerce-placeholder"],
+.woocommerce-checkout img[src*="woocommerce-placeholder"],
+.npq-app img[src*="woocommerce-placeholder"] {
+  opacity: 0;
+}
+
+/* L'intitulé du récapitulatif, au monospace du système comme ses voisins.
+   Quatre sélecteurs, parce que les blocs le nomment différemment selon
+   qu'il est repliable ou non, et selon la version. Aucun ne coûte rien
+   s'il ne rencontre rien ; en manquer un laisse un titre qui détonne. */
 .wc-block-components-order-summary .wc-block-components-panel__button,
-.wc-block-components-order-summary__title {
-  font-family: var(--npqb-mono);
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+.wc-block-components-order-summary__title,
+.wp-block-woocommerce-checkout-order-summary-block .wc-block-components-title,
+.wc-block-components-totals-wrapper .wc-block-components-title {
+  font-family: var(--npqb-mono) !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
   color: var(--npqb-teal) !important;
+}
+
+/* Les métadonnées d'une ligne du récapitulatif (catégorie, variante) :
+   au monospace, comme la référence sous les cartes produit. */
+.wc-block-components-order-summary-item__description,
+.wc-block-components-order-summary-item__description p,
+.wc-block-components-product-metadata__description {
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  color: var(--npqb-muted);
 }
 
 /* Le mode de paiement retenu : le cadre teal du système, et non le bleu

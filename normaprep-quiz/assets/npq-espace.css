@@ -1944,3 +1944,52 @@
 .npq-app--compte table.shop_table td {
   padding: 14px 16px;
 }
+
+
+/* ============================================================
+   BOUTON « FACTURE (PDF) »
+   ------------------------------------------------------------
+   Posé par l'extension de facturation dans la colonne d'actions
+   de « Mes commandes ». Elle apporte son propre bouton, resté
+   au style par défaut au milieu des nôtres.
+
+   Une action SECONDAIRE : à côté de « Voir » la commande, la
+   facture est ce qu'on vient chercher une fois, pour la
+   comptabilité. D'où le cadre creux plutôt que le bouton plein,
+   qui rivaliserait avec l'action principale de la ligne.
+
+   Les sélecteurs couvrent les noms de classe des extensions les
+   plus courantes. Ils sont écrits sans avoir pu être vérifiés
+   sur la page : si le bouton reste au style d'origine, c'est
+   qu'il porte un autre nom — l'inspecteur le dira en un clic.
+   ============================================================ */
+
+.npq-app--compte a.wpo_wcpdf,
+.npq-app--compte a.woocommerce-button.invoice,
+.npq-app--compte a.button.invoice,
+.npq-app--compte .wcpdf-listing-buttons a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 16px;
+  background: transparent !important;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  color: var(--text-lo) !important;
+  font-family: 'Inconsolata', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: border-color .2s var(--ease), color .2s var(--ease);
+}
+
+.npq-app--compte a.wpo_wcpdf:hover,
+.npq-app--compte a.woocommerce-button.invoice:hover,
+.npq-app--compte a.button.invoice:hover,
+.npq-app--compte .wcpdf-listing-buttons a:hover {
+  border-color: var(--teal);
+  color: var(--teal) !important;
+}
