@@ -1577,3 +1577,439 @@
 .npq-app .npq-acces-vide, .npq-app .npq-acces-plus{
   color:var(--text-lo); font-size:14px; margin:0 0 14px;
 }
+
+
+/* ============================================================
+   « MES COMMANDES » — la page Mon compte de WooCommerce dans
+   la coquille de l'espace membre.
+   ------------------------------------------------------------
+   Le gabarit public/page-compte-normaprep.php lui prête la
+   barre latérale et la mise en page de l'espace. Reste à
+   régler un conflit de navigation : WooCommerce affiche SA
+   propre liste (Commandes, Adresses, Détails du compte…) en
+   colonne, à gauche de son contenu. Posée à côté de la barre
+   latérale de l'espace, elle donnait deux colonnes de menu
+   pour une seule page.
+
+   On la couche donc à l'horizontale, en onglets au-dessus du
+   contenu : la barre latérale dit où l'on est dans le site,
+   les onglets disent où l'on est dans le compte. Deux
+   questions différentes, deux formes différentes.
+
+   Ces règles sont ici, et non dans npq-boutique.css, parce
+   qu'elles décrivent la coquille de l'espace et non la
+   boutique — et parce que cette feuille est chargée après,
+   donc elle a le dernier mot sur les deux.
+   ============================================================ */
+
+.npq-app--compte .woocommerce-MyAccount-navigation {
+  width: 100%;
+  float: none;
+  margin: 0 0 28px;
+}
+
+.npq-app--compte .woocommerce-MyAccount-navigation ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Le repère d'onglet actif passe du liseré GAUCHE au liseré
+   BAS : c'est le même signal, tourné dans le sens de la
+   lecture. Le liseré gauche reste celui de la barre latérale,
+   et deux repères identiques dans deux navigations voisines
+   se confondraient. */
+.npq-app--compte .woocommerce-MyAccount-navigation li {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  margin: 0 24px 0 0;
+}
+
+.npq-app--compte .woocommerce-MyAccount-navigation li a {
+  display: block;
+  padding: 12px 0;
+  background: none;
+  color: var(--text-lo);
+  font-family: 'Inconsolata', monospace;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: color .25s var(--ease);
+}
+
+.npq-app--compte .woocommerce-MyAccount-navigation li.is-active {
+  border-bottom-color: var(--teal);
+  background: none;
+}
+
+.npq-app--compte .woocommerce-MyAccount-navigation li.is-active a,
+.npq-app--compte .woocommerce-MyAccount-navigation li a:hover {
+  color: var(--teal);
+}
+
+.npq-app--compte .woocommerce-MyAccount-content {
+  width: 100%;
+  float: none;
+  margin: 0;
+}
+
+/* WooCommerce ouvre son contenu par une phrase d'accueil qui
+   redit le prénom et propose de se déconnecter. La barre
+   latérale porte déjà les deux, à trois centimètres de là. */
+.npq-app--compte .woocommerce-MyAccount-content > p:first-child {
+  color: var(--text-lo);
+  font-size: 15px;
+}
+
+/* Les tableaux de commandes sont habillés par npq-boutique.css,
+   qui est chargé ici aussi. On ne reprend que ce qui dépend de
+   la coquille : la largeur disponible n'est plus la même. */
+.npq-app--compte table.shop_table {
+  width: 100%;
+}
+
+/* Sous 900px, les onglets défilent latéralement plutôt que de
+   se replier sur trois lignes et de repousser le contenu. */
+@media (max-width: 900px) {
+  .npq-app--compte .woocommerce-MyAccount-navigation ul {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .npq-app--compte .woocommerce-MyAccount-navigation li {
+    flex-shrink: 0;
+  }
+}
+
+
+/* ============================================================
+   « MES COMMANDES » — formulaires et messages
+   ------------------------------------------------------------
+   Les onglets Adresse et Détails du compte sont des formulaires
+   WooCommerce. Ils sont ici habillés comme ceux de /mon-profil/
+   — cadre à liseré gauche teal, champs sur fond sombre, bouton
+   monospace — parce que ce sont les MÊMES gestes, faits au même
+   endroit du site. Un formulaire qui change d'apparence selon
+   l'onglet donne l'impression d'avoir changé de site.
+
+   Les valeurs ne sont pas choisies à nouveau : elles sont
+   reprises de « .npq-app .npq-profil form.npq-form » et de ses
+   champs, quelques dizaines de lignes plus haut. Si ce style
+   évolue un jour, les deux doivent bouger ensemble.
+   ============================================================ */
+
+/* ── Le cadre commun ── */
+/* « .woocommerce-MyAccount-content form » plutôt qu'une liste de classes :
+   le formulaire d'édition d'adresse de WooCommerce n'en porte AUCUNE — son
+   gabarit ouvre un <form method="post"> nu. Le cadre se posait donc sur la
+   liste des adresses, mais disparaissait dès qu'on cliquait « Modifier ».
+   On désigne l'emplacement, que WooCommerce ne peut pas nous retirer,
+   plutôt que des noms qu'il n'a jamais promis de donner. */
+.npq-app--compte .woocommerce-MyAccount-content form {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--teal);
+  padding: 24px 26px;
+  max-width: 620px;
+}
+
+/* WooCommerce groupe le changement de mot de passe dans un
+   fieldset. Sa bordure par défaut ferait un cadre dans le
+   cadre : on garde le filet du haut, qui suffit à séparer. */
+.npq-app--compte fieldset {
+  margin: 28px 0 0;
+  padding: 22px 0 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+.npq-app--compte legend {
+  padding: 0;
+  font-family: 'Inconsolata', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--teal);
+}
+
+/* ── Champs ── */
+.npq-app--compte .form-row,
+.npq-app--compte .woocommerce-form-row {
+  display: block;
+  margin: 0 0 16px;
+  padding: 0;
+}
+
+.npq-app--compte .form-row label,
+.npq-app--compte .woocommerce-form-row label {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-lo);
+  margin-bottom: 0;
+}
+
+.npq-app--compte .form-row input.input-text,
+.npq-app--compte .form-row input[type="text"],
+.npq-app--compte .form-row input[type="email"],
+.npq-app--compte .form-row input[type="tel"],
+.npq-app--compte .form-row input[type="password"],
+.npq-app--compte .form-row select,
+.npq-app--compte .select2-container .select2-selection--single {
+  width: 100%;
+  height: auto;
+  margin-top: 7px;
+  padding: 12px 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+/* LE SÉLECTEUR DE PAYS
+ *
+ * Un <select> natif n'applique pas le rembourrage vertical comme un
+ * <input> : le navigateur lui impose sa propre hauteur, plus courte. Dans
+ * une colonne de champs, il tombait d'un cran par rapport à ses voisins.
+ *
+ * On lui retire donc son apparence native (appearance: none), on fixe la
+ * hauteur des autres champs, et on redessine la flèche — un SVG en ligne,
+ * pour ne dépendre d'aucun fichier.
+ *
+ * color-scheme: dark — la liste qu'il ouvre est dessinée par le navigateur,
+ * hors du document : c'est le seul levier qui existe dessus. Même remède
+ * que le menu de tri de la boutique.
+ */
+.npq-app--compte .woocommerce-MyAccount-content form select,
+.npq-app--compte .form-row select {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 47px;
+  padding: 0 40px 0 14px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238B98B3' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 13px center;
+  background-size: 16px 16px;
+  color-scheme: dark;
+  cursor: pointer;
+}
+
+.npq-app--compte .form-row input:focus,
+.npq-app--compte .form-row select:focus {
+  outline: none;
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(0, 207, 207, 0.15);
+}
+
+/* Le sélecteur de pays de WooCommerce (Select2) impose ses
+   propres couleurs claires ; il faut les reprendre une à une,
+   le composant n'exposant pas de variable. */
+.npq-app--compte .select2-container .select2-selection--single .select2-selection__rendered {
+  padding: 0;
+  color: var(--text);
+  line-height: 1.3;
+}
+.npq-app--compte .select2-container .select2-selection--single .select2-selection__arrow {
+  height: 100%;
+}
+
+/* L'astérisque du champ obligatoire : un repère, pas une alerte. */
+.npq-app--compte .required { color: var(--teal); text-decoration: none; }
+.npq-app--compte .optional { color: var(--muted); }
+
+.npq-app--compte .form-row span.description,
+.npq-app--compte em {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  font-style: normal;
+  color: var(--muted);
+}
+
+/* ── Bouton ── */
+.npq-app--compte .woocommerce-MyAccount-content form button.button {
+  margin-top: 8px;
+  padding: 14px 28px;
+  border: none;
+  border-radius: 0;
+  background: var(--teal) !important;
+  color: #06251f !important;
+  font-family: 'Inconsolata', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform .2s var(--ease), box-shadow .2s var(--ease);
+}
+
+.npq-app--compte .woocommerce-MyAccount-content form button.button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0, 207, 207, 0.25);
+}
+
+/* ── Les deux adresses, côte à côte ── */
+.npq-app--compte .woocommerce-Addresses {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.npq-app--compte .woocommerce-Address {
+  width: auto;
+  float: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--teal);
+  padding: 22px 24px;
+}
+
+.npq-app--compte .woocommerce-Address-title {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.npq-app--compte .woocommerce-Address-title h2,
+.npq-app--compte .woocommerce-Address-title h3 {
+  flex: 1;
+  margin: 0;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.npq-app--compte .woocommerce-Address-title a.edit {
+  font-family: 'Inconsolata', monospace;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--teal);
+  text-decoration: none;
+}
+
+.npq-app--compte .woocommerce-Address address {
+  font-style: normal;
+  line-height: 1.7;
+  color: var(--text-lo);
+}
+
+/* ── Messages ──
+   La forme et les trois niveaux de gravité sont définis dans
+   npq-boutique.css, qui les applique partout — boutique, panier,
+   commande, compte.
+
+   MAIS : la coquille de l'espace ouvre sur « .npq-app * » un
+   reset qui met margin et padding à zéro sur TOUS ses
+   descendants. Ce sélecteur pèse autant qu'une classe simple, et
+   cette feuille est chargée après celle de la boutique : il
+   gagnait donc, et le texte des messages venait se coller dans
+   l'angle de son cadre.
+
+   On les repose ici, où la spécificité est de notre côté. La
+   règle vaut au-delà des messages : tout ce que la feuille
+   boutique rembourre à l'intérieur de .npq-app doit être reposé
+   de ce côté-ci. */
+.npq-app--compte .woocommerce-error,
+.npq-app--compte .woocommerce-message,
+.npq-app--compte .woocommerce-info {
+  padding: 16px 20px;
+  margin: 0 0 22px;
+  border-color: var(--border);
+  border-left-color: var(--npqb-signal);
+}
+
+.npq-app--compte .woocommerce-error li,
+.npq-app--compte .woocommerce-message li,
+.npq-app--compte .woocommerce-info li {
+  padding: 0;
+  margin: 0;
+}
+
+/* Le rembourrage des cadres de commande et de la pagination, victimes
+   du même reset. */
+.npq-app--compte table.shop_table th,
+.npq-app--compte table.shop_table td {
+  padding: 14px 16px;
+}
+
+
+/* ============================================================
+   BOUTON « FACTURE (PDF) »
+   ------------------------------------------------------------
+   Posé par l'extension de facturation dans la colonne d'actions
+   de « Mes commandes ». Elle apporte son propre bouton, resté
+   au style par défaut au milieu des nôtres.
+
+   Une action SECONDAIRE : à côté de « Voir » la commande, la
+   facture est ce qu'on vient chercher une fois, pour la
+   comptabilité. D'où le cadre creux plutôt que le bouton plein,
+   qui rivaliserait avec l'action principale de la ligne.
+
+   Les sélecteurs couvrent les noms de classe des extensions les
+   plus courantes. Ils sont écrits sans avoir pu être vérifiés
+   sur la page : si le bouton reste au style d'origine, c'est
+   qu'il porte un autre nom — l'inspecteur le dira en un clic.
+   ============================================================ */
+
+/* Les actions d'une ligne de commande se touchaient. */
+.npq-app--compte .woocommerce-orders-table__cell-order-actions a {
+  margin-left: 10px;
+}
+
+.npq-app--compte .woocommerce-orders-table__cell-order-actions a:first-child {
+  margin-left: 0;
+}
+
+/* MÊME STYLE POUR « VOIR » ET « FACTURE »
+ *
+ * « Voir » arrivait en bouton teal plein, la facture en cadre creux : deux
+ * apparences pour deux actions de MÊME niveau. Consulter sa commande et
+ * récupérer son justificatif se valent — l'une n'est pas la suite de
+ * l'autre, et rien ne désigne l'une comme principale.
+ *
+ * Le cadre creux pour les deux plutôt que le plein : dans un tableau, deux
+ * pavés teal par ligne pèsent plus que les données qu'ils accompagnent. */
+.npq-app--compte .woocommerce-orders-table__cell-order-actions a.button,
+.npq-app--compte a.wpo_wcpdf,
+.npq-app--compte a.woocommerce-button.invoice,
+.npq-app--compte a.button.invoice,
+.npq-app--compte .wcpdf-listing-buttons a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 16px;
+  background: transparent !important;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  color: var(--text-lo) !important;
+  font-family: 'Inconsolata', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: border-color .2s var(--ease), color .2s var(--ease);
+}
+
+.npq-app--compte .woocommerce-orders-table__cell-order-actions a.button:hover,
+.npq-app--compte a.wpo_wcpdf:hover,
+.npq-app--compte a.woocommerce-button.invoice:hover,
+.npq-app--compte a.button.invoice:hover,
+.npq-app--compte .wcpdf-listing-buttons a:hover {
+  border-color: var(--teal);
+  color: var(--teal) !important;
+}

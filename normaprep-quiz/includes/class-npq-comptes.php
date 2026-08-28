@@ -29,6 +29,29 @@ class NPQ_Comptes {
      * Crée le rôle « Abonné NormaPrep ».
      * Appelée à l'activation du plugin. Idempotente : ne fait rien si le rôle existe.
      */
+    /**
+     * Nom d'affichage déduit d'une adresse email.
+     *
+     * WordPress refuse d'enregistrer un compte dont le nom affiché est une
+     * adresse email — une protection contre la collecte d'adresses. Or à
+     * l'inscription, l'adresse est tout ce que l'on connaît de la personne.
+     *
+     * On garde donc ce qui précède l'arobase. Ce n'est pas un vrai nom, mais
+     * c'est lisible, ce n'est pas une adresse, et la personne pourra le
+     * changer. Un repli existe pour le cas improbable d'une partie locale
+     * vide : mieux vaut un nom générique qu'un compte qu'on ne peut plus
+     * modifier.
+     *
+     * @param string $email
+     * @return string
+     */
+    public static function nom_depuis_email( $email ) {
+        $partie = strstr( (string) $email, '@', true );
+        $partie = trim( (string) $partie );
+
+        return ( '' !== $partie ) ? $partie : 'Membre';
+    }
+
     public static function creer_role() {
         // add_role ne recrée pas un rôle déjà présent ; on peut l'appeler sans risque.
         add_role(

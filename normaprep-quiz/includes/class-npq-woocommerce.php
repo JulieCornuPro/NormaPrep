@@ -161,6 +161,9 @@ class NPQ_WooCommerce {
         add_action( 'carto_apres_entete', [ __CLASS__, 'bandeaux' ], 10 );
         add_action( 'woocommerce_before_main_content', [ __CLASS__, 'bandeaux' ], 5 );
 
+        // Onglets du compte client.
+        add_filter( 'woocommerce_account_menu_items', [ __CLASS__, 'onglets_compte' ] );
+
         // Sorties de la page de confirmation.
         //
         // Par le contenu, et non par un point d'accroche de WooCommerce : la
@@ -168,6 +171,47 @@ class NPQ_WooCommerce {
         // bloc, qui n'exposent pas les mêmes actions. Le contenu de la page,
         // lui, est filtré dans les deux cas.
         add_filter( 'the_content', [ __CLASS__, 'sorties_confirmation' ], 20 );
+    }
+
+    /**
+     * Onglets du compte client.
+     *
+     * Deux entrées disparaissent, pour des raisons différentes.
+     *
+     * « Se déconnecter » : l'en-tête du site porte déjà ce lien, sur toutes
+     * les pages. Une action aussi fréquente doit se trouver toujours au même
+     * endroit, pas à deux endroits dont l'un n'existe que sur certains
+     * écrans. Le point de sortie de WooCommerce reste actif : seule sa
+     * présence dans ce menu disparaît.
+     *
+     * « Téléchargements » : on ne vend pas de fichier.
+     *
+     * « DÉTAILS DU COMPTE » RESTE, sur décision explicite. Il fait donc
+     * doublon avec /mon-profil/ pour le mot de passe et l'adresse email. À
+     * savoir : le formulaire de WooCommerce applique un changement d'adresse
+     * SANS la faire confirmer, là où NPQ_Profil n'y touche qu'après clic sur
+     * un lien envoyé à la nouvelle adresse. Une faute de frappe rend le
+     * compte injoignable par ce chemin-ci, sans effet par l'autre.
+     *
+     * @param array $onglets
+     * @return array
+     */
+    public static function onglets_compte( $onglets ) {
+        unset( $onglets['customer-logout'] );
+
+        // « Téléchargements » : on ne vend pas de fichier.
+        //
+        // Ce qui s'achète ici est un ACCÈS à une certification, ouvert dans la
+        // bibliothèque et consulté depuis l'espace membre. Il n'y a aucun
+        // fichier à récupérer, et un onglet toujours vide use la confiance
+        // qu'on accorde aux autres.
+        //
+        // À RETIRER DE CE CODE le jour où un produit téléchargeable existera
+        // — un support de cours en PDF, par exemple : l'onglet redeviendrait
+        // le seul endroit où le client va le chercher.
+        unset( $onglets['downloads'] );
+
+        return $onglets;
     }
 
     /**

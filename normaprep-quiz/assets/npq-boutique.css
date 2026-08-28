@@ -69,13 +69,11 @@
   --ease:      var(--npqb-ease);
 
   /* LARGEUR DES PAGES DE VENTE
-     La maquette de la boutique est dessinée sur 1400px, le thème travaille
-     sur 1200px. Un catalogue perd plus qu'une page d'article à être étroit :
-     à 1200px, trois cartes plus la colonne de filtres ne laissaient pas
-     respirer les cartes.
-     On redéfinit donc le jeton du thème, sans le modifier : .carto-wrap le
-     lit comme d'habitude, et seules les pages qui portent une classe
-     WooCommerce sur <body> sont concernées. Le reste du site ne bouge pas. */
+     CARTO 1.3.0 pose désormais 1400px pour tout le site, ce qui rend cette
+     ligne redondante — sur ce thème-là. On la garde quand même : le plugin
+     ne doit pas dépendre d'une version du thème pour que son catalogue
+     tienne. À 1200px, trois cartes plus la colonne de filtres n'ont pas de
+     quoi respirer, et c'est vrai quel que soit l'habillage du site. */
   --carto-max-width: 1400px;
 }
 
@@ -1001,19 +999,105 @@
  * MESSAGES
  * ===================================================================== */
 
+/* TROIS NIVEAUX DE GRAVITÉ, UNE SEULE FORME
+ *
+ * Tous les messages partagent le cadre, le liseré à gauche et le double
+ * slash. Seule la COULEUR change, et elle suit ce que le message veut
+ * dire — c'est le même code que partout ailleurs dans la boutique :
+ *
+ *   teal   : c'est fait, c'est acquis        (.woocommerce-message)
+ *   ambre  : c'est en cours, il faut agir    (.woocommerce-info)
+ *   orange : ça n'a pas marché               (.woocommerce-error)
+ *
+ * Le liseré à GAUCHE et non en haut : c'est le motif d'encart de la
+ * maquette, et il laisse la couleur courir le long du texte plutôt que de
+ * la reléguer à un filet qu'on ne regarde plus une fois la page lue.
+ *
+ * --npqb-signal porte la couleur du niveau : les règles de forme ne la
+ * connaissent pas, elles la lisent. Ajouter un niveau, c'est déclarer une
+ * couleur, rien d'autre. */
 .woocommerce-message,
 .woocommerce-info,
 .woocommerce-error,
 .woocommerce-noreviews,
 .woocommerce p.no-comments {
-  background: var(--npqb-surface);
-  color: var(--npqb-text-lo);
+  --npqb-signal: var(--npqb-teal);
+  --npqb-signal-fond: rgba(0, 207, 207, 0.06);
+
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  margin: 0 0 24px;
+  padding: 16px 20px;
+  background: var(--npqb-signal-fond);
   border: 1px solid var(--npqb-border);
-  border-top: 3px solid var(--npqb-teal);
+  border-left: 3px solid var(--npqb-signal);
   border-radius: 0;
-  padding: 18px 22px;
   list-style: none;
+  color: var(--npqb-text);
   font-size: 15px;
+  line-height: 1.6;
+}
+
+.woocommerce-info,
+.woocommerce-noreviews {
+  --npqb-signal: var(--npqb-amber);
+  --npqb-signal-fond: rgba(232, 184, 75, 0.06);
+}
+
+.woocommerce-error {
+  --npqb-signal: var(--npqb-orange);
+  --npqb-signal-fond: rgba(255, 107, 53, 0.06);
+}
+
+/* WooCommerce pose une pastille en caractère d'icône, calée en absolu sur
+   le bord gauche. Elle suppose le rembourrage de 3.5em de son propre thème,
+   qu'on ne reprend pas : ici elle venait chevaucher le début de la phrase.
+   Le liseré coloré dit déjà de quoi il s'agit. */
+.woocommerce-message::before,
+.woocommerce-info::before,
+.woocommerce-error::before {
+  content: none;
+}
+
+/* Le double slash du système. Deux séries de sélecteurs parce que
+   WooCommerce rend ses messages tantôt en <div>, tantôt en <ul> de <li> :
+   poser la marque au même endroit dans les deux cas la ferait apparaître
+   deux fois sur les listes. */
+div.woocommerce-message::before,
+div.woocommerce-info::before,
+p.woocommerce-info::before,
+div.woocommerce-error::before,
+.woocommerce-error li::before,
+.woocommerce-message li::before,
+.woocommerce-info li::before {
+  content: "// ";
+  color: var(--npqb-signal);
+  font-family: var(--npqb-mono);
+}
+
+.woocommerce-error li,
+.woocommerce-message li,
+.woocommerce-info li {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Le bouton d'un message (« Vérifier », « Voir la commande ») prend sa
+   propre ligne, calé à gauche : côte à côte avec le texte, il l'écrasait
+   dès que la phrase dépassait une ligne. */
+.woocommerce-message > .button,
+.woocommerce-info > .button,
+.woocommerce-error > .button {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.woocommerce-info form,
+.woocommerce-message form {
+  margin: 4px 0 0;
 }
 
 .woocommerce-error {
@@ -1543,6 +1627,220 @@
   background: var(--npqb-teal-12) !important;
 }
 
+/* ── Commande : pas de cadre d'étape ──
+ *
+ * J'avais posé un cadre à liseré autour de chaque étape. À l'écran, il
+ * s'est révélé de trop : les zones de saisie de la commande portent DÉJÀ
+ * leur propre cadre — l'adresse, le mode de paiement — et l'étape en
+ * aurait ajouté un second autour du premier. C'est précisément ce qu'on
+ * évite ailleurs dans cette feuille.
+ *
+ * Les titres en Syncopate capitales séparent suffisamment les moments de
+ * la commande. Un trait de plus n'aurait rien dit de neuf.
+ */
+
+/* Les titres d'étape sont en Syncopate capitales dans la maquette : c'est
+   ce qui sépare les moments de la commande. Le monospace est réservé aux
+   intitulés de service (récapitulatif, référence). */
+.wc-block-components-checkout-step__title {
+  font-family: var(--npqb-display);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.2px;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+/* L'image du récapitulatif de commande : même fond quadrillé que les
+   cartes du catalogue. */
+.wc-block-components-order-summary-item__image {
+  background: var(--npqb-code-bg);
+  background-image: var(--carto-grid-image, none);
+  background-size: 24px 24px;
+  border: 1px solid var(--npqb-border);
+}
+
+/* LE VISUEL DE REMPLACEMENT DE WOOCOMMERCE
+ *
+ * Poser un fond derrière lui ne servait à rien : c'est une image OPAQUE,
+ * un PNG gris clair, qui recouvre tout ce qu'on met dessous. On l'efface
+ * donc, et le cadre quadrillé apparaît à sa place.
+ *
+ * On le reconnaît à son adresse, seule chose qui le distingue d'une vraie
+ * image de produit. Le sélecteur vaut partout d'un coup — panier,
+ * récapitulatif de commande, lignes de commande — plutôt que de le
+ * traquer écran par écran, ce qui a déjà échoué deux fois.
+ *
+ * opacity plutôt que display: none : la place reste occupée, et le cadre
+ * garde ses proportions. */
+.woocommerce img[src*="woocommerce-placeholder"],
+.woocommerce-page img[src*="woocommerce-placeholder"],
+.woocommerce-cart img[src*="woocommerce-placeholder"],
+.woocommerce-checkout img[src*="woocommerce-placeholder"],
+.npq-app img[src*="woocommerce-placeholder"] {
+  opacity: 0;
+}
+
+/* L'intitulé du récapitulatif, au monospace du système comme ses voisins.
+   Quatre sélecteurs, parce que les blocs le nomment différemment selon
+   qu'il est repliable ou non, et selon la version. Aucun ne coûte rien
+   s'il ne rencontre rien ; en manquer un laisse un titre qui détonne. */
+.wc-block-components-order-summary .wc-block-components-panel__button,
+.wc-block-components-order-summary__title,
+.wp-block-woocommerce-checkout-order-summary-block .wc-block-components-title,
+.wc-block-components-totals-wrapper .wc-block-components-title {
+  font-family: var(--npqb-mono) !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  color: var(--npqb-teal) !important;
+}
+
+/* Les métadonnées d'une ligne du récapitulatif (catégorie, variante) :
+   au monospace, comme la référence sous les cartes produit. */
+.wc-block-components-order-summary-item__description,
+.wc-block-components-order-summary-item__description p,
+.wc-block-components-product-metadata__description {
+  font-family: var(--npqb-mono);
+  font-size: 12px;
+  color: var(--npqb-muted);
+}
+
+/* Les blocs du formulaire de commande sont posés bord à bord : le cadre du
+   mode de paiement venait toucher la case « Ajouter une note ». Deux
+   contrôles collés se lisent comme un seul, et l'on coche par mégarde
+   celui qu'on ne visait pas. */
+.wc-block-components-radio-control {
+  margin-bottom: 22px;
+}
+
+.wp-block-woocommerce-checkout-order-note-block,
+.wc-block-checkout__add-note,
+.wp-block-woocommerce-checkout-terms-block {
+  margin-top: 10px;
+}
+
+/* Le mode de paiement retenu : le cadre teal du système, et non le bleu
+   par défaut des blocs. */
+.wc-block-components-radio-control__option--checked-option-highlighted,
+.wc-block-components-radio-control-accordion-option:has(input:checked) {
+  border-color: var(--npqb-teal) !important;
+  background: var(--npqb-teal-12) !important;
+}
+
+/* Le numéro d'étape que les blocs posent en pastille : il redit ce que le
+   titre dit déjà, et se calait mal dans un cadre qui n'était pas prévu
+   pour lui. */
+.wc-block-components-checkout-step__title-wrapper {
+  align-items: baseline;
+}
+
+.wc-block-components-checkout-step:last-of-type { margin-bottom: 0; }
+
+/* ── Le champ « Pays / région » de la commande ──
+ *
+ * Les blocs n'y mettent pas un <select> natif mais un COMBOBOX : un champ
+ * texte doublé d'une liste de suggestions. Bonne nouvelle — contrairement
+ * au menu d'un select, cette liste est rendue DANS le document, donc
+ * atteignable par une feuille de style.
+ *
+ * Elle arrive avec les couleurs des composants de WordPress, prévues pour
+ * l'administration : fond blanc, texte sombre. Il faut les reprendre, le
+ * composant n'exposant aucune variable.
+ */
+/* LE CHAMP LUI-MÊME
+ *
+ * Le fond blanc n'était pas seulement dans la liste : le champ FERMÉ
+ * l'était aussi. Viser l'<input> ne suffisait pas — le composant l'enferme
+ * dans un conteneur qui porte le fond, et c'est ce conteneur qu'il faut
+ * atteindre.
+ *
+ * Le bon nom est « wc-BLOCKS-components-select__container », au pluriel :
+ * WooCommerce préfixe ses composants tantôt wc-block-, tantôt wc-blocks-.
+ * Trois tentatives ont échoué sur cette seule lettre, invisible à la
+ * relecture — un sélecteur qui ne rencontre rien ne se plaint pas.
+ *
+ * D'où le filet qui l'accompagne : [class*="input-container"] attrape la
+ * famille entière, quel que soit le préfixe du moment. */
+.wc-blocks-components-select__container,
+.wc-block-components-combobox,
+.wc-block-components-combobox-control,
+.wc-block-components-country-input,
+.wc-block-components-state-input,
+.components-combobox-control,
+.components-combobox-control__suggestions-container,
+.woocommerce-checkout [class*="input-container"],
+.woocommerce-cart [class*="input-container"] {
+  background: var(--npqb-code-bg) !important;
+  border-color: var(--npqb-border) !important;
+  border-radius: 0 !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+.wc-blocks-components-select__container select,
+.wc-blocks-components-select__container input,
+.wc-block-components-combobox input,
+.components-combobox-control input {
+  background: transparent !important;
+  color: #fff !important;
+}
+
+/* LA LISTE
+ *
+ * Ciblée par son RÔLE et non par sa classe. « listbox » et « option » sont
+ * des attributs d'accessibilité : le composant doit les porter pour être
+ * utilisable au clavier et par un lecteur d'écran, il ne peut donc pas les
+ * renommer. Une classe, si. Après trois tentatives sur des noms de classe,
+ * autant s'appuyer sur ce qui ne bouge pas.
+ *
+ * (Les classes restent listées : elles couvrent le cas où la liste sort du
+ * conteneur, hors de portée des sélecteurs préfixés.) */
+.woocommerce-checkout [role="listbox"],
+.woocommerce-cart [role="listbox"],
+.woocommerce-page [role="listbox"],
+.npq-app [role="listbox"],
+.components-form-token-field__suggestions-list {
+  background: var(--npqb-surface) !important;
+  border: 1px solid var(--npqb-border) !important;
+  border-radius: 0 !important;
+  color: var(--npqb-text) !important;
+}
+
+.woocommerce-checkout [role="option"],
+.woocommerce-cart [role="option"],
+.woocommerce-page [role="option"],
+.npq-app [role="option"],
+.components-form-token-field__suggestion {
+  background: transparent !important;
+  color: var(--npqb-text-lo) !important;
+}
+
+.woocommerce-checkout [role="option"]:hover,
+.woocommerce-checkout [role="option"][aria-selected="true"],
+.woocommerce-page [role="option"]:hover,
+.woocommerce-page [role="option"][aria-selected="true"],
+.npq-app [role="option"]:hover,
+.npq-app [role="option"][aria-selected="true"],
+.components-form-token-field__suggestion:hover,
+.components-form-token-field__suggestion.is-selected {
+  background: var(--npqb-teal-12) !important;
+  color: var(--npqb-teal) !important;
+}
+
+/* Et le repli pour les <select> natifs qui subsistent ailleurs dans le
+   tunnel. Leur menu, lui, est dessiné par le navigateur hors du document :
+   color-scheme est le seul levier qui existe dessus. La règle était déjà
+   posée sur le tri du catalogue ; elle vaut pour tous. */
+.woocommerce select,
+.woocommerce-page select,
+.woocommerce-cart select,
+.woocommerce-checkout select,
+.woocommerce-order-received select {
+  color-scheme: dark;
+}
+
 /* ── Confirmation ── */
 .wc-block-order-confirmation-status p,
 .wc-block-order-confirmation-summary,
@@ -1551,11 +1849,37 @@
   color: var(--npqb-text-lo);
 }
 
-.wc-block-order-confirmation-summary {
+.wc-block-order-confirmation-summary,
+.wc-block-order-confirmation-totals,
+.wc-block-order-confirmation-shipping-address,
+.wc-block-order-confirmation-billing-address,
+.wc-block-order-confirmation-additional-fields {
   background: var(--npqb-surface);
   border: 1px solid var(--npqb-border);
   border-top: 3px solid var(--npqb-teal);
   padding: 22px 24px;
+  margin-bottom: 20px;
+}
+
+/* Les intitulés de section de la confirmation, au monospace du système. */
+.wc-block-order-confirmation-totals h2,
+.wc-block-order-confirmation-shipping-address h2,
+.wc-block-order-confirmation-billing-address h2,
+.wc-block-order-confirmation-additional-fields h2 {
+  font-family: var(--npqb-mono);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--npqb-teal);
+  margin: 0 0 14px;
+}
+
+.wc-block-order-confirmation-shipping-address address,
+.wc-block-order-confirmation-billing-address address {
+  font-style: normal;
+  line-height: 1.7;
+  color: var(--npqb-text-lo);
 }
 
 .wc-block-order-confirmation-summary-list-item__key {
@@ -1576,11 +1900,16 @@
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
-  /* Marge basse : le gabarit de page du thème n'en pose aucune sous son
-     contenu, et le dernier élément d'une page vient toucher le pied de
-     page. Ici ce dernier élément est le mot de la fin d'un achat — le pire
-     endroit pour donner l'impression que la page a été coupée. */
-  margin: 40px 0 60px;
+  /* Une marge basse, malgré le padding que le gabarit du thème pose depuis
+     CARTO 1.2.1. Elle avait été retirée comme un contournement devenu
+     inutile ; à l'écran, le bloc touchait encore le pied de page.
+     
+     Elle revient donc, mais pour une raison qui lui est propre et non
+     comme rustine : ce bloc est le dernier mot d'un achat. Il a besoin de
+     respirer plus qu'un paragraphe ordinaire, et cela reste vrai quel que
+     soit le rembourrage du gabarit — y compris sur un thème plus ancien
+     qui n'en poserait aucun. */
+  margin: 40px 0 48px;
   padding-top: 30px;
   border-top: 1px solid var(--npqb-border);
 }

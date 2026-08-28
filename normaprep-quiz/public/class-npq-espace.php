@@ -213,7 +213,7 @@ class NPQ_Espace {
             }
             ?>
             <?php if ( $url_commandes ) : ?>
-            <a class="side-link" href="<?php echo esc_url( $url_commandes ); ?>">
+            <a class="side-link<?php echo $cls( 'commandes' ); ?>" href="<?php echo esc_url( $url_commandes ); ?>">
               <span class="icon"><svg viewBox="0 0 24 24"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg></span>
               <span class="lbl">Mes commandes</span>
             </a>
@@ -294,6 +294,19 @@ class NPQ_Espace {
             }
         }
 
+        // Page « Mon compte » de WooCommerce (même coquille).
+        //
+        // Elle n'appartient pas au plugin : c'est WooCommerce qui l'a créée à
+        // son installation. Mais l'abonné qui y arrive vient de l'espace
+        // membre, par l'entrée « Mes commandes » de la barre latérale, et il
+        // n'a aucune raison d'en sortir pour consulter une facture.
+        if ( function_exists( 'is_account_page' ) && is_account_page() ) {
+            $fichier = NPQ_PATH . 'public/page-compte-normaprep.php';
+            if ( file_exists( $fichier ) ) {
+                return $fichier;
+            }
+        }
+
         return $template;
     }
 
@@ -314,7 +327,11 @@ class NPQ_Espace {
                    || ( $page_examen && is_page( $page_examen ) )
                    || ( $page_revision && is_page( $page_revision ) )
                    || ( $page_activite && is_page( $page_activite ) )
-                   || ( $page_flashcards && is_page( $page_flashcards ) );
+                   || ( $page_flashcards && is_page( $page_flashcards ) )
+                   // « Mon compte » emprunte la coquille de l'espace : sans
+                   // sa feuille de style, la barre latérale n'aurait aucune
+                   // apparence.
+                   || ( function_exists( 'is_account_page' ) && is_account_page() );
 
         if ( ! $sur_espace ) {
             return;

@@ -152,17 +152,35 @@ class NPQ_Profil {
         $nouvel_email  = get_user_meta( $user_id, self::META_EMAIL_ATTENTE, true );
 
         if ( $jeton_attendu && $nouvel_email && hash_equals( $jeton_attendu, $jeton ) ) {
-            // Applique le nouvel email côté WordPress ET dans la fiche métier.
-            wp_update_user( [ 'ID' => $user_id, 'user_email' => $nouvel_email ] );
+            // Le retour de wp_update_user() est vérifié, et ce n'est pas une
+            // précaution de principe : l'appel échoue vraiment, par exemple
+            // quand le nom affiché du compte est une adresse email, ce que
+            // WordPress refuse d'enregistrer.
+            //
+            // Sans cette vérification, on effaçait le jeton et on annonçait
+            // « adresse mise à jour » alors que rien n'avait changé. La
+            // personne repartait convaincue du contraire, sans plus aucun
+            // moyen de réessayer : le lien venait d'être consommé.
+            $resultat = wp_update_user( [ 'ID' => $user_id, 'user_email' => $nouvel_email ] );
 
-            global $wpdb;
-            $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
-            $wpdb->update( "{$p}utilisateur", [ 'email' => $nouvel_email ], [ 'wp_user_id' => $user_id ] );
+            if ( is_wp_error( $resultat ) ) {
+                // Le jeton reste valable : le lien du message pourra resservir
+                // une fois la cause levée.
+                self::flash(
+                    'Le changement n\'a pas pu être enregistré : ' . $resultat->get_error_message()
+                    . ' Votre adresse actuelle reste inchangée.',
+                    'erreur'
+                );
+            } else {
+                global $wpdb;
+                $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+                $wpdb->update( "{$p}utilisateur", [ 'email' => $nouvel_email ], [ 'wp_user_id' => $user_id ] );
 
-            delete_user_meta( $user_id, self::META_EMAIL_ATTENTE );
-            delete_user_meta( $user_id, self::META_EMAIL_JETON );
+                delete_user_meta( $user_id, self::META_EMAIL_ATTENTE );
+                delete_user_meta( $user_id, self::META_EMAIL_JETON );
 
-            self::flash( 'Votre adresse email a été mise à jour.', 'succes' );
+                self::flash( 'Votre adresse email a été mise à jour.', 'succes' );
+            }
         } else {
             self::flash( 'Lien de confirmation invalide ou expiré.', 'erreur' );
         }
