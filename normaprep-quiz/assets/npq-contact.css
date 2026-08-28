@@ -1,0 +1,179 @@
+/**
+ * Formulaire de contact — habillage CARTO.
+ *
+ * Reprend le vocabulaire des formulaires de l'espace membre : cadre à liseré
+ * gauche teal, champs sur fond sombre, bouton monospace en capitales. Un
+ * formulaire n'a pas de raison de changer d'allure selon la page où il se
+ * trouve.
+ *
+ * Les jetons pointent vers ceux du thème, avec pour repli les valeurs de son
+ * :root — la page de contact vit dans le gabarit ordinaire du thème, pas dans
+ * la coquille de l'espace membre, et ne peut donc compter sur les jetons de
+ * celle-ci.
+ */
+
+.npq-contact {
+  --npqc-surface: var(--carto-surface, #0C1428);
+  --npqc-code-bg: var(--carto-code-bg, #0A1222);
+  --npqc-border:  var(--carto-border, #1A2840);
+  --npqc-teal:    var(--carto-teal, #00CFCF);
+  --npqc-amber:   var(--carto-amber, #E8B84B);
+  --npqc-orange:  var(--carto-orange, #FF6B35);
+  --npqc-text:    var(--carto-text, #C8D8E8);
+  --npqc-text-lo: var(--carto-text-lo, #6A8AAA);
+  --npqc-muted:   var(--carto-muted, #3A5070);
+  --npqc-mono:    var(--carto-font-mono, 'Inconsolata', monospace);
+  --npqc-ease:    var(--carto-ease, cubic-bezier(0.16, 1, 0.3, 1));
+
+  max-width: 720px;
+}
+
+/* ─── Le cadre ─────────────────────────────────────────────────────────── */
+
+.npq-contact-form {
+  background: var(--npqc-surface);
+  border: 1px solid var(--npqc-border);
+  border-left: 3px solid var(--npqc-teal);
+  padding: 28px 30px 30px;
+}
+
+/* ─── Champs ───────────────────────────────────────────────────────────── */
+
+.npq-contact-champ {
+  display: block;
+  margin-bottom: 18px;
+}
+
+.npq-contact-label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--npqc-text-lo);
+}
+
+/* Nom et email partagent une ligne : ce sont deux courtes réponses, et les
+   empiler allongerait le formulaire sans rien y gagner. */
+.npq-contact-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 18px;
+}
+
+.npq-contact-ligne .npq-contact-champ {
+  flex: 1 1 220px;
+}
+
+.npq-contact-form input[type="text"],
+.npq-contact-form input[type="email"],
+.npq-contact-form select,
+.npq-contact-form textarea {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--npqc-code-bg);
+  border: 1px solid var(--npqc-border);
+  border-radius: 4px;
+  color: var(--npqc-text);
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.npq-contact-form textarea {
+  resize: vertical;
+  min-height: 160px;
+}
+
+.npq-contact-form input:focus,
+.npq-contact-form select:focus,
+.npq-contact-form textarea:focus {
+  outline: none;
+  border-color: var(--npqc-teal);
+  box-shadow: 0 0 0 3px rgba(0, 207, 207, 0.15);
+}
+
+/* Le menu déroulant est dessiné par le navigateur hors du document :
+   color-scheme est le seul levier qui existe dessus. Même remède que le tri
+   du catalogue et le champ pays de la commande. */
+.npq-contact-form select {
+  color-scheme: dark;
+  cursor: pointer;
+}
+
+/* ─── Le champ piège ───────────────────────────────────────────────────────
+   Sorti de l'écran plutôt que display: none : certains robots ignorent les
+   champs que le navigateur ne rend pas, mais remplissent ceux qui existent
+   bel et bien dans la page. Il faut donc qu'il existe pour eux, et qu'aucun
+   humain ne le rencontre — d'où aussi le tabindex négatif dans le balisage. */
+.npq-contact-piege {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* ─── Bouton ───────────────────────────────────────────────────────────── */
+
+.npq-contact-btn {
+  margin-top: 6px;
+  padding: 14px 30px;
+  border: 0;
+  border-radius: 0;
+  background: var(--npqc-teal);
+  color: #04141C;
+  font-family: var(--npqc-mono);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform .2s var(--npqc-ease), box-shadow .2s var(--npqc-ease);
+}
+
+.npq-contact-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0, 207, 207, 0.25);
+}
+
+.npq-contact-note {
+  margin: 16px 0 0;
+  font-family: var(--npqc-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--npqc-muted);
+}
+
+/* ─── Messages ─────────────────────────────────────────────────────────────
+   Mêmes trois niveaux de gravité que la boutique, même forme : cadre, liseré
+   à gauche, double slash. Le vocabulaire ne change pas d'une page à l'autre. */
+
+.npq-contact-flash {
+  --npqc-signal: var(--npqc-teal);
+  --npqc-signal-fond: rgba(0, 207, 207, 0.06);
+
+  margin-bottom: 22px;
+  padding: 16px 20px;
+  background: var(--npqc-signal-fond);
+  border: 1px solid var(--npqc-border);
+  border-left: 3px solid var(--npqc-signal);
+  color: var(--npqc-text);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.npq-contact-flash::before {
+  content: "// ";
+  color: var(--npqc-signal);
+  font-family: var(--npqc-mono);
+}
+
+.npq-contact-flash--erreur {
+  --npqc-signal: var(--npqc-orange);
+  --npqc-signal-fond: rgba(255, 107, 53, 0.06);
+}
+
+.npq-contact-flash--info {
+  --npqc-signal: var(--npqc-amber);
+  --npqc-signal-fond: rgba(232, 184, 75, 0.06);
+}
