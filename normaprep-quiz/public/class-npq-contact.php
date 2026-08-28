@@ -49,6 +49,36 @@ class NPQ_Contact {
     const MAX_PAR_IP = 5;
 
     /**
+     * Longueurs maximales acceptées.
+     *
+     * Le message est le seul champ libre, donc le seul par lequel on peut
+     * remplir la base : la colonne est un LONGTEXT, qui accepte quatre
+     * gigaoctets. Sans borne, quelques requêtes suffisent à saturer
+     * l'hébergement — et rien dans le formulaire ne l'aurait empêché.
+     *
+     * 5000 caractères, c'est une dizaine de paragraphes. Personne ne dit une
+     * demande de devis plus longuement ; qui a besoin de plus joindra un
+     * document par email une fois le contact établi.
+     *
+     * Les deux autres bornes valent la taille de leur colonne : au-delà,
+     * MySQL en mode strict rejette l'écriture, et le message serait perdu
+     * sur une faute de frappe.
+     */
+    const MAX_MESSAGE = 5000;
+    const MAX_NOM     = 190;
+    const MAX_EMAIL   = 190;
+
+    /**
+     * Jours au bout desquels l'adresse IP d'un message est effacée.
+     *
+     * Une IP n'a d'utilité que pour traiter un abus en cours. Passé ce
+     * délai, elle ne sert plus à rien — et la conserver sans usage est
+     * exactement ce que le RGPD proscrit. Le message, lui, reste : c'est un
+     * échange commercial, pas une donnée de surveillance.
+     */
+    const RETENTION_IP_JOURS = 30;
+
+    /**
      * Motifs proposés.
      *
      * Le motif oriente la réponse avant même de lire le message : une
@@ -76,6 +106,131 @@ class NPQ_Contact {
         add_action( 'template_redirect', [ __CLASS__, 'traiter' ], 5 );
 
         add_action( 'wp_enqueue_scripts', [ __CLASS__, 'charger_styles' ] );
+
+        // --- Données personnelles ---
+        //
+        // Un formulaire de contact collecte un nom, une adresse email et ce
+        // que la personne a bien voulu écrire. C'est peu, mais c'est
+        // exactement ce que le RGPD appelle des données personnelles, et il
+        // ouvre trois obligations concrètes : ne pas garder plus longtemps
+        // que nécessaire, savoir dire ce que l'on détient sur quelqu'un, et
+        // savoir l'effacer sur demande.
+        //
+        // WordPress fournit les deux derniers outils depuis sa version 4.9 :
+        // Outils → Exporter / Effacer les données personnelles. Il suffit de
+        // s'y brancher — les réécrire serait doublement absurde, puisque
+        // l'administrateur devrait alors penser à interroger deux endroits.
+        add_action( 'npq_purge_ip_messages', [ __CLASS__, 'purger_ip' ] );
+        add_action( 'init', [ __CLASS__, 'planifier_purge' ] );
+
+        add_filter( 'wp_privacy_personal_data_exporters', [ __CLASS__, 'declarer_exporteur' ] );
+        add_filter( 'wp_privacy_personal_data_erasers', [ __CLASS__, 'declarer_effaceur' ] );
+    }
+
+    /* =====================================================================
+     * DONNÉES PERSONNELLES
+     * ===================================================================== */
+
+    /** Programme la purge quotidienne des adresses IP, si elle ne l'est pas. */
+    public static function planifier_purge() {
+        if ( ! wp_next_scheduled( 'npq_purge_ip_messages' ) ) {
+            wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'npq_purge_ip_messages' );
+        }
+    }
+
+    /**
+     * Efface les adresses IP des messages anciens.
+     *
+     * On vide la colonne plutôt que de supprimer la ligne : le message reste
+     * consultable — c'est un échange commercial qui peut resservir — mais la
+     * donnée qui n'a plus d'usage disparaît. Une IP ne sert qu'à traiter un
+     * abus en cours ; passé un mois, elle n'est plus qu'un risque.
+     */
+    public static function purger_ip() {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $limite = gmdate( 'Y-m-d H:i:s', time() - ( self::RETENTION_IP_JOURS * DAY_IN_SECONDS ) );
+
+        $wpdb->query( $wpdb->prepare(
+            "UPDATE {$p}message SET ip = NULL WHERE ip IS NOT NULL AND date_envoi < %s",
+            $limite
+        ) );
+    }
+
+    /**
+     * Déclare l'exportateur : « qu'avez-vous sur moi ? »
+     *
+     * @param array $exporteurs
+     * @return array
+     */
+    public static function declarer_exporteur( $exporteurs ) {
+        $exporteurs['normaprep-messages'] = [
+            'exporter_friendly_name' => 'Messages de contact NormaPrep',
+            'callback'               => [ __CLASS__, 'exporter_donnees' ],
+        ];
+        return $exporteurs;
+    }
+
+    public static function exporter_donnees( $email, $page = 1 ) {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $lignes = $wpdb->get_results( $wpdb->prepare(
+            "SELECT * FROM {$p}message WHERE email = %s ORDER BY date_envoi",
+            $email
+        ), ARRAY_A );
+
+        $motifs  = self::motifs();
+        $donnees = [];
+
+        foreach ( $lignes as $ligne ) {
+            $donnees[] = [
+                'group_id'    => 'npq-messages',
+                'group_label' => 'Messages de contact',
+                'item_id'     => 'message-' . (int) $ligne['id'],
+                'data'        => [
+                    [ 'name' => 'Date',    'value' => $ligne['date_envoi'] ],
+                    [ 'name' => 'Nom',     'value' => $ligne['nom'] ],
+                    [ 'name' => 'Email',   'value' => $ligne['email'] ],
+                    [ 'name' => 'Motif',   'value' => $motifs[ $ligne['motif'] ] ?? $ligne['motif'] ],
+                    [ 'name' => 'Message', 'value' => $ligne['message'] ],
+                ],
+            ];
+        }
+
+        return [ 'data' => $donnees, 'done' => true ];
+    }
+
+    /**
+     * Déclare l'effaceur : « supprimez ce que vous avez sur moi. »
+     *
+     * @param array $effaceurs
+     * @return array
+     */
+    public static function declarer_effaceur( $effaceurs ) {
+        $effaceurs['normaprep-messages'] = [
+            'eraser_friendly_name' => 'Messages de contact NormaPrep',
+            'callback'             => [ __CLASS__, 'effacer_donnees' ],
+        ];
+        return $effaceurs;
+    }
+
+    public static function effacer_donnees( $email, $page = 1 ) {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $supprimes = $wpdb->query( $wpdb->prepare(
+            "DELETE FROM {$p}message WHERE email = %s",
+            $email
+        ) );
+
+        return [
+            'items_removed'  => (bool) $supprimes,
+            'items_retained' => false,
+            'messages'       => [],
+            'done'           => true,
+        ];
     }
 
     /**
@@ -143,10 +298,29 @@ class NPQ_Contact {
             );
         }
 
+        // Le compteur avance AVANT toute validation, et non après un envoi
+        // réussi. Sinon un robot qui poste des données invalides — une adresse
+        // email malformée suffit — n'est jamais compté, et peut marteler le
+        // formulaire indéfiniment sans jamais franchir la limite.
+        self::compter_tentative();
+
+        // sanitize_text_field() écrase au passage les retours à la ligne, ce
+        // qui ferme la porte à l'injection d'en-têtes email : une valeur qui
+        // ne peut pas contenir de saut de ligne ne peut pas ajouter un « Bcc: »
+        // à la notification. On ne s'en remet pas à cet effet de bord seul —
+        // voir aussi la vérification explicite dans notifier().
         $nom     = isset( $_POST['npq_nom'] ) ? sanitize_text_field( wp_unslash( $_POST['npq_nom'] ) ) : '';
         $email   = isset( $_POST['npq_email'] ) ? sanitize_email( wp_unslash( $_POST['npq_email'] ) ) : '';
         $motif   = isset( $_POST['npq_motif'] ) ? sanitize_key( $_POST['npq_motif'] ) : 'autre';
         $message = isset( $_POST['npq_message'] ) ? sanitize_textarea_field( wp_unslash( $_POST['npq_message'] ) ) : '';
+
+        // Bornes de longueur. On tronque plutôt que de refuser : quelqu'un qui
+        // a écrit trop long a écrit quelque chose, et lui rendre sa page vide
+        // avec un reproche coûte plus que de garder les 5000 premiers
+        // caractères. Le refus est réservé à ce qui est inexploitable.
+        $nom     = mb_substr( $nom, 0, self::MAX_NOM );
+        $email   = mb_substr( $email, 0, self::MAX_EMAIL );
+        $message = mb_substr( $message, 0, self::MAX_MESSAGE );
 
         if ( '' === trim( $nom ) ) {
             return self::flash( 'Merci d\'indiquer votre nom.', 'erreur' );
@@ -174,7 +348,6 @@ class NPQ_Contact {
             );
         }
 
-        self::compter_envoi();
         self::notifier( $nom, $email, $motif, $message );
 
         self::flash(
@@ -232,7 +405,7 @@ class NPQ_Contact {
             '[%s] %s — %s',
             get_bloginfo( 'name' ),
             $motifs[ $motif ],
-            $nom
+            preg_replace( '/[\r\n]+/', ' ', $nom )
         );
 
         $corps = "Nouveau message reçu depuis le formulaire de contact.\n\n"
@@ -246,12 +419,23 @@ class NPQ_Contact {
                . "Ce message est aussi consultable dans NormaPrep → Messages, "
                . "même si cet email se perd.";
 
-        wp_mail(
-            $destinataire,
-            $sujet,
-            $corps,
-            [ 'Reply-To: ' . $nom . ' <' . $email . '>' ]
-        );
+        // DÉFENSE EN PROFONDEUR SUR L'EN-TÊTE
+        //
+        // Un saut de ligne dans « Répondre à » permettrait d'y greffer un
+        // en-tête de plus — un « Bcc: » vers une adresse choisie, et la
+        // notification part aussi ailleurs. sanitize_text_field() écrase déjà
+        // ces caractères en amont, mais on ne fait pas reposer une faille
+        // d'injection sur un effet de bord : si un jour cette fonction change,
+        // ou si quelqu'un modifie la ligne de nettoyage, la vérification
+        // ci-dessous tient toujours.
+        $nom_entete = preg_replace( '/[\r\n]+/', ' ', $nom );
+
+        $entetes = [];
+        if ( is_email( $email ) && false === strpbrk( $email, "\r\n" ) ) {
+            $entetes[] = 'Reply-To: ' . $nom_entete . ' <' . $email . '>';
+        }
+
+        wp_mail( $destinataire, $sujet, $corps, $entetes );
     }
 
     /* =====================================================================
@@ -273,12 +457,13 @@ class NPQ_Contact {
         return (int) get_transient( self::cle_limite() ) >= self::MAX_PAR_IP;
     }
 
-    private static function compter_envoi() {
+    private static function compter_tentative() {
         $cle = self::cle_limite();
         $n   = (int) get_transient( $cle );
 
-        // La fenêtre repart du dernier envoi : c'est volontaire. Quelqu'un qui
-        // insiste attend plus longtemps que quelqu'un qui s'arrête.
+        // La fenêtre repart de la dernière tentative : c'est volontaire.
+        // Quelqu'un qui insiste attend plus longtemps que quelqu'un qui
+        // s'arrête.
         set_transient( $cle, $n + 1, NPQ_Limitation::FENETRE );
     }
 
@@ -286,12 +471,48 @@ class NPQ_Contact {
      * AFFICHAGE
      * ===================================================================== */
 
+    /**
+     * Clé du message d'état, propre au VISITEUR et non à son adresse IP.
+     *
+     * L'IP ne désigne pas une personne : derrière celle d'une entreprise, ou
+     * d'un opérateur mobile, il y en a des centaines. Une clé fondée sur elle
+     * faisait lire à l'un le message destiné à l'autre — « votre message a
+     * bien été envoyé » à quelqu'un qui n'avait rien envoyé.
+     *
+     * WordPress pose déjà un jeton de session anonyme sur chaque visiteur
+     * (COOKIEHASH). On s'en sert quand il existe ; sinon on retombe sur l'IP,
+     * qui vaut mieux que rien pour l'affichage d'un simple accusé.
+     */
+    private static function cle_flash() {
+        $jeton = '';
+
+        if ( ! empty( $_COOKIE[ 'npq_visiteur' ] ) ) {
+            $jeton = sanitize_key( $_COOKIE['npq_visiteur'] );
+        }
+
+        if ( '' === $jeton ) {
+            $jeton = self::ip();
+        }
+
+        return 'npq_flash_contact_' . md5( $jeton );
+    }
+
     private static function flash( $texte, $type = 'info' ) {
-        set_transient( 'npq_flash_contact_' . md5( self::ip() ), [ 'texte' => $texte, 'type' => $type ], 60 );
+        // Le témoin de visiteur est posé au moment où l'on en a besoin, et
+        // pas avant : un cookie déposé sur toutes les pages sans usage serait
+        // à déclarer, celui-ci ne sert qu'à se rendre son propre accusé de
+        // réception et disparaît avec la session.
+        if ( empty( $_COOKIE['npq_visiteur'] ) && ! headers_sent() ) {
+            $jeton = wp_generate_password( 20, false );
+            setcookie( 'npq_visiteur', $jeton, 0, COOKIEPATH ?: '/', COOKIE_DOMAIN, is_ssl(), true );
+            $_COOKIE['npq_visiteur'] = $jeton;
+        }
+
+        set_transient( self::cle_flash(), [ 'texte' => $texte, 'type' => $type ], 60 );
     }
 
     private static function message_flash() {
-        $cle   = 'npq_flash_contact_' . md5( self::ip() );
+        $cle   = self::cle_flash();
         $flash = get_transient( $cle );
         if ( ! $flash ) {
             return '';
