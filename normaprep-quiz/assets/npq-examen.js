@@ -46,11 +46,21 @@
         demarrerChrono(boxChrono.getAttribute('data-restant'));
     }
 
-    /** (Re)branche les écouteurs sur le contenu courant. */
+    /**
+     * (Re)branche les écouteurs sur le contenu courant.
+     *
+     * Chaque élément branché porte une marque DANS LE DOM. Même raison que pour
+     * le chronomètre : si le script se retrouve évalué en double, chaque copie
+     * brancherait son propre écouteur sur les mêmes boutons, et un seul clic sur
+     * « Terminer » partirait DEUX fois. Une marque posée sur l'élément est vue
+     * par toutes les copies ; une variable de module ne l'aurait pas été.
+     */
     function brancher() {
         // Boutons de navigation (précédent / suivant / terminer).
         var boutons = zone.querySelectorAll('[data-dest]');
         boutons.forEach(function (btn) {
+            if (btn.dataset.npqBranche) { return; }
+            btn.dataset.npqBranche = '1';
             btn.addEventListener('click', function (e) {
                 e.preventDefault();
                 aller(btn.getAttribute('data-dest'));
@@ -60,6 +70,8 @@
         // Pastilles de la vue d'ensemble (saut direct).
         var pastilles = zone.querySelectorAll('.npq-pastille');
         pastilles.forEach(function (p) {
+            if (p.dataset.npqBranche) { return; }
+            p.dataset.npqBranche = '1';
             p.addEventListener('click', function (e) {
                 e.preventDefault();
                 aller(p.getAttribute('data-pos'));
@@ -89,10 +101,23 @@
         });
     }
 
-    /** Envoie la réponse courante au serveur et va à la destination demandée. */
+    /**
+     * Envoie la réponse courante au serveur et va à la destination demandée.
+     *
+     * Une seule requête à la fois. Le drapeau vit sur window, hors du module :
+     * deux copies du script en mémoire le partagent, là où une variable locale
+     * en aurait donné une chacune. Sans lui, deux « Terminer » simultanés
+     * faisaient corriger la tentative deux fois — d'où deux fois plus de
+     * réponses que de questions à l'arrivée. (Le serveur s'en protège aussi
+     * désormais ; on n'envoie pas pour autant une requête qu'on sait inutile.)
+     */
     function aller(destination) {
+        if (window.__npqEtapeEnCours) { return; }
+
         var form = document.getElementById('npq-examen-form');
         if (!form) { return; }
+
+        window.__npqEtapeEnCours = true;
 
         var champPos = form.querySelector('[name="npq_position"]');
         var position = champPos ? champPos.value : '0';
@@ -210,7 +235,10 @@
     /** Affiche la question reçue, son scénario, et met à jour le suivi. */
     function afficher(d) {
         var q = d.question;
-        if (!q) { return; }
+        if (!q) {
+            window.__npqEtapeEnCours = false;
+            return;
+        }
 
         var type = q.multi_reponses ? 'checkbox' : 'radio';
         var dernier = (d.position + 1 >= d.total);
@@ -275,6 +303,9 @@
         brancher();
         zone.style.opacity = '1';
         zone.style.pointerEvents = 'auto';
+
+        // La question est à l'écran : on peut de nouveau naviguer.
+        window.__npqEtapeEnCours = false;
 
         // On remonte en haut de la zone d'examen SEULEMENT si elle n'est plus
         // visible. Un scrollIntoView systématique masquait le scénario.

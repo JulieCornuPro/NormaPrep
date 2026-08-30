@@ -108,22 +108,42 @@ class NPQ_Correcteur {
 
         $tentative_id = (int) $tentative_id;
 
-        // Une tentative ne se corrige qu'UNE fois. Le chemin sans JavaScript
-        // n'a pas de verrou en amont : un double clic, ou un rafraîchissement
-        // qui rejoue le POST, appelait deux fois la correction et dupliquait
-        // toutes les lignes de réponse — faussant durablement les statistiques.
-        // Le garde-fou vit ici plutôt que dans l'appelant : c'est le passage
-        // obligé des trois points de correction.
-        $deja = $wpdb->get_row( $wpdb->prepare(
-            "SELECT score, reussi FROM {$p}tentative
-             WHERE id = %d AND date_fin IS NOT NULL",
+        // Une tentative ne se corrige qu'UNE fois. On RÉSERVE la tentative
+        // avant d'écrire la moindre réponse : un UPDATE conditionnel est
+        // atomique — la base verrouille la ligne et ne l'accorde qu'à un seul
+        // appelant.
+        //
+        // Le garde-fou précédent lisait date_fin, mais date_fin n'était posée
+        // qu'APRÈS l'insertion de toutes les réponses : entre la lecture et
+        // l'écriture, la porte restait ouverte le temps d'une correction
+        // entière. Deux « Terminer » partis ensemble — double clic, POST
+        // rejoué, ou script d'examen évalué en double, qui pose deux écouteurs
+        // sur le même bouton — franchissaient tous deux le contrôle et
+        // inséraient chacun une ligne par question. La révision se terminait
+        // avec deux fois plus de réponses que de questions : correction
+        // détaillée en double, et fractions par domaine impossibles (16/8).
+        //
+        // Poser date_fin d'abord ferme la fenêtre. Si la correction échouait
+        // ensuite, la tentative resterait sans score — visible comme telle,
+        // là où des réponses en double faussent silencieusement l'historique.
+        $reserve = $wpdb->query( $wpdb->prepare(
+            "UPDATE {$p}tentative SET date_fin = %s
+             WHERE id = %d AND date_fin IS NULL",
+            current_time( 'mysql' ),
             $tentative_id
-        ), ARRAY_A );
+        ) );
 
-        if ( $deja !== null ) {
+        if ( ! $reserve ) {
+            // Tentative déjà close : corrigée, abandonnée, ou correction
+            // concurrente en cours. On rend l'état enregistré sans rien écrire.
+            $deja = $wpdb->get_row( $wpdb->prepare(
+                "SELECT score, reussi FROM {$p}tentative WHERE id = %d",
+                $tentative_id
+            ), ARRAY_A );
+
             return [
-                'score'       => (int) $deja['score'],
-                'reussi'      => (bool) $deja['reussi'],
+                'score'       => ( $deja && $deja['score'] !== null ) ? (int) $deja['score'] : null,
+                'reussi'      => ( $deja && $deja['reussi'] !== null ) ? (bool) $deja['reussi'] : null,
                 'correctes'   => null,
                 'total'       => null,
                 'seuil'       => $seuil,
@@ -131,6 +151,11 @@ class NPQ_Correcteur {
                 'deja_corrigee' => true,
             ];
         }
+
+        // Ardoise nette. Une correction interrompue en cours de route (erreur
+        // fatale, coupure) a pu laisser des lignes derrière elle ; les garder
+        // ferait double emploi avec celles qu'on s'apprête à écrire.
+        self::effacer_reponses( $tentative_id );
 
         $total       = 0;
         $correctes   = 0;
@@ -145,6 +170,11 @@ class NPQ_Correcteur {
         if ( empty( $questions ) ) {
             $questions = array_map( 'intval', array_keys( $reponses ) );
         }
+
+        // Une question ne compte qu'une fois, même si la composition en base
+        // la mentionne deux fois : sinon elle pèserait double au barème et
+        // apparaîtrait deux fois dans la correction détaillée.
+        $questions = array_values( array_unique( $questions ) );
 
         // Domaines en UNE requête plutôt qu'une par question : la boucle porte
         // désormais sur 80 questions et non plus sur les seules répondues.
@@ -208,12 +238,12 @@ class NPQ_Correcteur {
         $score  = ( $total > 0 ) ? (int) round( $correctes * 100 / $total ) : 0;
         $reussi = ( $score >= $seuil ) ? 1 : 0;
 
-        // Met à jour la tentative avec le résultat final.
+        // Met à jour la tentative avec le résultat final. date_fin a déjà été
+        // posée par la réservation, en tête de méthode : on ne la réécrit pas.
         $wpdb->update( "{$p}tentative",
             [
-                'score'    => $score,
-                'reussi'   => $reussi,
-                'date_fin' => current_time( 'mysql' ),
+                'score'  => $score,
+                'reussi' => $reussi,
             ],
             [ 'id' => $tentative_id ]
         );
@@ -237,6 +267,31 @@ class NPQ_Correcteur {
     }
 
     /**
+     * Efface les réponses déjà enregistrées pour une tentative, options cochées
+     * comprises. Les deux tables sont liées à la main (pas de clé étrangère) :
+     * supprimer les réponses sans leurs options laisserait des orphelines.
+     *
+     * @param int $tentative_id
+     */
+    private static function effacer_reponses( $tentative_id ) {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $tentative_id = (int) $tentative_id;
+
+        // Les options d'abord : une fois les réponses parties, plus rien ne
+        // permet de retrouver à quelle tentative ces options appartenaient.
+        $wpdb->query( $wpdb->prepare(
+            "DELETE ro FROM {$p}reponse_option ro
+             INNER JOIN {$p}reponse r ON r.id = ro.reponse_id
+             WHERE r.tentative_id = %d",
+            $tentative_id
+        ) );
+
+        $wpdb->delete( "{$p}reponse", [ 'tentative_id' => $tentative_id ] );
+    }
+
+    /**
      * Prépare la CORRECTION DÉTAILLÉE d'une tentative déjà corrigée, pour affichage.
      * Pour chaque question : énoncé, options avec le bon/mauvais, ce que l'utilisateur
      * a coché, et l'explication. C'est ici que la bonne réponse est enfin révélée.
@@ -250,12 +305,25 @@ class NPQ_Correcteur {
 
         $reponses = $wpdb->get_results( $wpdb->prepare(
             "SELECT id, question_id, correcte
-             FROM {$p}reponse WHERE tentative_id = %d",
+             FROM {$p}reponse WHERE tentative_id = %d
+             ORDER BY id ASC",
             $tentative_id
         ), ARRAY_A );
 
         $detail = [];
+        $vues   = []; // question_id => déjà présentée
+
         foreach ( $reponses as $rep ) {
+            // Filet pour l'historique : les tentatives corrigées avant la pose
+            // du verrou d'écriture peuvent porter la même question deux fois.
+            // On garde la première ligne — l'affichage doit montrer autant de
+            // blocs que de questions posées, pas autant que de lignes en base.
+            $qid = (int) $rep['question_id'];
+            if ( isset( $vues[ $qid ] ) ) {
+                continue;
+            }
+            $vues[ $qid ] = true;
+
             $question = $wpdb->get_row( $wpdb->prepare(
                 "SELECT id, enonce, explication, domaine, multi_reponses
                  FROM {$p}question WHERE id = %d",

@@ -65,6 +65,12 @@ class NPQ_Migrations {
             // Retire les accès qui n'étaient que le résidu de l'attribution
             // automatique. Sauvegarde les lignes retirées avant suppression.
             'alignement_acces' => [ 'NPQ_Installer', 'migration_aligner_acces_sur_abonnement' ],
+
+            // Nettoie les réponses enregistrées en double au sein d'une même
+            // tentative, héritées d'une correction jouée deux fois avant que
+            // le verrou d'écriture ne soit posé (une révision de 10 questions
+            // affichait 20 blocs de correction).
+            'reponses_dupliquees' => [ 'NPQ_Installer', 'migration_supprimer_reponses_dupliquees' ],
         ];
     }
 

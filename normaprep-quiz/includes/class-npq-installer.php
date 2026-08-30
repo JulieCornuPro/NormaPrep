@@ -650,6 +650,84 @@ class NPQ_Installer {
     }
 
     /**
+     * Supprime les réponses enregistrées EN DOUBLE au sein d'une même tentative.
+     *
+     * POURQUOI
+     *
+     * La correction d'une tentative écrivait une ligne par question, puis
+     * seulement ensuite posait date_fin — le témoin qui interdit une seconde
+     * correction. Entre les deux, la porte restait ouverte : deux « Terminer »
+     * partis ensemble (double clic, POST rejoué, script d'examen évalué en
+     * double qui pose deux écouteurs sur le même bouton) corrigeaient tous
+     * deux la tentative. Résultat visible à l'écran de résultat : une révision
+     * de 10 questions affichait 20 blocs de correction, et des fractions par
+     * domaine impossibles (16/8).
+     *
+     * Le verrou est désormais posé AVANT toute écriture (voir
+     * NPQ_Correcteur::corriger_tentative). Reste l'historique déjà écrit :
+     * c'est ce que cette migration nettoie. Les scores, eux, n'ont jamais été
+     * faussés — ils se calculent sur la composition de la tentative, pas sur
+     * les lignes enregistrées. En revanche le volume de travail et les taux
+     * par domaine, qui comptent des lignes, l'étaient.
+     *
+     * On garde la ligne la plus ancienne de chaque couple (tentative,
+     * question) : les corrections concurrentes partant du même brouillon,
+     * elles portent le même verdict.
+     *
+     * Idempotente : rejouée, elle ne trouve plus rien à supprimer.
+     *
+     * @return int Nombre de lignes de réponse supprimées.
+     */
+    public static function migration_supprimer_reponses_dupliquees() {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        // Les doublons : toute ligne dont l'id dépasse le plus petit id
+        // enregistré pour le même couple (tentative, question).
+        //
+        // On REPÈRE d'abord, on supprime ensuite. Un DELETE qui lit la table
+        // qu'il modifie, fût-ce à travers une table dérivée, est refusé par
+        // certaines versions de MySQL (« You can't specify target table ») ;
+        // deux requêtes séparées passent partout.
+        $a_supprimer = $wpdb->get_col(
+            "SELECT r.id
+             FROM {$p}reponse r
+             INNER JOIN (
+                 SELECT tentative_id, question_id, MIN(id) AS garde
+                 FROM {$p}reponse
+                 GROUP BY tentative_id, question_id
+                 HAVING COUNT(*) > 1
+             ) d ON d.tentative_id = r.tentative_id
+                AND d.question_id  = r.question_id
+             WHERE r.id > d.garde"
+        );
+
+        $a_supprimer = array_map( 'intval', (array) $a_supprimer );
+        $supprimees  = 0;
+
+        // Par paquets : une base au long historique peut en compter beaucoup,
+        // et une requête d'une longueur non bornée finit par être rejetée.
+        foreach ( array_chunk( $a_supprimer, 500 ) as $paquet ) {
+            $marqueurs = implode( ',', array_fill( 0, count( $paquet ), '%d' ) );
+            $supprimees += (int) $wpdb->query( $wpdb->prepare(
+                "DELETE FROM {$p}reponse WHERE id IN ( {$marqueurs} )",
+                $paquet
+            ) );
+        }
+
+        // Les options cochées suivaient leur réponse : celles des lignes
+        // supprimées n'ont plus de rattachement. On les retire aussi, sans
+        // quoi elles gonfleraient la table sans jamais être lues.
+        $wpdb->query(
+            "DELETE ro FROM {$p}reponse_option ro
+             LEFT JOIN {$p}reponse r ON r.id = ro.reponse_id
+             WHERE r.id IS NULL"
+        );
+
+        return $supprimees;
+    }
+
+    /**
      * Insère les parcours de révision d'origine, une seule fois.
      * Rattachés à la certification active. Idempotent : ne fait rien si la
      * table contient déjà des parcours.
