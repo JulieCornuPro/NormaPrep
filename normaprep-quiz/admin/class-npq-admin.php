@@ -162,12 +162,44 @@ class NPQ_Admin {
 
         add_submenu_page(
             'normaprep-quiz',
+            'Messages reçus',
+            'Messages',
+            'manage_options',
+            'normaprep-messages',
+            [ __CLASS__, 'page_messages' ]
+        );
+
+        add_submenu_page(
+            'normaprep-quiz',
             'Importer le contenu',
             'Import',
             'manage_options',
             'normaprep-import',
             [ 'NPQ_Importer', 'afficher_page' ]
         );
+    }
+
+    /* =====================================================================
+     * PAGE : MESSAGES
+     * ===================================================================== */
+
+    public static function page_messages() {
+        require_once NPQ_PATH . 'admin/class-npq-table-messages.php';
+
+        // Le changement de statut est appliqué avant la lecture, pour que la
+        // liste affiche déjà l'état à jour plutôt que celui d'avant le clic.
+        NPQ_Table_Messages::traiter_action();
+
+        $table = new NPQ_Table_Messages();
+        $table->prepare_items();
+
+        echo '<div class="wrap">';
+        echo '<h1>Messages reçus</h1>';
+        echo '<p>Les messages envoyés depuis le formulaire de contact. '
+           . 'Ils sont aussi notifiés par email — cette liste reste la trace '
+           . 'si un email se perd.</p>';
+        $table->display();
+        echo '</div>';
     }
 
     /* =====================================================================

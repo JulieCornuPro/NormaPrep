@@ -3,7 +3,7 @@
  * Plugin Name:       NormaPrep Quiz
  * Plugin URI:        https://github.com/【votre-compte】/normaprep-quiz
  * Description:       Module d'examens blancs pour la certification ISO/IEC 27001 Lead Implementer : scénarios, questions à choix multiples, composition d'examens par thèmes, correction détaillée et suivi de progression.
- * Version:           2.45.0
+ * Version:           2.47.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * Author:            NormaPrep
@@ -32,7 +32,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Version courante. IMPORTANT : cette valeur doit rester synchronisée avec
 // la ligne « Version: » de l'en-tête ci-dessus.
-define( 'NPQ_VERSION', '2.45.0' );
+define( 'NPQ_VERSION', '2.47.0' );
 
 // Chemin absolu vers le dossier du plugin sur le serveur (pour charger des fichiers PHP).
 define( 'NPQ_PATH', plugin_dir_path( __FILE__ ) );
@@ -84,6 +84,9 @@ function npq_activation() {
 
     require_once NPQ_PATH . 'public/class-npq-flashcards.php';
     NPQ_Flashcards::creer_page();
+
+    require_once NPQ_PATH . 'public/class-npq-contact.php';
+    NPQ_Contact::creer_page();
 }
 register_activation_hook( __FILE__, 'npq_activation' );
 
@@ -97,8 +100,14 @@ register_activation_hook( __FILE__, 'npq_activation' );
  * dans un fichier séparé « uninstall.php » que l'on créera plus tard.
  */
 function npq_desactivation() {
-    // Rien à faire à ce stade. Emplacement réservé pour un éventuel nettoyage
-    // temporaire (par exemple vider un cache) lors d'une désactivation.
+    // La purge quotidienne des adresses IP est décrochée : une tâche planifiée
+    // que plus rien n'écoute reste inscrite dans WordPress et s'y réveille
+    // pour rien, indéfiniment. Une extension désactivée doit cesser
+    // d'exister, pas seulement de s'afficher.
+    $prochaine = wp_next_scheduled( 'npq_purge_ip_messages' );
+    if ( $prochaine ) {
+        wp_unschedule_event( $prochaine, 'npq_purge_ip_messages' );
+    }
 }
 register_deactivation_hook( __FILE__, 'npq_desactivation' );
 
@@ -190,6 +199,11 @@ function npq_init() {
     // Flashcards (mémorisation : recto / verso).
     require_once NPQ_PATH . 'public/class-npq-flashcards.php';
     NPQ_Flashcards::init();
+
+    // Formulaire de contact. Chargé après la limitation, dont il se sert
+    // pour ne pas laisser un robot remplir la table de messages.
+    require_once NPQ_PATH . 'public/class-npq-contact.php';
+    NPQ_Contact::init();
 
     // Administration du contenu (état de la banque, couverture PECB).
     if ( is_admin() ) {

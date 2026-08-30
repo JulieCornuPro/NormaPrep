@@ -370,6 +370,36 @@ class NPQ_Installer {
             KEY question_id (question_id)
         ) $charset;";
 
+        /* =====================================================================
+         * CONTACT
+         * ===================================================================== */
+
+        // --- Messages reçus par le formulaire de contact ---
+        //
+        // Les messages sont ENREGISTRÉS, et pas seulement envoyés par email.
+        // Un email peut se perdre — filtre anti-spam, panne du serveur
+        // d'envoi, adresse de réception mal réglée — et l'on ne s'en aperçoit
+        // jamais : rien ne distingue « personne ne m'écrit » de « je ne reçois
+        // plus mes messages ». La table est la seule trace qui ne dépend de
+        // personne d'autre.
+        //
+        // L'adresse IP sert au traitement des abus, pas au suivi : elle n'est
+        // rattachée à aucun profil et n'est lue que depuis cet écran.
+        $sql[] = "CREATE TABLE {$p}message (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            date_envoi DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            nom VARCHAR(190) NOT NULL,
+            email VARCHAR(190) NOT NULL,
+            motif VARCHAR(50) NOT NULL DEFAULT 'autre',
+            message LONGTEXT NOT NULL,
+            statut VARCHAR(20) NOT NULL DEFAULT 'nouveau',
+            wp_user_id BIGINT UNSIGNED NULL,
+            ip VARCHAR(45) NULL,
+            PRIMARY KEY  (id),
+            KEY statut (statut),
+            KEY date_envoi (date_envoi)
+        ) $charset;";
+
         return $sql;
     }
 
