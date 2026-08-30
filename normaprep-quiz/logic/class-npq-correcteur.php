@@ -114,6 +114,13 @@ class NPQ_Correcteur {
         // toutes les lignes de réponse — faussant durablement les statistiques.
         // Le garde-fou vit ici plutôt que dans l'appelant : c'est le passage
         // obligé des trois points de correction.
+        //
+        // Cette première lecture évite le travail inutile dans le cas courant
+        // (une correction déjà faite et close), mais elle ne suffit pas : entre
+        // la lecture et l'écriture de date_fin, il s'écoulait toute la durée de
+        // la correction. Deux requêtes SIMULTANÉES la traversaient donc toutes
+        // les deux. Le verrou réel est plus bas : une écriture conditionnelle,
+        // que la base arbitre. Voir « Prise du verrou ».
         $deja = $wpdb->get_row( $wpdb->prepare(
             "SELECT score, reussi FROM {$p}tentative
              WHERE id = %d AND date_fin IS NOT NULL",
@@ -160,13 +167,19 @@ class NPQ_Correcteur {
             }
         }
 
+        // --- 1. Correction en mémoire, sans rien écrire --------------------
+        // On calcule d'abord, on écrit ensuite. Tant qu'aucune ligne n'est
+        // posée, le verrou pris à l'étape 2 protège vraiment : la requête qui
+        // le perd n'a alors laissé aucune trace derrière elle.
+        $bilan = []; // [ ['question_id' => x, 'correcte' => bool, 'options' => []] ]
+
         foreach ( $questions as $question_id ) {
             $question_id = (int) $question_id;
 
             // Question sans réponse : tableau vide. corriger_question() la
             // déclare fausse, ce qui est le comportement attendu.
             $options_cochees = isset( $reponses[ $question_id ] )
-                ? (array) $reponses[ $question_id ]
+                ? array_map( 'intval', (array) $reponses[ $question_id ] )
                 : [];
 
             $domaine = isset( $domaines[ $question_id ] ) ? $domaines[ $question_id ] : '';
@@ -183,40 +196,85 @@ class NPQ_Correcteur {
                 $par_domaine[ $domaine ]['correctes']++;
             }
 
-            // Enregistre la réponse (une ligne par question dans la tentative).
-            // Y compris pour les questions laissées blanches : l'écran de
-            // correction doit les montrer, et le taux par domaine les compter.
-            $wpdb->insert( "{$p}reponse", [
-                'tentative_id' => $tentative_id,
-                'question_id'  => $question_id,
-                'correcte'     => $est_correcte ? 1 : 0,
-            ] );
-            $reponse_id = $wpdb->insert_id;
-
-            // Enregistre chaque option cochée (gère le multi-réponses).
-            // Une question blanche n'en a aucune : c'est ce qui permet, plus
-            // tard, de distinguer « pas su » de « pas vue ».
-            foreach ( $options_cochees as $option_id ) {
-                $wpdb->insert( "{$p}reponse_option", [
-                    'reponse_id' => $reponse_id,
-                    'option_id'  => (int) $option_id,
-                ] );
-            }
+            $bilan[] = [
+                'question_id' => $question_id,
+                'correcte'    => $est_correcte,
+                'options'     => $options_cochees,
+            ];
         }
 
         // Score global en pourcentage (arrondi à l'entier).
         $score  = ( $total > 0 ) ? (int) round( $correctes * 100 / $total ) : 0;
         $reussi = ( $score >= $seuil ) ? 1 : 0;
 
-        // Met à jour la tentative avec le résultat final.
-        $wpdb->update( "{$p}tentative",
-            [
-                'score'    => $score,
-                'reussi'   => $reussi,
-                'date_fin' => current_time( 'mysql' ),
-            ],
-            [ 'id' => $tentative_id ]
-        );
+        // --- 2. Prise du verrou --------------------------------------------
+        // C'est LA BASE qui arbitre, par une écriture conditionnelle : la
+        // clause « date_fin IS NULL » ne peut être vraie que pour une seule
+        // requête, puisque la même instruction la rend fausse. Celle qui
+        // n'affecte aucune ligne a perdu et s'arrête là, sans rien enregistrer.
+        //
+        // Le contrôle par lecture préalable, lui, ne pouvait pas suffire :
+        // deux requêtes lançant la correction en même temps lisaient toutes
+        // les deux une tentative encore ouverte, et enregistraient chacune le
+        // jeu complet des réponses. L'écran de résultat affichait alors deux
+        // fois plus de réponses que de questions — et les statistiques d'un
+        // domaine comptaient chaque question autant de fois.
+        //
+        // Le score est écrit dans la MÊME instruction que date_fin : une
+        // tentative n'est donc jamais close sans son résultat, état qui se
+        // lirait comme un abandon.
+        $wpdb->query( $wpdb->prepare(
+            "UPDATE {$p}tentative
+                SET score = %d, reussi = %d, date_fin = %s
+              WHERE id = %d AND date_fin IS NULL",
+            $score,
+            $reussi,
+            current_time( 'mysql' ),
+            $tentative_id
+        ) );
+
+        if ( (int) $wpdb->rows_affected !== 1 ) {
+            // Verrou perdu : une autre requête a corrigé cette tentative
+            // pendant qu'on calculait. Son résultat fait foi, on n'écrit rien.
+            $close = $wpdb->get_row( $wpdb->prepare(
+                "SELECT score, reussi FROM {$p}tentative WHERE id = %d",
+                $tentative_id
+            ), ARRAY_A );
+
+            return [
+                'score'         => (int) ( $close['score'] ?? 0 ),
+                'reussi'        => (bool) ( $close['reussi'] ?? false ),
+                'correctes'     => null,
+                'total'         => null,
+                'seuil'         => $seuil,
+                'par_domaine'   => [],
+                'deja_corrigee' => true,
+            ];
+        }
+
+        // --- 3. Enregistrement des réponses --------------------------------
+        // Une seule requête peut arriver jusqu'ici pour une tentative donnée.
+        foreach ( $bilan as $ligne ) {
+            // Enregistre la réponse (une ligne par question dans la tentative).
+            // Y compris pour les questions laissées blanches : l'écran de
+            // correction doit les montrer, et le taux par domaine les compter.
+            $wpdb->insert( "{$p}reponse", [
+                'tentative_id' => $tentative_id,
+                'question_id'  => $ligne['question_id'],
+                'correcte'     => $ligne['correcte'] ? 1 : 0,
+            ] );
+            $reponse_id = $wpdb->insert_id;
+
+            // Enregistre chaque option cochée (gère le multi-réponses).
+            // Une question blanche n'en a aucune : c'est ce qui permet, plus
+            // tard, de distinguer « pas su » de « pas vue ».
+            foreach ( $ligne['options'] as $option_id ) {
+                $wpdb->insert( "{$p}reponse_option", [
+                    'reponse_id' => $reponse_id,
+                    'option_id'  => (int) $option_id,
+                ] );
+            }
+        }
 
         // Calcule le pourcentage par domaine (pour le tableau de bord).
         $domaines_pct = [];
@@ -248,9 +306,12 @@ class NPQ_Correcteur {
         global $wpdb;
         $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
 
+        // Ordre d'insertion, c'est-à-dire l'ordre des questions de la tentative :
+        // la numérotation « 1., 2., ... » du corrigé doit suivre celle du déroulé.
         $reponses = $wpdb->get_results( $wpdb->prepare(
             "SELECT id, question_id, correcte
-             FROM {$p}reponse WHERE tentative_id = %d",
+             FROM {$p}reponse WHERE tentative_id = %d
+             ORDER BY id ASC",
             $tentative_id
         ), ARRAY_A );
 

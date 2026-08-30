@@ -38,6 +38,10 @@
         }
     }
 
+    // Une seule requête d'étape à la fois : deux envois simultanés de
+    // « terminer » corrigeraient deux fois la même tentative.
+    var requeteEnCours = false;
+
     brancher();
 
     // Chronomètre : valeur initiale fournie par le serveur dans l'attribut data.
@@ -46,27 +50,56 @@
         demarrerChrono(boxChrono.getAttribute('data-restant'));
     }
 
-    /** (Re)branche les écouteurs sur le contenu courant. */
+    /**
+     * Branche les écouteurs — UNE SEULE FOIS, par délégation sur la zone.
+     *
+     * Pourquoi la délégation : à chaque étape, seul le contenu de la question
+     * est réécrit. La colonne de suivi (bouton « Terminer », pastilles) reste
+     * en place d'un bout à l'autre du déroulé. Rebrancher les écouteurs après
+     * chaque étape en ajoutait donc un de plus sur ces éléments survivants :
+     * après dix questions, un clic sur « Terminer » déclenchait onze appels à
+     * aller('terminer') d'un seul coup. Onze corrections partaient en
+     * parallèle, chacune enregistrant le jeu complet des réponses — d'où un
+     * écran de résultat comptant bien plus de réponses que de questions.
+     *
+     * Un écouteur posé sur la zone, elle jamais remplacée, ne peut pas
+     * s'accumuler : le problème devient structurellement impossible.
+     */
     function brancher() {
+        zone.addEventListener('click', surClicZone);
+    }
+
+    /** Aiguille un clic de la zone vers l'action correspondante. */
+    function surClicZone(e) {
+        var cible = e.target;
+        if (!cible || typeof cible.closest !== 'function') {
+            return;
+        }
+
         // Boutons de navigation (précédent / suivant / terminer).
-        var boutons = zone.querySelectorAll('[data-dest]');
-        boutons.forEach(function (btn) {
-            btn.addEventListener('click', function (e) {
-                e.preventDefault();
-                aller(btn.getAttribute('data-dest'));
-            });
-        });
+        // closest() peut remonter au-delà de la zone : on exige que l'élément
+        // trouvé lui appartienne bien, sinon un conteneur du thème portant par
+        // hasard un data-dest déclencherait une navigation.
+        var bouton = cible.closest('[data-dest]');
+        if (bouton && zone.contains(bouton)) {
+            e.preventDefault();
+            aller(bouton.getAttribute('data-dest'));
+            return;
+        }
 
         // Pastilles de la vue d'ensemble (saut direct).
-        var pastilles = zone.querySelectorAll('.npq-pastille');
-        pastilles.forEach(function (p) {
-            p.addEventListener('click', function (e) {
-                e.preventDefault();
-                aller(p.getAttribute('data-pos'));
-            });
-        });
+        var pastille = cible.closest('.npq-pastille');
+        if (pastille) {
+            e.preventDefault();
+            aller(pastille.getAttribute('data-pos'));
+            return;
+        }
 
-        brancherScenario();
+        // Zone scénario repliable.
+        var bascule = cible.closest('.npq-scen-bascule');
+        if (bascule) {
+            basculerScenario(bascule);
+        }
     }
 
     /**
@@ -74,23 +107,24 @@
      * la replie une fois lu. L'état est mémorisé par scénario, pour ne pas
      * avoir à replier à chaque question du même scénario.
      */
-    function brancherScenario() {
-        var bascule = document.getElementById('npq-scen-bascule');
-        var corps   = document.getElementById('npq-scen-corps');
-        if (!bascule || !corps) {
+    function basculerScenario(bascule) {
+        var corps = document.getElementById('npq-scen-corps');
+        if (!corps) {
             return;
         }
-        bascule.addEventListener('click', function () {
-            var ouvert = corps.classList.toggle('ouvert');
-            bascule.textContent = ouvert ? '[ − Replier ]' : '[ + Lire le scénario ]';
-            if (scenarioCourant) {
-                scenariosOuverts[scenarioCourant] = ouvert;
-            }
-        });
+        var ouvert = corps.classList.toggle('ouvert');
+        bascule.textContent = ouvert ? '[ − Replier ]' : '[ + Lire le scénario ]';
+        if (scenarioCourant) {
+            scenariosOuverts[scenarioCourant] = ouvert;
+        }
     }
 
     /** Envoie la réponse courante au serveur et va à la destination demandée. */
     function aller(destination) {
+        // Une étape à la fois. Sans ce verrou, un double clic sur « Terminer »
+        // enverrait deux corrections concurrentes de la même tentative.
+        if (requeteEnCours) { return; }
+
         var form = document.getElementById('npq-examen-form');
         if (!form) { return; }
 
@@ -115,6 +149,7 @@
         cochees.forEach(function (v) { data.append('options[]', v); });
 
         // Transition : on estompe pendant le chargement.
+        requeteEnCours = true;
         zone.style.opacity = '0.4';
         zone.style.pointerEvents = 'none';
 
@@ -137,12 +172,16 @@
                 }
                 // Mode révision : on montre d'abord la correction de la question
                 // qu'on vient de quitter, puis on passe à la suivante.
+                // (On rend la main au candidat : le verrou est levé. Sur une
+                //  fin de tentative il reste posé — la page part au résultat.)
                 if (rep.data.correction) {
+                    requeteEnCours = false;
                     montrerCorrection(rep.data.correction, function () {
                         afficher(rep.data);
                     });
                     return;
                 }
+                requeteEnCours = false;
                 afficher(rep.data);
             })
             .catch(function () {
@@ -272,7 +311,8 @@
             demarrerChrono(d.restant);
         }
 
-        brancher();
+        // Pas de rebranchement ici : l'écouteur de la zone, posé une fois au
+        // démarrage, couvre le contenu qu'on vient d'écrire.
         zone.style.opacity = '1';
         zone.style.pointerEvents = 'auto';
 
