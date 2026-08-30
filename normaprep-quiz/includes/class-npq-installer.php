@@ -784,4 +784,58 @@ class NPQ_Installer {
             ] );
         }
     }
+    /**
+     * Supprime les réponses enregistrées EN DOUBLE sur une même tentative.
+     *
+     * D'où venaient-elles : la colonne de suivi (bouton « Terminer », pastilles)
+     * survivait au remplacement du contenu de la question, mais le script lui
+     * rebranchait un écouteur de clic à chaque étape. Après dix questions, un
+     * clic sur « Terminer » lançait onze corrections simultanées ; le contrôle
+     * « déjà corrigée » se faisait par lecture préalable, que toutes
+     * traversaient. Chacune enregistrait le jeu complet des réponses.
+     *
+     * Conséquence visible : à la fin d'une révision, le corrigé détaillé
+     * comptait plus de réponses que de questions, et le taux par domaine
+     * comptait chaque question autant de fois qu'elle avait été enregistrée.
+     *
+     * Le score de la tentative, lui, reste juste : chaque passage corrigeait
+     * le même brouillon et écrivait le même pourcentage. Il n'y a donc rien à
+     * recalculer — seulement des lignes en trop à retirer.
+     *
+     * On garde la ligne de plus petit id pour chaque couple
+     * (tentative, question) : la première enregistrée.
+     *
+     * Idempotente : une seconde exécution ne trouve plus rien à supprimer.
+     *
+     * @return int Nombre de lignes de réponse supprimées.
+     */
+    public static function migration_reponses_dupliquees() {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        // 1) Les réponses en trop. La jointure ne retient que les lignes ayant
+        //    une jumelle plus ancienne sur la même tentative et la même
+        //    question — c'est-à-dire tout sauf la première.
+        $supprimees = (int) $wpdb->query(
+            "DELETE surplus
+             FROM {$p}reponse surplus
+             INNER JOIN {$p}reponse gardee
+                     ON gardee.tentative_id = surplus.tentative_id
+                    AND gardee.question_id  = surplus.question_id
+                    AND gardee.id           < surplus.id"
+        );
+
+        // 2) Les options cochées devenues orphelines. On les retire aussi
+        //    quelle que soit leur origine : une option rattachée à une réponse
+        //    qui n'existe plus n'est plus lisible par personne.
+        $wpdb->query(
+            "DELETE orphelines
+             FROM {$p}reponse_option orphelines
+             LEFT JOIN {$p}reponse r ON r.id = orphelines.reponse_id
+             WHERE r.id IS NULL"
+        );
+
+        return $supprimees;
+    }
+
 }

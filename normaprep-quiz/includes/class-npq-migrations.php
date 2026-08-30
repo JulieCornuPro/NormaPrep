@@ -70,6 +70,12 @@ class NPQ_Migrations {
             // WordPress refuse toute mise à jour de ces comptes, ce qui les
             // rendait impossibles à modifier — mot de passe compris.
             'nom_affiche_non_email' => [ 'NPQ_Installer', 'migration_nom_affiche_non_email' ],
+
+            // Retire les réponses enregistrées plusieurs fois sur une même
+            // tentative, quand une seule remise de copie déclenchait plusieurs
+            // corrections simultanées. Le corrigé d'une révision comptait alors
+            // plus de réponses que de questions.
+            'reponses_dupliquees' => [ 'NPQ_Installer', 'migration_reponses_dupliquees' ],
         ];
     }
 
