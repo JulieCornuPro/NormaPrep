@@ -38,6 +38,42 @@ class NPQ_Activite {
      */
     const FIABILITE_MIN = 5;
 
+    /**
+     * Nombre de semaines montrées par le calendrier d'assiduité.
+     *
+     * Six mois : c'est l'ordre de grandeur d'une préparation à la
+     * certification. Sur douze semaines la grille ne montrait que la poussée en
+     * cours, sans dire si elle succédait à un trimestre vide — et elle laissait
+     * les deux tiers du cadre inoccupés.
+     */
+    const SEMAINES_CALENDRIER = 26;
+
+    /**
+     * Nombre de jours travaillés en dessous duquel on n'affiche PAS le
+     * calendrier.
+     *
+     * Une grille de douze semaines presque vide ne renseigne sur rien : elle
+     * accuse. Un candidat qui vient de commencer verrait trois cases allumées
+     * sur quatre-vingt-quatre et en conclurait qu'il est en retard, ce que la
+     * donnée ne dit pas. En dessous du seuil on se contente de la date de
+     * dernière activité, qui est vraie sans être un jugement.
+     */
+    const JOURS_ACTIFS_MIN = 5;
+
+    /**
+     * Paliers d'intensité du calendrier, en questions répondues dans la
+     * journée.
+     *
+     * Fixes, et non calculés sur le maximum du candidat : une échelle relative
+     * rendrait deux visites incomparables et peindrait en couleur la plus vive
+     * la meilleure journée d'un candidat qui n'en a fait que dix. C'est
+     * exactement l'erreur que la courbe de progression a coûté à réparer.
+     * Les bornes correspondent à l'usage : une révision courte tourne autour de
+     * la dizaine de questions, un examen blanc complet en dépasse la
+     * cinquantaine.
+     */
+    const PALIERS_ASSIDUITE = [ 10, 25, 50 ];
+
     public static function init() {
         add_shortcode( 'npq_activite', [ __CLASS__, 'rendu' ] );
         add_action( 'wp_enqueue_scripts', [ __CLASS__, 'charger_script' ] );
@@ -358,6 +394,70 @@ class NPQ_Activite {
                         Vos efforts accumulés, examens et révisions confondus.
                     </p>
 
+                    <?php
+                    // Fenêtre du calendrier : on remonte jusqu'au lundi d'il y a
+                    // douze semaines, pour que la grille commence toujours en
+                    // haut d'une colonne pleine.
+                    //
+                    // current_time() et non date() : les dates de tentative sont
+                    // écrites avec current_time('mysql'), donc dans le fuseau du
+                    // site. Comparer à l'heure serveur décalerait les journées
+                    // d'un cran pour toute activité de fin de soirée.
+                    $aujourdhui   = current_time( 'Y-m-d' );
+                    $lundi_actuel = gmdate( 'Y-m-d', strtotime( 'monday this week', strtotime( $aujourdhui ) ) );
+                    $lundi_fenetre = gmdate(
+                        'Y-m-d',
+                        strtotime( $lundi_actuel . ' -' . ( self::SEMAINES_CALENDRIER - 1 ) . ' weeks' )
+                    );
+
+                    $assiduite = self::assiduite( $certification_id, $lundi_fenetre );
+
+                    // La grille ne commence jamais avant la première activité du
+                    // candidat : sinon un inscrit de la semaine verrait cinq
+                    // mois de cases éteintes antérieures à son arrivée.
+                    $lundi_depart = $lundi_fenetre;
+                    if ( ! empty( $assiduite['premiere'] ) ) {
+                        $lundi_premiere = gmdate(
+                            'Y-m-d',
+                            strtotime( 'monday this week', strtotime( gmdate( 'Y-m-d', strtotime( $assiduite['premiere'] ) ) ) )
+                        );
+                        if ( $lundi_premiere > $lundi_depart ) {
+                            $lundi_depart = $lundi_premiere;
+                        }
+                    }
+
+                    // Nombre de colonnes réellement tracées, entre ce lundi de
+                    // départ et la semaine en cours (incluse).
+                    $nb_semaines = 1 + (int) round(
+                        ( strtotime( $lundi_actuel ) - strtotime( $lundi_depart ) ) / ( 7 * 86400 )
+                    );
+
+                    $jours_actifs = count( $assiduite['jours'] );
+                    ?>
+
+                    <?php if ( $jours_actifs >= self::JOURS_ACTIFS_MIN ) : ?>
+                        <div class="npq-calendrier-cadre">
+                            <p class="npq-cal-titre">
+                                <?php echo (int) $jours_actifs; ?> jours travaillés
+                                <span class="npq-cal-sous">depuis
+                                le <?php echo esc_html( mysql2date( 'j F Y', $lundi_depart ) ); ?></span>
+                            </p>
+                            <?php echo self::calendrier_assiduite( $assiduite['jours'], $lundi_depart, $aujourdhui, $nb_semaines ); ?>
+                        </div>
+                    <?php elseif ( $assiduite['derniere'] ) : ?>
+                        <?php
+                        // Trop peu de jours travaillés pour qu'une grille de
+                        // douze semaines dise quelque chose. La date, elle, est
+                        // vraie et suffit.
+                        ?>
+                        <p class="npq-cal-repli">
+                            Dernière activité le
+                            <strong><?php echo esc_html( mysql2date( 'j F Y', $assiduite['derniere'] ) ); ?></strong>.
+                            Votre calendrier d'assiduité apparaîtra ici après
+                            <?php echo (int) self::JOURS_ACTIFS_MIN; ?> jours de travail.
+                        </p>
+                    <?php endif; ?>
+
                     <div class="npq-volume-grille">
                         <div class="npq-compteur"
                              data-valeur="<?php echo (int) $volume['questions']; ?>"
@@ -548,6 +648,183 @@ class NPQ_Activite {
             'sessions_examens'  => (int) ( $sessions['examens'] ?? 0 ),
             'sessions_revisions'=> (int) ( $sessions['revisions'] ?? 0 ),
         ];
+    }
+
+    /**
+     * Assiduité : combien de questions le candidat a réellement traitées chaque
+     * jour, sur la fenêtre du calendrier.
+     *
+     * INCLUT les révisions, comme le volume de travail : on mesure l'effort
+     * fourni, pas la performance. Et on applique la même règle qu'ailleurs —
+     * une question « traitée » est une question dont au moins une option a été
+     * cochée. Compter les copies blanches gonflerait l'assiduité de journées où
+     * le candidat n'a rien fait d'autre que lancer un examen.
+     *
+     * Renvoie [ 'jours' => [ 'AAAA-MM-JJ' => nb ], 'premiere' => …, 'derniere' => … ].
+     */
+    private static function assiduite( $certification_id, $debut ) {
+        $fiche = NPQ_Comptes::fiche_courante();
+        if ( ! $fiche ) {
+            return [ 'jours' => [], 'premiere' => null, 'derniere' => null ];
+        }
+
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $lignes = (array) $wpdb->get_results( $wpdb->prepare(
+            "SELECT DATE(t.date_debut) AS jour, COUNT(*) AS questions
+             FROM {$p}reponse r
+             INNER JOIN {$p}tentative t ON t.id = r.tentative_id
+             WHERE t.utilisateur_id = %d
+               AND t.certification_id = %d
+               AND t.date_fin IS NOT NULL
+               AND t.date_debut >= %s
+               AND EXISTS ( SELECT 1 FROM {$p}reponse_option ro
+                            WHERE ro.reponse_id = r.id )
+             GROUP BY DATE(t.date_debut)",
+            $fiche['id'],
+            $certification_id,
+            $debut . ' 00:00:00'
+        ), ARRAY_A );
+
+        $jours = [];
+        foreach ( $lignes as $l ) {
+            $jours[ $l['jour'] ] = (int) $l['questions'];
+        }
+
+        // La dernière activité est cherchée SANS borne de date : un candidat
+        // qui n'a rien fait depuis quatre mois doit lire « depuis le 12/04 »,
+        // pas « aucune activité » — c'est précisément l'information utile.
+        //
+        // La PREMIÈRE activité sert, elle, à ne pas remonter avant l'arrivée du
+        // candidat : une grille de six mois affichée à quelqu'un d'inscrit
+        // depuis deux semaines lui montrerait cinq mois de cases éteintes qui
+        // ne sont pas les siennes. Ce serait un reproche fabriqué.
+        $bornes = $wpdb->get_row( $wpdb->prepare(
+            "SELECT MIN(date_debut) AS premiere, MAX(date_debut) AS derniere
+             FROM {$p}tentative
+             WHERE utilisateur_id = %d
+               AND certification_id = %d
+               AND date_fin IS NOT NULL",
+            $fiche['id'],
+            $certification_id
+        ), ARRAY_A );
+
+        return [
+            'jours'    => $jours,
+            'premiere' => $bornes['premiere'] ?? null,
+            'derniere' => $bornes['derniere'] ?? null,
+        ];
+    }
+
+    /**
+     * Le calendrier d'assiduité : une case par jour, douze semaines en colonnes.
+     *
+     * Rendu en PHP et non en JavaScript, contrairement à la courbe : c'est une
+     * grille de cases, donc du CSS suffit. Le composant Carto.heatmap du thème
+     * ne convenait pas — sa gamme va du teal à l'orange avec le chaud pour le
+     * mauvais, alors qu'ici une journée chargée est une bonne nouvelle. Il
+     * aurait inversé le sens des couleurs.
+     *
+     * La semaine commence le lundi : les libellés de lignes sont écrits en dur
+     * dans cet ordre.
+     */
+    private static function calendrier_assiduite( $jours, $lundi_depart, $aujourdhui, $nb_semaines ) {
+        $jours_semaine = [ 'Lun', '', 'Mer', '', 'Ven', '', 'Dim' ];
+        $mois_courts   = [ 1 => 'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+                           'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.' ];
+
+        ob_start();
+        ?>
+        <div class="npq-calendrier" style="--npq-cal-semaines:<?php echo (int) $nb_semaines; ?>">
+            <!-- Seule la grille défile sur un écran étroit. La légende reste en
+                 dehors, et la colonne des jours reste collée à gauche : sans
+                 cela, le défilement emportait les deux repères qui permettent
+                 de lire la grille. -->
+            <div class="npq-cal-defile">
+            <div class="npq-cal-mois">
+                <?php
+                $mois_precedent = '';
+                for ( $sem = 0; $sem < $nb_semaines; $sem++ ) {
+                    $lundi = gmdate( 'Y-m-d', strtotime( $lundi_depart . ' +' . ( $sem * 7 ) . ' days' ) );
+                    $mois  = gmdate( 'n', strtotime( $lundi ) );
+                    // Le mois n'est écrit qu'au-dessus de la colonne où il
+                    // change : répété douze fois, il ferait un bandeau illisible.
+                    $libelle = ( $mois !== $mois_precedent ) ? $mois_courts[ (int) $mois ] : '';
+                    $mois_precedent = $mois;
+                    ?>
+                    <span><?php echo esc_html( $libelle ); ?></span>
+                    <?php
+                }
+                ?>
+            </div>
+
+            <div class="npq-cal-corps">
+                <div class="npq-cal-jours">
+                    <?php foreach ( $jours_semaine as $j ) : ?>
+                        <span><?php echo esc_html( $j ); ?></span>
+                    <?php endforeach; ?>
+                </div>
+
+                <div class="npq-cal-grille">
+                    <?php
+                    for ( $sem = 0; $sem < $nb_semaines; $sem++ ) {
+                        for ( $jour = 0; $jour < 7; $jour++ ) {
+                            $date = gmdate(
+                                'Y-m-d',
+                                strtotime( $lundi_depart . ' +' . ( $sem * 7 + $jour ) . ' days' )
+                            );
+
+                            // Les jours à venir ne sont pas des jours sans
+                            // travail : ils n'ont pas encore eu lieu. On garde
+                            // la place pour ne pas déformer la grille, sans
+                            // dessiner de case.
+                            if ( $date > $aujourdhui ) {
+                                echo '<span class="npq-cal-case npq-cal-futur"></span>';
+                                continue;
+                            }
+
+                            $nb      = isset( $jours[ $date ] ) ? (int) $jours[ $date ] : 0;
+                            $niveau  = self::niveau_assiduite( $nb );
+                            $lisible = mysql2date( 'j F Y', $date );
+                            $titre   = ( $nb > 0 )
+                                ? sprintf( '%s : %d question(s) traitée(s)', $lisible, $nb )
+                                : sprintf( '%s : aucune activité', $lisible );
+                            ?>
+                            <span class="npq-cal-case npq-cal-n<?php echo (int) $niveau; ?>"
+                                  title="<?php echo esc_attr( $titre ); ?>"></span>
+                            <?php
+                        }
+                    }
+                    ?>
+                </div>
+            </div>
+            </div>
+
+            <div class="npq-cal-legende">
+                <span>Moins</span>
+                <?php for ( $n = 0; $n <= 4; $n++ ) : ?>
+                    <i class="npq-cal-case npq-cal-n<?php echo $n; ?>"></i>
+                <?php endfor; ?>
+                <span>Plus</span>
+            </div>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
+
+    /** Palier d'intensité d'une journée, de 0 (rien) à 4 (grosse journée). */
+    private static function niveau_assiduite( $nb ) {
+        if ( $nb <= 0 ) {
+            return 0;
+        }
+        $niveau = 1;
+        foreach ( self::PALIERS_ASSIDUITE as $palier ) {
+            if ( $nb >= $palier ) {
+                $niveau++;
+            }
+        }
+        return $niveau;
     }
 
     /**

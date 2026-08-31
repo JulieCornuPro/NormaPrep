@@ -761,6 +761,113 @@
 }
 
 /* ---- Volume de travail : compteurs animés ---- */
+/* ---- Calendrier d'assiduité ----
+   Une case par jour, les semaines en colonnes. L'intensité dit le travail
+   fourni dans la journée : elle monte en teal, parce qu'ici une journée
+   chargée est une bonne nouvelle — c'est du fait, pas du reste à faire. */
+.npq-app .npq-calendrier-cadre{
+  background:var(--surface); border:1px solid var(--border);
+  border-left:3px solid var(--teal);
+  padding:22px 26px 20px; margin-bottom:22px;
+}
+.npq-app .npq-cal-titre{
+  font-family:'Inconsolata',monospace; font-size:12px; font-weight:700;
+  letter-spacing:0.12em; text-transform:uppercase; color:var(--text-lo);
+  margin:0 0 16px;
+}
+.npq-app .npq-cal-sous{
+  font-weight:400; letter-spacing:0.06em; text-transform:none;
+  color:var(--muted);
+}
+
+/* La largeur d'une colonne est la même partout : c'est elle qui aligne le
+   bandeau des mois sur la grille des jours. */
+.npq-app .npq-calendrier{
+  --npq-cal-case:20px;
+  --npq-cal-ecart:4px;
+  --npq-cal-gouttiere:34px;   /* colonne des libellés de jours */
+}
+/* Sur un petit écran on fait défiler plutôt que de déformer les cases. Seule
+   cette zone défile : la légende, en dehors, reste toujours visible. */
+.npq-app .npq-cal-defile{ overflow-x:auto; }
+/* Le nombre de colonnes est posé par PHP (--npq-cal-semaines) : la constante
+   SEMAINES_CALENDRIER est la seule source, ici comme là-bas. */
+.npq-app .npq-cal-mois,
+.npq-app .npq-cal-grille{
+  display:grid;
+  grid-template-columns:repeat(var(--npq-cal-semaines, 12), var(--npq-cal-case));
+  gap:var(--npq-cal-ecart);
+}
+.npq-app .npq-cal-mois{
+  margin-left:calc(var(--npq-cal-gouttiere) + var(--npq-cal-ecart));
+  margin-bottom:6px;
+}
+.npq-app .npq-cal-mois span{
+  font-family:'Inconsolata',monospace; font-size:10px;
+  letter-spacing:0.06em; color:var(--muted);
+  /* Le nom du mois est plus large qu'une colonne : on le laisse déborder vers
+     la droite sans pousser les colonnes suivantes. */
+  white-space:nowrap; overflow:visible;
+}
+.npq-app .npq-cal-corps{
+  display:flex; gap:var(--npq-cal-ecart); align-items:flex-start;
+  /* Aussi large que la grille, et non que la zone visible : une colonne collée
+     à gauche ne peut pas dépasser les bords de son parent, donc un parent
+     limité à l'écran l'emporterait hors champ dès le premier défilement. */
+  width:max-content;
+}
+.npq-app .npq-cal-jours{
+  display:grid; grid-template-rows:repeat(7, var(--npq-cal-case));
+  gap:var(--npq-cal-ecart);
+  width:var(--npq-cal-gouttiere); flex:none;
+  /* Collée à gauche pendant le défilement : sans les jours de la semaine, une
+     ligne de cases ne se lit pas. Le fond du cadre l'accompagne pour que les
+     cases passent dessous sans transparaître. */
+  position:sticky; left:0; z-index:1;
+  background:var(--surface);
+}
+.npq-app .npq-cal-jours span{
+  font-family:'Inconsolata',monospace; font-size:10px; color:var(--muted);
+  display:flex; align-items:center; justify-content:flex-end;
+  line-height:1;
+}
+/* Les jours se lisent de haut en bas dans une colonne, les colonnes de gauche
+   à droite : c'est l'ordre dans lequel le PHP les écrit. */
+.npq-app .npq-cal-grille{
+  grid-auto-flow:column;
+  grid-template-rows:repeat(7, var(--npq-cal-case));
+}
+.npq-app .npq-cal-case{
+  width:var(--npq-cal-case); height:var(--npq-cal-case);
+  border-radius:2px; display:block;
+}
+/* Jour sans travail : un creux, pas une alerte. */
+.npq-app .npq-cal-n0{ background:var(--bg-2); border:1px solid var(--border); }
+.npq-app .npq-cal-n1{ background:rgba(0,207,207,0.26); }
+.npq-app .npq-cal-n2{ background:rgba(0,207,207,0.45); }
+.npq-app .npq-cal-n3{ background:rgba(0,207,207,0.70); }
+.npq-app .npq-cal-n4{ background:var(--teal); }
+/* Un jour à venir n'est pas un jour sans travail : il occupe la place pour ne
+   pas déformer la grille, mais ne se dessine pas. */
+.npq-app .npq-cal-futur{ background:none; border:none; }
+
+.npq-app .npq-cal-legende{
+  display:flex; align-items:center; gap:4px; margin-top:14px;
+  font-family:'Inconsolata',monospace; font-size:10px; color:var(--muted);
+}
+.npq-app .npq-cal-legende span:first-child{ margin-right:4px; }
+.npq-app .npq-cal-legende span:last-child{ margin-left:4px; }
+.npq-app .npq-cal-legende i{ width:12px; height:12px; }
+
+/* Repli quand le calendrier n'a pas assez de jours pour dire quelque chose. */
+.npq-app .npq-cal-repli{
+  background:var(--surface); border:1px solid var(--border);
+  border-left:3px solid var(--teal);
+  padding:20px 26px; margin-bottom:22px;
+  color:var(--text-lo); font-size:15px; line-height:1.6;
+}
+.npq-app .npq-cal-repli strong{ color:var(--text); }
+
 .npq-app .npq-volume-grille{
   display:grid; grid-template-columns:repeat(4,1fr); gap:18px;
 }

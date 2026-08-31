@@ -20,6 +20,7 @@
     // La courbe ne dépend d'aucune bibliothèque : elle est tracée même si le
     // thème n'a pas chargé la sienne.
     dessinerProgression();
+    calerCalendrier();
 
     if (typeof Carto !== 'undefined') {
         dessinerPointsFaibles();
@@ -278,6 +279,21 @@
                     aire.style.fillOpacity = '0.12';
                 }
             });
+        }
+    }
+
+    /**
+     * Le calendrier d'assiduité est rendu par PHP ; il ne lui manque que ceci.
+     *
+     * Sur un écran étroit, six mois de colonnes débordent et la zone défile.
+     * Elle s'ouvre alors sur les semaines les plus anciennes — c'est-à-dire sur
+     * ce dont le candidat n'a que faire. On la cale d'emblée sur la semaine en
+     * cours, quitte à ce qu'il remonte le temps s'il le souhaite.
+     */
+    function calerCalendrier() {
+        var el = document.querySelector('.npq-cal-defile');
+        if (el) {
+            el.scrollLeft = el.scrollWidth;
         }
     }
 
