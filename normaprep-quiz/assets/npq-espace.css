@@ -929,15 +929,19 @@
 
 /* ---- Scénario repliable ---- */
 .npq-app .npq-scenario-box{
-  background:var(--surface); border:1px solid var(--border);
-  border-left:3px solid var(--teal);
+  /* Orange plutôt que teal : le scénario porte le contexte sans lequel l'énoncé
+     n'a pas de sens, il doit se voir avant qu'on lise la question. Le teal, lui,
+     reste réservé à ce qui est acquis. Le fond légèrement orangé reprend celui
+     de .npq-conseil : même registre, un encart qui demande à être lu. */
+  background:rgba(255,122,80,0.06); border:1px solid var(--border);
+  border-left:3px solid var(--orange);
   /* Padding vertical identique au panneau de suivi (18px) : les deux colonnes
      s'alignent alors exactement en haut. */
   padding:18px 20px; margin-bottom:20px;
 }
 .npq-app .npq-scen-titre{
   font-family:'Inconsolata',monospace; font-size:11px;
-  letter-spacing:0.18em; text-transform:uppercase; color:var(--teal);
+  letter-spacing:0.18em; text-transform:uppercase; color:var(--orange);
   line-height:1.5;
 }
 .npq-app .npq-scen-corps{
@@ -949,7 +953,7 @@
 .npq-app .npq-scen-bascule{
   display:inline-block; margin-top:8px;
   font-family:'Inconsolata',monospace; font-size:11px;
-  letter-spacing:0.1em; color:var(--teal); cursor:pointer; opacity:0.75;
+  letter-spacing:0.1em; color:var(--orange); cursor:pointer; opacity:0.75;
   transition:opacity .15s var(--ease);
 }
 .npq-app .npq-scen-bascule:hover{ opacity:1; }
