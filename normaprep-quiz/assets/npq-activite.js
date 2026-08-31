@@ -2,20 +2,29 @@
  * Page Activité NormaPrep : alimente les composants dynamiques du thème
  * (bibliothèque Carto) avec les vraies données du candidat.
  *
- * On ne réinvente pas de graphiques : le thème fournit déjà sparkline, barChart,
- * gauge… avec leurs animations. On se contente de leur passer les données.
+ * Les barres et les compteurs viennent du thème : ils font exactement ce qu'on
+ * leur demande. La courbe de progression, elle, est tracée ici — voir le
+ * commentaire de dessinerProgression() pour la raison.
  */
 (function () {
     'use strict';
 
-    // La bibliothèque du thème doit être chargée.
-    if (typeof Carto === 'undefined') {
-        return;
-    }
+    var EASE = 'cubic-bezier(0.16,1,0.3,1)';
+    var NS = 'http://www.w3.org/2000/svg';
 
+    // Les couleurs sont lues sur la coquille de l'espace membre plutôt que
+    // recopiées : elles y sont déjà définies en jetons, et deux listes de
+    // couleurs finissent toujours par diverger.
+    var COUL = lireCouleurs();
+
+    // La courbe ne dépend d'aucune bibliothèque : elle est tracée même si le
+    // thème n'a pas chargé la sienne.
     dessinerProgression();
-    dessinerPointsFaibles();
-    dessinerVolume();
+
+    if (typeof Carto !== 'undefined') {
+        dessinerPointsFaibles();
+        dessinerVolume();
+    }
 
     /**
      * Volume de travail : compteurs qui s'incrémentent à l'apparition.
@@ -77,7 +86,19 @@
 
     /**
      * Courbe de progression : les scores des derniers examens.
-     * Utilise le composant « sparkline » du thème (tracé animé, zone remplie).
+     *
+     * Tracée ici plutôt que par Carto.sparkline. Un sparkline est fait pour
+     * suggérer une tendance dans un espace minuscule : il n'a ni échelle, ni
+     * valeurs, ni repère. Sur cette page il mentait deux fois.
+     *
+     * D'abord il cadrait l'axe vertical sur le minimum et le maximum des
+     * scores, jamais sur 0–100. Le plus bas touchait donc toujours le sol et le
+     * plus haut toujours le plafond : 68, 70, 72 dessinait la même envolée que
+     * 20, 50, 90. Ensuite il ne montrait pas le seuil de réussite, alors que
+     * c'est la seule ligne qui décide de quoi que ce soit pour un candidat.
+     *
+     * L'échelle est donc fixée à 0–100, le seuil est tracé, et chaque score est
+     * écrit à côté de son point.
      */
     function dessinerProgression() {
         var el = document.getElementById('npq-courbe-progression');
@@ -85,25 +106,298 @@
             return;
         }
 
-        var scores = lireDonnees(el, 'scores');
-        if (!scores || scores.length === 0) {
+        var points = lireDonnees(el, 'points');
+        if (!points || points.length === 0) {
             return;
         }
 
-        // Une seule valeur : le sparkline a besoin d'au moins deux points pour
-        // tracer une ligne. On duplique le point pour afficher un trait plat.
-        if (scores.length === 1) {
-            scores = [scores[0], scores[0]];
+        var seuil = parseInt(el.getAttribute('data-seuil'), 10);
+        if (isNaN(seuil)) {
+            seuil = 70;
         }
 
-        Carto.sparkline(el, {
-            points: scores,
-            width: 720,
-            // Hauteur volontairement contenue : sur une page de KPI, on veut
-            // embrasser plusieurs indicateurs d'un coup d'œil, pas scroller.
-            height: 120,
-            color: Carto.colors.TEAL
+        // Largeur du dernier tracé, pour ne redessiner que si elle a bougé.
+        var largeurRendue = 0;
+
+        tracer();
+
+        // Le passage paysage/portrait change la largeur sans recharger la page.
+        // On ne redessine qu'au-delà d'un écart net : sinon la barre d'adresse
+        // d'un téléphone, qui se replie au défilement, relancerait l'animation.
+        window.addEventListener('resize', function () {
+            if (Math.abs(mesurerLargeur() - largeurRendue) > 40) {
+                tracer();
+            }
         });
+
+        function mesurerLargeur() {
+            return Math.round(el.clientWidth) || 720;
+        }
+
+        function tracer() {
+            // Le viewBox est calé sur la largeur réelle du conteneur pour que
+            // ses unités valent des pixels : un dessin de 720 de large réduit à
+            // 340 sur un téléphone afficherait des libellés à moitié de leur
+            // taille, donc illisibles.
+            var W = Math.max(300, mesurerLargeur());
+            largeurRendue = W;
+
+            var H = 240;
+            // Marges : à gauche les graduations (« 100 % »), en bas les dates,
+            // en haut la place d'écrire un score au-dessus de son point.
+            var mG = 46, mD = 14, mH = 22, mB = 34;
+            var x0 = mG, x1 = W - mD, y0 = mH, y1 = H - mB;
+
+            // Échelle FIXE de 0 à 100. C'est elle qui rend deux visites
+            // comparables, et un gain de 2 points visiblement petit.
+            function y(v) {
+                return y1 - (Math.max(0, Math.min(100, v)) / 100) * (y1 - y0);
+            }
+            function x(i) {
+                return points.length === 1
+                    ? (x0 + x1) / 2
+                    : x0 + i * (x1 - x0) / (points.length - 1);
+            }
+
+            var s = creer('svg', {
+                viewBox: '0 0 ' + W + ' ' + H,
+                width: '100%',
+                role: 'img',
+                'aria-label': resumeAccessible(points, seuil),
+                style: 'display:block'
+            });
+
+            // --- Graduations : une ligne tous les 25 points ---
+            [0, 25, 50, 75, 100].forEach(function (v) {
+                s.appendChild(creer('line', {
+                    x1: x0, y1: y(v), x2: x1, y2: y(v),
+                    stroke: COUL.border, 'stroke-width': 1
+                }));
+                // Le seuil écrit dans la même colonne : une graduation trop
+                // proche se superposerait à lui. C'est le seuil qui prime.
+                if (Math.abs(y(v) - y(seuil)) < 13) {
+                    return;
+                }
+                s.appendChild(texte(x0 - 8, y(v) + 4, v + ' %', {
+                    fill: COUL.muted, 'text-anchor': 'end', 'font-size': '11'
+                }));
+            });
+
+            // --- Ligne de seuil : la seule qui décide de la réussite ---
+            s.appendChild(creer('line', {
+                x1: x0, y1: y(seuil), x2: x1, y2: y(seuil),
+                stroke: COUL.amber, 'stroke-width': 1.5, 'stroke-dasharray': '5 4'
+            }));
+            // Le seuil est chiffré dans la colonne des graduations, pas posé sur
+            // le tracé : partout ailleurs il finissait par recouvrir un score.
+            // Et c'est bien sa place — le seuil EST une graduation, celle qui
+            // décide. La légende sous le titre dit ce que l'ambre signifie.
+            s.appendChild(texte(x0 - 8, y(seuil) + 4, seuil + ' %', {
+                fill: COUL.amber, 'text-anchor': 'end', 'font-size': '11',
+                'font-weight': '700'
+            }));
+
+            // --- Aire et ligne : il faut deux points pour tracer un trait ---
+            var aire = null, ligne = null;
+            if (points.length > 1) {
+                var trace = points.map(function (p, i) {
+                    return (i ? 'L' : 'M') + x(i) + ',' + y(p.score);
+                }).join(' ');
+
+                aire = creer('path', {
+                    d: trace + ' L' + x(points.length - 1) + ',' + y1 + ' L' + x(0) + ',' + y1 + ' Z',
+                    fill: COUL.teal, 'fill-opacity': 0,
+                    style: 'transition:fill-opacity 1s ' + EASE
+                });
+                s.appendChild(aire);
+
+                ligne = creer('path', {
+                    d: trace, fill: 'none', stroke: COUL.teal, 'stroke-width': 2.5,
+                    'stroke-linecap': 'round', 'stroke-linejoin': 'round'
+                });
+                s.appendChild(ligne);
+            }
+
+            // --- Points et scores ---
+            // Un score « 78 » tient dans une trentaine de pixels, une date
+            // « 31/08 » dans une soixantaine : les deux séries de libellés ne
+            // s'espacent donc pas au même rythme.
+            var pasScores = pasAffichage(points.length, x1 - x0, 34);
+            var pasDates  = pasAffichage(points.length, x1 - x0, 62);
+
+            points.forEach(function (p, i) {
+                // Teal au-dessus du seuil, orange en dessous : la couleur dit
+                // l'état de CHAQUE examen, ce que la ligne seule ne peut pas.
+                var coul = p.score >= seuil ? COUL.teal : COUL.orange;
+
+                s.appendChild(creer('circle', {
+                    cx: x(i), cy: y(p.score), r: 4,
+                    fill: COUL.surface, stroke: coul, 'stroke-width': 2
+                }));
+
+                // Le score passe sous son point quand celui-ci frôle le haut du
+                // cadre, sinon il sortirait du dessin. Il s'écrit sans « % » :
+                // l'unité est déjà portée par les graduations, et la répéter
+                // dix fois double la largeur de chaque libellé — c'est ce qui
+                // les faisait se chevaucher sur un téléphone.
+                if (garder(i, points.length, pasScores)) {
+                    s.appendChild(texte(
+                        x(i), y(p.score) + (p.score > 92 ? 18 : -11),
+                        String(p.score),
+                        { fill: coul, 'text-anchor': ancrage(i, points.length),
+                          'font-size': '12', 'font-weight': '700' }
+                    ));
+                }
+
+                if (garder(i, points.length, pasDates)) {
+                    s.appendChild(texte(x(i), H - 12, p.date, {
+                        fill: COUL.muted, 'text-anchor': ancrage(i, points.length),
+                        'font-size': '11'
+                    }));
+                }
+            });
+
+            el.innerHTML = '';
+            el.appendChild(s);
+
+            // L'animation ne peut être réglée qu'une fois le tracé dans le
+            // document : getTotalLength() ne répond pas sur un noeud détaché.
+            // On mesure la longueur réelle plutôt que d'en deviner une : un
+            // chemin plus long que la valeur supposée resterait tronqué.
+            if (ligne) {
+                var longueur = ligne.getTotalLength();
+                ligne.setAttribute('stroke-dasharray', longueur);
+                ligne.setAttribute('stroke-dashoffset', longueur);
+                ligne.style.transition = 'stroke-dashoffset 1.4s ' + EASE;
+            }
+            auVue(el, function () {
+                if (ligne) {
+                    ligne.setAttribute('stroke-dashoffset', 0);
+                }
+                if (aire) {
+                    aire.style.fillOpacity = '0.12';
+                }
+            });
+        }
+    }
+
+    /* ==================================================================
+     * Petits outils de tracé
+     * ================================================================== */
+
+    function creer(balise, attributs) {
+        var e = document.createElementNS(NS, balise);
+        for (var k in attributs) {
+            if (Object.prototype.hasOwnProperty.call(attributs, k)) {
+                e.setAttribute(k, attributs[k]);
+            }
+        }
+        return e;
+    }
+
+    /** Un libellé du graphique : toujours en monospace, comme le reste du site. */
+    function texte(x, y, contenu, attributs) {
+        var e = creer('text', attributs || {});
+        e.setAttribute('x', x);
+        e.setAttribute('y', y);
+        e.setAttribute('font-family', 'Inconsolata, monospace');
+        e.textContent = contenu;
+        return e;
+    }
+
+    /**
+     * Déclenche à l'entrée dans l'écran, comme les composants du thème. Sans
+     * IntersectionObserver, on joue tout de suite : mieux vaut une courbe sans
+     * animation qu'une courbe invisible.
+     */
+    function auVue(el, cb) {
+        if (typeof IntersectionObserver === 'undefined') {
+            cb();
+            return;
+        }
+        var io = new IntersectionObserver(function (entrees) {
+            entrees.forEach(function (e) {
+                if (e.isIntersecting) {
+                    cb();
+                    io.unobserve(el);
+                }
+            });
+        }, { threshold: 0.25 });
+        io.observe(el);
+    }
+
+    /**
+     * Les jetons de couleur de la coquille (.npq-app). Les valeurs de repli ne
+     * servent que si la feuille de style n'a pas encore été appliquée.
+     */
+    function lireCouleurs() {
+        var cible = document.querySelector('.npq-app') || document.documentElement;
+        var style = window.getComputedStyle(cible);
+
+        function jeton(nom, repli) {
+            var v = style.getPropertyValue(nom);
+            return v ? v.trim() || repli : repli;
+        }
+
+        return {
+            teal:    jeton('--teal', '#00CFCF'),
+            orange:  jeton('--orange', '#FF7A50'),
+            amber:   jeton('--amber', '#E8B84B'),
+            border:  jeton('--border', '#1F2A3D'),
+            muted:   jeton('--muted', '#4B5875'),
+            surface: jeton('--surface', '#111827')
+        };
+    }
+
+    /**
+     * Combien de points sauter entre deux libellés pour qu'ils ne se
+     * chevauchent pas, sachant la largeur disponible et celle d'un libellé.
+     */
+    function pasAffichage(nb, largeur, largeurLibelle) {
+        if (nb <= 1) {
+            return 1;
+        }
+        var tenables = Math.max(1, Math.floor(largeur / largeurLibelle));
+        return Math.max(1, Math.ceil(nb / tenables));
+    }
+
+    /**
+     * Les points extrêmes sont posés pile sur les bords du tracé : un libellé
+     * centré y déborderait, à gauche dans la colonne des graduations, à droite
+     * hors du dessin. On les aligne donc vers l'intérieur.
+     */
+    function ancrage(i, nb) {
+        if (nb <= 1) {
+            return 'middle';
+        }
+        if (i === 0) {
+            return 'start';
+        }
+        return i === nb - 1 ? 'end' : 'middle';
+    }
+
+    /** Ce point porte-t-il un libellé, au rythme donné ? */
+    function garder(i, nb, pas) {
+        if (nb <= 1 || pas === 1) {
+            return true;
+        }
+        // Le dernier prime sur le rythme : c'est l'examen le plus récent, celui
+        // que le candidat vient chercher. Un libellé qui tomberait juste avant
+        // lui est donc abandonné plutôt que de s'y coller.
+        if (i === nb - 1) {
+            return true;
+        }
+        if (i % pas !== 0) {
+            return false;
+        }
+        return (nb - 1 - i) >= pas;
+    }
+
+    /** Résumé lu par les lecteurs d'écran : un SVG ne se raconte pas tout seul. */
+    function resumeAccessible(points, seuil) {
+        var scores = points.map(function (p) { return p.score + ' %'; }).join(', ');
+        return 'Scores des examens, du plus ancien au plus récent : ' + scores
+            + '. Seuil de réussite : ' + seuil + ' %.';
     }
 
     /** Lit un tableau JSON depuis un attribut data- de l'élément. */

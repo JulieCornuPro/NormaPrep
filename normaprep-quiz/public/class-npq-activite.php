@@ -6,8 +6,11 @@
  *   « Suis-je en progrès ? »  -> courbe des scores dans le temps.
  *   « Sur quoi travailler ? » -> points faibles par domaine (à venir).
  *
- * Réutilise les composants dynamiques du thème (Carto.sparkline, etc.) pour
- * rester cohérent visuellement et éviter d'ajouter une bibliothèque.
+ * Réutilise les composants dynamiques du thème (Carto.barChart, Carto.counter)
+ * pour rester cohérent visuellement et éviter d'ajouter une bibliothèque. La
+ * courbe de progression fait exception : elle demande une échelle et des
+ * valeurs chiffrées, ce qu'aucun composant du thème ne sait faire. Elle est
+ * tracée par npq-activite.js, qui explique pourquoi.
  *
  * @package NormaPrep_Quiz
  */
@@ -71,7 +74,7 @@ class NPQ_Activite {
         wp_enqueue_script(
             'npq-activite',
             NPQ_URL . 'assets/npq-activite.js',
-            // Dépend de la bibliothèque de composants du thème (Carto.sparkline…) :
+            // Dépend de la bibliothèque de composants du thème (Carto.barChart…) :
             // WordPress garantit ainsi qu'elle est chargée avant notre script.
             [ 'carto-components' ],
             NPQ_VERSION,
@@ -111,9 +114,20 @@ class NPQ_Activite {
 
         $chiffres = self::chiffres_cles( $examens );
 
-        // Les scores, du plus ancien au plus récent (sens de lecture de la courbe).
-        $scores = array_map( function ( $e ) {
-            return (int) $e['score'];
+        // Le seuil sert deux fois : la ligne de référence tracée dans la courbe
+        // et l'écart affiché plus bas. On le lit une seule fois.
+        $seuil_reussite = self::seuil_reussite();
+
+        // Les points de la courbe, du plus ancien au plus récent (sens de
+        // lecture). La date accompagne le score : sans elle, l'axe horizontal
+        // ne dit pas sur quelle période la progression s'est jouée — deux
+        // examens passés le même jour et deux examens espacés d'un mois se
+        // lisaient exactement pareil.
+        $points = array_map( function ( $e ) {
+            return [
+                'score' => (int) $e['score'],
+                'date'  => mysql2date( 'd/m', $e['date_debut'] ),
+            ];
         }, array_reverse( $examens ) );
 
         ob_start();
@@ -131,12 +145,15 @@ class NPQ_Activite {
                 <div class="sec-title">Ma progression</div>
                 <p class="npq-kpi-aide">
                     Scores de vos <?php echo count( $examens ); ?> derniers examens,
-                    du plus ancien au plus récent.
+                    du plus ancien au plus récent. La ligne ambre marque le seuil
+                    de réussite : en teal les examens qui l'atteignent, en orange
+                    ceux qui restent en dessous.
                 </p>
 
                 <div class="npq-courbe-cadre">
                     <div id="npq-courbe-progression"
-                         data-scores="<?php echo esc_attr( wp_json_encode( $scores ) ); ?>"></div>
+                         data-points="<?php echo esc_attr( wp_json_encode( $points ) ); ?>"
+                         data-seuil="<?php echo (int) $seuil_reussite; ?>"></div>
                 </div>
 
                 <div class="npq-chiffres-cles">
@@ -166,7 +183,9 @@ class NPQ_Activite {
                     // rechutes. Surtout, la question qui décide de tout est
                     // binaire — suis-je au-dessus du seuil ? — et aucun
                     // indicateur n'y répondait.
-                    $seuil_reussite = self::seuil_reussite();
+                    //
+                    // $seuil_reussite est lu plus haut : la courbe en trace la
+                    // ligne de référence, ce chiffre en donne l'écart.
                     $ecart  = (int) $chiffres['dernier'] - $seuil_reussite;
                     $classe = ( $ecart >= 0 ) ? 'hausse' : 'baisse';
                     $signe  = ( $ecart > 0 ) ? '+' : '';

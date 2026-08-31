@@ -14,6 +14,10 @@
   --teal-dim:rgba(0,207,207,0.12);
   --orange:#FF7A50;
   --orange-dim:rgba(255,122,80,0.12);
+  /* Ambre du thème CARTO : ce qui n'est pas encore acquis mais qui est visé —
+     la ligne de seuil de la courbe de progression. Ni teal (acquis), ni orange
+     (échec) : un objectif. */
+  --amber:#E8B84B;
   --green:#4ADE80;
   --text:#E7ECF5;
   --text-lo:#8B98B3;
@@ -650,10 +654,11 @@
   border-left:3px solid var(--teal);
   padding:24px 28px 18px; margin-bottom:26px;
 }
-/* Le composant du thème produit un SVG en largeur 100% : sans contrainte, il
-   s'étire en hauteur proportionnellement. On borne la hauteur affichée. */
+/* La courbe cale son viewBox sur la largeur du conteneur (voir
+   npq-activite.js) : à 100% de large, elle fait donc exactement 240px de haut.
+   Le plafond n'est là que pour la borner si ce calcul devait dériver. */
 .npq-app .npq-courbe-cadre svg{
-  max-height:170px;
+  max-height:240px;
 }
 
 /* Chiffres clés sous la courbe (composants .stat-block du thème) */
