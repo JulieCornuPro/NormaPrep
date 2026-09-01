@@ -42,6 +42,20 @@ class NPQ_Activite {
     const FIABILITE_MIN = 5;
 
     /**
+     * Nombre d'examens en dessous duquel la constance ne veut rien dire.
+     *
+     * Deux examens ne font pas une régularité : le chiffre reste affiché, mais
+     * sans couleur qui le commente.
+     */
+    const CONSTANCE_MIN = 3;
+
+    /**
+     * Part des examens au-dessus du seuil à partir de laquelle on parle d'un
+     * niveau tenu. Quatre sur cinq n'est plus de l'irrégularité.
+     */
+    const CONSTANCE_SOLIDE = 0.8;
+
+    /**
      * Nombre de semaines montrées par le calendrier d'assiduité.
      *
      * Six mois : c'est l'ordre de grandeur d'une préparation à la
@@ -153,11 +167,12 @@ class NPQ_Activite {
             return self::ecran_vide( $selecteur );
         }
 
-        $chiffres = self::chiffres_cles( $examens );
-
-        // Le seuil sert deux fois : la ligne de référence tracée dans la courbe
-        // et l'écart affiché plus bas. On le lit une seule fois.
+        // Le seuil sert trois fois : la ligne de référence tracée dans la
+        // courbe, le compte des examens qui l'atteignent, et l'écart affiché
+        // plus bas. On le lit une seule fois.
         $seuil_reussite = self::seuil_reussite();
+
+        $chiffres = self::chiffres_cles( $examens, $seuil_reussite );
 
         // Les points de la courbe, du plus ancien au plus récent (sens de
         // lecture). La date accompagne le score : sans elle, l'axe horizontal
@@ -206,12 +221,14 @@ class NPQ_Activite {
                         <div class="stat-block__sub"><?php echo esc_html( $chiffres['date_dernier'] ); ?></div>
                     </div>
 
+                    <?php $constance = self::constance( $chiffres['au_dessus'], $chiffres['total'] ); ?>
                     <div class="stat-block">
-                        <div class="stat-block__value">
-                            <?php echo (int) $chiffres['meilleur']; ?><span class="accent">%</span>
+                        <div class="stat-block__value npq-ev-<?php echo esc_attr( $constance['classe'] ); ?>">
+                            <?php echo (int) $chiffres['au_dessus']; ?><span class="accent">/<?php
+                                echo (int) $chiffres['total']; ?></span>
                         </div>
-                        <div class="stat-block__label">Meilleur score</div>
-                        <div class="stat-block__sub">Votre record</div>
+                        <div class="stat-block__label">Examens au-dessus du seuil</div>
+                        <div class="stat-block__sub"><?php echo esc_html( $constance['texte'] ); ?></div>
                     </div>
 
                     <?php
@@ -1142,25 +1159,79 @@ class NPQ_Activite {
      * Chiffres clés autour de la courbe.
      *
      * - dernier   : score du dernier examen (« où j'en suis »).
-     * - meilleur  : record personnel (« ce dont je suis capable »).
+     * - au_dessus : combien de ces examens atteignent le seuil (« est-ce que
+     *               je tiens ce niveau, ou l'ai-je touché une fois ? »).
      *
-     * L'écart au seuil de réussite est calculé à l'affichage, à partir de
-     * « dernier » : il dépend d'un réglage administrable, pas de l'historique.
+     * Ce deuxième chiffre remplace le meilleur score. Un record est un trophée,
+     * et il peut dater de six mois ; surtout, la courbe juste au-dessus le
+     * montre déjà. Il ne disait rien que les deux autres chiffres ne disent, et
+     * ceux-ci portent tous deux sur le dernier examen — l'écart au seuil n'en
+     * est que la soustraction. La constance, elle, dit ce qu'aucun ne dit :
+     * passer le seuil une fois sur cinq, ce n'est pas être prêt.
+     *
+     * Le décompte porte sur les mêmes examens que la courbe, pour que le
+     * dénominateur corresponde aux points tracés.
+     *
+     * L'écart au seuil est calculé à l'affichage, à partir de « dernier » : il
+     * dépend d'un réglage administrable, pas de l'historique.
      *
      * On n'affiche pas la moyenne ici : elle est sur le tableau de bord, et sur une
      * page de progression une moyenne écrase justement la progression.
      */
-    private static function chiffres_cles( $examens ) {
+    private static function chiffres_cles( $examens, $seuil ) {
         // $examens est trié du plus récent au plus ancien.
         $dernier = (int) $examens[0]['score'];
 
-        $scores = array_map( function ( $e ) { return (int) $e['score']; }, $examens );
-        $meilleur = max( $scores );
+        $au_dessus = 0;
+        foreach ( $examens as $e ) {
+            if ( (int) $e['score'] >= $seuil ) {
+                $au_dessus++;
+            }
+        }
 
         return [
             'dernier'      => $dernier,
-            'meilleur'     => $meilleur,
+            'au_dessus'    => $au_dessus,
+            'total'        => count( $examens ),
             'date_dernier' => mysql2date( 'd/m/Y', $examens[0]['date_debut'] ),
         ];
+    }
+
+    /**
+     * Ce que vaut la constance : une classe de couleur et une phrase.
+     *
+     * Trois écueils, tous rencontrés en éprouvant les cas limites :
+     *
+     * 1. En dessous de trois examens il n'y a pas de constance à mesurer. Le
+     *    chiffre reste affiché — il est vrai — mais en gris : un « 1/1 » en
+     *    vert annoncerait comme acquis ce qui tient à un seul tirage, et le
+     *    vert, comme le teal, ne doit jamais annoncer ce qui ne l'est pas.
+     * 2. Tout n'est pas « ou bien parfait, ou bien irrégulier ». Neuf examens
+     *    sur dix au-dessus du seuil est une belle régularité ; un premier
+     *    découpage la rangeait avec le trois sur cinq.
+     * 3. Le sans-faute mérite sa propre phrase : « presque à chaque fois » se
+     *    dit mal quand c'est à chaque fois.
+     */
+    private static function constance( $au_dessus, $total ) {
+        if ( $total < self::CONSTANCE_MIN ) {
+            return [
+                'classe' => 'stable',
+                'texte'  => "Encore trop peu d'examens pour juger",
+            ];
+        }
+
+        if ( $au_dessus === $total ) {
+            return [ 'classe' => 'hausse', 'texte' => 'Vous tenez le niveau à chaque fois' ];
+        }
+
+        $part = $au_dessus / $total;
+
+        if ( $part >= self::CONSTANCE_SOLIDE ) {
+            return [ 'classe' => 'hausse', 'texte' => 'Vous tenez le niveau presque à chaque fois' ];
+        }
+        if ( $part >= 0.5 ) {
+            return [ 'classe' => 'partiel', 'texte' => 'Un résultat encore irrégulier' ];
+        }
+        return [ 'classe' => 'baisse', 'texte' => "Le seuil n'est pas encore acquis" ];
     }
 }

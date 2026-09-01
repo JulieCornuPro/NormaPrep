@@ -681,6 +681,9 @@
 .npq-app .npq-ev-hausse{ color:var(--green) !important; }
 .npq-app .npq-ev-baisse{ color:var(--orange) !important; }
 .npq-app .npq-ev-stable{ color:var(--text-lo) !important; }
+/* Ni acquis ni manqué : le seuil est tenu une fois sur deux. L'ambre dit
+   exactement cela — en cours, il faut continuer. */
+.npq-app .npq-ev-partiel{ color:var(--amber) !important; }
 
 /* Écran vide (aucun examen encore passé) */
 .npq-app .npq-act-vide{

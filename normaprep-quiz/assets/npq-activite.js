@@ -340,11 +340,40 @@
      * Elle s'ouvre alors sur les semaines les plus anciennes — c'est-à-dire sur
      * ce dont le candidat n'a que faire. On la cale d'emblée sur la semaine en
      * cours, quitte à ce qu'il remonte le temps s'il le souhaite.
+     *
+     * Et on refait ce calage si la grille se met à déborder plus tard : en
+     * passant du format bureau au format mobile, elle n'était calée que par le
+     * chargement de la page, donc restée sur mars.
      */
     function calerCalendrier() {
         var el = document.querySelector('.npq-cal-defile');
-        if (el) {
-            el.scrollLeft = el.scrollWidth;
+        if (!el) {
+            return;
+        }
+
+        var debordait = false;
+
+        caler();
+
+        // Même observateur que la courbe, pour la même raison : la barre
+        // latérale met 300 ms à retrouver sa largeur, et un événement de
+        // fenêtre serait tiré trop tôt.
+        if (typeof ResizeObserver !== 'undefined') {
+            new ResizeObserver(caler).observe(el);
+        }
+
+        function caler() {
+            var deborde = el.scrollWidth > el.clientWidth + 1;
+
+            // On ne recale QUE lorsque la grille se met à déborder. Si elle
+            // débordait déjà, le candidat a pu la faire défiler lui-même pour
+            // regarder un mois passé : le ramener de force sur aujourd'hui
+            // parce qu'il a tourné son téléphone lui reprendrait ce qu'il
+            // vient de chercher.
+            if (deborde && !debordait) {
+                el.scrollLeft = el.scrollWidth;
+            }
+            debordait = deborde;
         }
     }
 
