@@ -6,6 +6,10 @@
       "libelle": "Transverse",
       "description": "Scénario volontairement non sectoriel : gouvernance, programme, méthode. Inclus par défaut dans tous les parcours."
     },
+    "associatif": {
+      "libelle": "Associations et ONG",
+      "description": "Organisations à but non lucratif, ONG, secteur humanitaire et social."
+    },
     "industrie": {
       "libelle": "Industrie et production",
       "description": "Fabrication, chaînes de production, systèmes industriels et ateliers connectés."
