@@ -759,8 +759,16 @@
 .npq-app .npq-conseil .npq-btn:hover{
   transform:translateY(-2px); box-shadow:0 10px 24px rgba(0,207,207,0.25);
 }
+/* Conseil de découverte : ambre, et non l'orange du conseil de révision.
+   L'orange annonce un échec — n'avoir jamais ouvert un domaine n'en est pas
+   un, c'est un chapitre qui reste à commencer. Même distinction que les
+   pointillés de la liste juste au-dessus. */
+.npq-app .npq-conseil-decouverte{
+  background:rgba(232,184,75,0.06);
+  border-left-color:var(--amber);
+  margin-top:20px;
+}
 
-/* ---- Volume de travail : compteurs animés ---- */
 /* ---- Calendrier d'assiduité ----
    Une case par jour, les semaines en colonnes. L'intensité dit le travail
    fourni dans la journée : elle monte en teal, parce qu'ici une journée

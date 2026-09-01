@@ -356,22 +356,8 @@ class NPQ_Activite {
                             break; // la liste est déjà triée du plus faible au plus fort
                         }
                     }
-                    $url_revision = get_option( 'npq_page_revision_id' );
-
-                    // Le lien porte le domaine ET la certification, pour que la
-                    // page Révisions arrive pré-réglée. Sans ces paramètres, le
-                    // bouton promettait de réviser CE domaine puis déposait le
-                    // candidat sur la page nue, à lui de retrouver lequel.
-                    // L'ancre l'amène directement au formulaire, situé sous les
-                    // parcours proposés.
-                    $url_reviser = ( $url_revision && $plus_faible )
-                        ? add_query_arg(
-                            [
-                                'npq_domaine' => $plus_faible['code'],
-                                'npq_certif'  => $certification_id,
-                            ],
-                            get_permalink( $url_revision )
-                          ) . '#npq-composer'
+                    $url_reviser = $plus_faible
+                        ? self::url_reviser_domaine( $plus_faible['code'], $certification_id )
                         : '';
                     ?>
                     <?php if ( $plus_faible && $plus_faible['taux'] < $seuil && $url_reviser ) : ?>
@@ -531,6 +517,61 @@ class NPQ_Activite {
                                 <?php endif; ?>
                             </p>
                         </div>
+
+                        <?php
+                        // Un domaine jamais ouvert est le trou le plus grave de
+                        // la page, et c'était le seul sans bouton.
+                        //
+                        // Le conseil des points faibles ne peut pas le couvrir :
+                        // il désigne le domaine au taux le plus bas, or un
+                        // domaine jamais abordé n'a pas de taux du tout. Il ne
+                        // pouvait donc jamais être « le plus fragile », et
+                        // n'apparaissait qu'en gris dans une liste. On peut
+                        // réviser un domaine faible ; on ne peut pas réviser
+                        // celui dont on ignore l'avoir manqué.
+                        $vierges = [];
+                        foreach ( $couverture as $d ) {
+                            if ( ! $d['couvert'] ) {
+                                $vierges[] = $d;
+                            }
+                        }
+
+                        // Le premier dans l'ordre du référentiel, et non un
+                        // « meilleur choix » : aucune donnée ne permet de
+                        // classer des domaines dont on ne sait rien. Le bouton
+                        // le nomme, plutôt que de laisser croire à une
+                        // recommandation.
+                        $premier_vierge = $vierges ? $vierges[0] : null;
+                        $url_decouvrir  = $premier_vierge
+                            ? self::url_reviser_domaine( $premier_vierge['code'], $certification_id )
+                            : '';
+                        ?>
+                        <?php if ( $premier_vierge && $url_decouvrir ) : ?>
+                            <div class="npq-conseil npq-conseil-decouverte">
+                                <p>
+                                    <?php if ( count( $vierges ) === 1 ) : ?>
+                                        Un domaine du référentiel n'a jamais été ouvert :
+                                        <strong><?php echo esc_html( $premier_vierge['libelle'] ); ?></strong>.
+                                    <?php else : ?>
+                                        <strong><?php echo count( $vierges ); ?> domaines</strong>
+                                        du référentiel n'ont jamais été ouverts :
+                                        <?php
+                                        $noms = array_map( 'esc_html', wp_list_pluck( $vierges, 'libelle' ) );
+                                        echo implode( ', ', $noms );
+                                        ?>.
+                                    <?php endif; ?>
+                                    Les questions de l'examen s'y répartissent pourtant comme
+                                    ailleurs.
+                                </p>
+                                <a href="<?php echo esc_url( $url_decouvrir ); ?>" class="npq-btn">
+                                    <?php if ( count( $vierges ) === 1 ) : ?>
+                                        Découvrir ce domaine
+                                    <?php else : ?>
+                                        Commencer par <?php echo esc_html( $premier_vierge['code'] ); ?>
+                                    <?php endif; ?>
+                                </a>
+                            </div>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </section>
             <?php endif; ?>
@@ -682,6 +723,32 @@ class NPQ_Activite {
             'sessions_examens'   => (int) ( $sessions['examens'] ?? 0 ),
             'sessions_revisions' => (int) ( $sessions['revisions'] ?? 0 ),
         ];
+    }
+
+    /**
+     * Lien vers la page Révisions, pré-réglée sur un domaine.
+     *
+     * Le lien porte le domaine ET la certification. Sans ces paramètres, le
+     * bouton promettait de réviser CE domaine puis déposait le candidat sur la
+     * page nue, à lui de retrouver lequel. L'ancre l'amène directement au
+     * formulaire, situé sous les parcours proposés.
+     *
+     * Renvoie une chaîne vide si la page Révisions n'est pas configurée : un
+     * bouton qui ne mène nulle part est pire que pas de bouton.
+     */
+    private static function url_reviser_domaine( $code, $certification_id ) {
+        $page_revision = get_option( 'npq_page_revision_id' );
+        if ( ! $page_revision ) {
+            return '';
+        }
+
+        return add_query_arg(
+            [
+                'npq_domaine' => $code,
+                'npq_certif'  => $certification_id,
+            ],
+            get_permalink( $page_revision )
+        ) . '#npq-composer';
     }
 
     /**
