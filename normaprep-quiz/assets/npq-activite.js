@@ -2,9 +2,9 @@
  * Page Activité NormaPrep : alimente les composants dynamiques du thème
  * (bibliothèque Carto) avec les vraies données du candidat.
  *
- * Les barres et les compteurs viennent du thème : ils font exactement ce qu'on
- * leur demande. La courbe de progression, elle, est tracée ici — voir le
- * commentaire de dessinerProgression() pour la raison.
+ * Les barres des points faibles viennent du thème : le composant fait
+ * exactement ce qu'on lui demande. La courbe de progression et le calage du
+ * calendrier, eux, sont traités ici — voir leurs commentaires respectifs.
  */
 (function () {
     'use strict';
@@ -24,32 +24,6 @@
 
     if (typeof Carto !== 'undefined') {
         dessinerPointsFaibles();
-        dessinerVolume();
-    }
-
-    /**
-     * Volume de travail : compteurs qui s'incrémentent à l'apparition.
-     * Utilise le composant « counter » du thème.
-     */
-    function dessinerVolume() {
-        var compteurs = document.querySelectorAll('.npq-compteur');
-        if (!compteurs.length) {
-            return;
-        }
-
-        compteurs.forEach(function (el) {
-            var valeur = parseInt(el.getAttribute('data-valeur'), 10);
-            if (isNaN(valeur)) {
-                return;
-            }
-
-            Carto.counter(el, {
-                value: valeur,
-                suffix: el.getAttribute('data-suffixe') || '',
-                label: el.getAttribute('data-libelle') || '',
-                color: Carto.colors.TEAL
-            });
-        });
     }
 
     /**

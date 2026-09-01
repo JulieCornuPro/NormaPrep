@@ -868,25 +868,67 @@
 }
 .npq-app .npq-cal-repli strong{ color:var(--text); }
 
-.npq-app .npq-volume-grille{
-  display:grid; grid-template-columns:repeat(4,1fr); gap:18px;
+/* ---- Ligne de contexte : les cumuls, en petit ----
+   Ils étaient quatre compteurs animés grand format. Un cumul ne peut que
+   monter : en vedette, il félicitait le candidat quel que soit son niveau. Il
+   reste utile pour savoir sur quel volume repose le reste de la page, d'où
+   cette ligne discrète. */
+.npq-app .npq-volume-ligne{
+  display:flex; flex-wrap:wrap; gap:8px 26px;
+  font-family:'Inconsolata',monospace; font-size:13px;
+  color:var(--text-lo); margin:0 0 22px;
 }
-@media (max-width:980px){
-  .npq-app .npq-volume-grille{ grid-template-columns:repeat(2,1fr); }
+.npq-app .npq-volume-ligne strong{
+  color:var(--text); font-weight:700; font-size:15px;
 }
-@media (max-width:560px){
-  .npq-app .npq-volume-grille{ grid-template-columns:1fr; }
-}
-.npq-app .npq-compteur{
+
+/* ---- Couverture du programme ---- */
+.npq-app .npq-couverture-cadre{
   background:var(--surface); border:1px solid var(--border);
   border-left:3px solid var(--teal);
-  padding:24px 26px;
+  padding:22px 26px 20px;
 }
-/* Le composant counter du thème produit une valeur très grande : on la calme,
-   pour rester cohérent avec les autres chiffres de la page. */
-.npq-app .npq-compteur .counter-value,
-.npq-app .npq-compteur [class*="value"]{
-  font-size:38px !important;
+.npq-app .npq-couv-titre{
+  display:flex; align-items:baseline; gap:12px;
+  font-family:'Inconsolata',monospace; font-size:12px; font-weight:700;
+  letter-spacing:0.12em; text-transform:uppercase; color:var(--text-lo);
+  margin:0 0 16px;
+}
+.npq-app .npq-couv-compte{
+  font-size:16px; letter-spacing:0.04em; color:var(--teal);
+}
+/* Programme incomplet : ambre, pas teal. Le teal dirait « acquis » d'un
+   parcours auquel il manque un domaine. */
+.npq-app .npq-couv-compte.incomplet{ color:var(--amber); }
+.npq-app .npq-couv-liste{
+  display:flex; flex-wrap:wrap; gap:10px;
+}
+/* Un domaine ouvert : plein, liseré teal — c'est de l'acquis au sens du
+   parcours, pas au sens du score. */
+.npq-app .npq-couv-domaine{
+  display:flex; align-items:baseline; gap:8px;
+  background:var(--bg-2); border:1px solid var(--border);
+  border-left:3px solid var(--teal);
+  padding:8px 14px;
+}
+/* Jamais ouvert : en pointillés, et en retrait. Le pointillé dit « il manque
+   quelque chose ici » sans emprunter l'orange, qui annonce un échec — or ne
+   pas avoir commencé n'est pas avoir échoué. */
+.npq-app .npq-couv-domaine.vierge{
+  background:none; border:1px dashed var(--muted);
+  border-left:3px dashed var(--muted);
+}
+.npq-app .npq-couv-code{
+  font-family:'Inconsolata',monospace; font-size:12px; font-weight:700;
+  letter-spacing:0.08em; color:var(--teal);
+}
+.npq-app .npq-couv-domaine.vierge .npq-couv-code{ color:var(--muted); }
+.npq-app .npq-couv-nom{
+  font-size:14px; color:var(--text-lo);
+}
+.npq-app .npq-couv-domaine.vierge .npq-couv-nom{ color:var(--muted); }
+.npq-app .npq-couv-pied{
+  color:var(--muted); font-size:13px; margin:16px 0 0;
 }
 
 /* ============ ÉCRAN D'ACCUEIL DE L'EXAMEN ============ */

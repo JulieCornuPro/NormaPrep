@@ -6,11 +6,14 @@
  *   « Suis-je en progrès ? »  -> courbe des scores dans le temps.
  *   « Sur quoi travailler ? » -> points faibles par domaine (à venir).
  *
- * Réutilise les composants dynamiques du thème (Carto.barChart, Carto.counter)
- * pour rester cohérent visuellement et éviter d'ajouter une bibliothèque. La
- * courbe de progression fait exception : elle demande une échelle et des
- * valeurs chiffrées, ce qu'aucun composant du thème ne sait faire. Elle est
- * tracée par npq-activite.js, qui explique pourquoi.
+ * Réutilise le composant Carto.barChart du thème pour les points faibles, afin
+ * de rester cohérent visuellement et d'éviter d'ajouter une bibliothèque.
+ *
+ * Deux exceptions, expliquées là où elles sont écrites : la courbe de
+ * progression, qui demande une échelle et des valeurs chiffrées qu'aucun
+ * composant du thème ne sait produire (npq-activite.js) ; et le calendrier
+ * d'assiduité, dont la gamme de couleurs est l'inverse de celle de
+ * Carto.heatmap (voir calendrier_assiduite plus bas).
  *
  * @package NormaPrep_Quiz
  */
@@ -52,13 +55,15 @@ class NPQ_Activite {
      * Nombre de jours travaillés en dessous duquel on n'affiche PAS le
      * calendrier.
      *
-     * Une grille de douze semaines presque vide ne renseigne sur rien : elle
-     * accuse. Un candidat qui vient de commencer verrait trois cases allumées
-     * sur quatre-vingt-quatre et en conclurait qu'il est en retard, ce que la
-     * donnée ne dit pas. En dessous du seuil on se contente de la date de
-     * dernière activité, qui est vraie sans être un jugement.
+     * Une grille presque vide ne renseigne sur rien : elle accuse.
+     *
+     * Le seuil est bas parce que la grille ne remonte jamais avant la première
+     * activité du candidat : un débutant obtient deux ou trois colonnes
+     * denses, pas six mois de cases éteintes. C'est ce bornage qui protège du
+     * reproche, pas ce nombre — il ne reste ici que pour éviter la grille d'une
+     * seule journée, qui ne dessine aucun rythme.
      */
-    const JOURS_ACTIFS_MIN = 5;
+    const JOURS_ACTIFS_MIN = 3;
 
     /**
      * Paliers d'intensité du calendrier, en questions répondues dans la
@@ -387,11 +392,13 @@ class NPQ_Activite {
 
             <?php $volume = self::volume_travail( $certification_id ); ?>
             <?php if ( $volume && $volume['questions'] > 0 ) : ?>
-                <!-- Volume de travail -->
+                <!-- Régularité et couverture -->
                 <section class="npq-kpi-bloc reveal-on-scroll">
-                    <div class="sec-title">Mon volume de travail</div>
+                    <div class="sec-title">Ma régularité</div>
                     <p class="npq-kpi-aide">
-                        Vos efforts accumulés, examens et révisions confondus.
+                        Travailler souvent compte autant que travailler beaucoup.
+                        Examens et révisions confondus : ici on mesure l'effort,
+                        pas la performance.
                     </p>
 
                     <?php
@@ -458,24 +465,73 @@ class NPQ_Activite {
                         </p>
                     <?php endif; ?>
 
-                    <div class="npq-volume-grille">
-                        <div class="npq-compteur"
-                             data-valeur="<?php echo (int) $volume['questions']; ?>"
-                             data-libelle="Questions travaillées"></div>
+                    <?php
+                    // Les cumuls ne sont plus des compteurs animés mais une
+                    // ligne de contexte. Un cumul ne peut que monter : il ne
+                    // dit rien à la deuxième visite, et affiché en grand il
+                    // félicitait un candidat quel que soit son niveau. Il garde
+                    // sa place — savoir sur quel volume repose le reste est
+                    // utile — mais pas la vedette.
+                    ?>
+                    <p class="npq-volume-ligne">
+                        <span><strong><?php echo (int) $volume['questions']; ?></strong> questions traitées</span>
+                        <span><strong><?php echo (int) $volume['sessions_examens']; ?></strong> examen(s) blanc(s)</span>
+                        <span><strong><?php echo (int) $volume['sessions_revisions']; ?></strong> session(s) de révision</span>
+                    </p>
 
-                        <div class="npq-compteur"
-                             data-valeur="<?php echo (int) $volume['domaines_couverts']; ?>"
-                             data-suffixe="/<?php echo (int) $volume['domaines_total']; ?>"
-                             data-libelle="Domaines couverts"></div>
+                    <?php
+                    $couverture = self::couverture_domaines( $certification_id );
+                    $nb_couverts = 0;
+                    foreach ( $couverture as $d ) {
+                        if ( $d['couvert'] ) { $nb_couverts++; }
+                    }
+                    ?>
+                    <?php if ( ! empty( $couverture ) ) : ?>
+                        <div class="npq-couverture-cadre">
+                            <p class="npq-couv-titre">
+                                Couverture du programme
+                                <?php
+                                // Teal seulement si le programme est entier :
+                                // le teal annonce ce qui est acquis, et « 5/7 »
+                                // dit précisément le contraire. Tant qu'il
+                                // manque un domaine, l'ambre — ce qui est visé,
+                                // pas encore atteint.
+                                ?>
+                                <span class="npq-couv-compte<?php echo ( $nb_couverts < count( $couverture ) ) ? ' incomplet' : ''; ?>">
+                                    <?php echo (int) $nb_couverts; ?>/<?php echo count( $couverture ); ?>
+                                </span>
+                            </p>
 
-                        <div class="npq-compteur"
-                             data-valeur="<?php echo (int) $volume['sessions_examens']; ?>"
-                             data-libelle="Examens passés"></div>
+                            <?php
+                            // La liste ENTIÈRE, chaque domaine marqué ouvert ou
+                            // non. « 5 sur 7 » dit qu'il manque quelque chose
+                            // sans dire quoi : le candidat ne peut rien en
+                            // faire. Nommer les domaines non ouverts, si.
+                            ?>
+                            <div class="npq-couv-liste">
+                                <?php foreach ( $couverture as $d ) : ?>
+                                    <span class="npq-couv-domaine<?php echo $d['couvert'] ? '' : ' vierge'; ?>"
+                                          title="<?php echo esc_attr(
+                                              $d['couvert']
+                                                  ? $d['libelle'] . ' — déjà travaillé'
+                                                  : $d['libelle'] . ' — jamais ouvert'
+                                          ); ?>">
+                                        <span class="npq-couv-code"><?php echo esc_html( $d['code'] ); ?></span>
+                                        <span class="npq-couv-nom"><?php echo esc_html( $d['libelle'] ); ?></span>
+                                    </span>
+                                <?php endforeach; ?>
+                            </div>
 
-                        <div class="npq-compteur"
-                             data-valeur="<?php echo (int) $volume['sessions_revisions']; ?>"
-                             data-libelle="Sessions de révision"></div>
-                    </div>
+                            <p class="npq-couv-pied">
+                                <?php if ( $nb_couverts === count( $couverture ) ) : ?>
+                                    Vous avez travaillé chacun des domaines du référentiel.
+                                <?php else : ?>
+                                    Les domaines en pointillés n'ont jamais été ouverts,
+                                    ni en examen ni en révision.
+                                <?php endif; ?>
+                            </p>
+                        </div>
+                    <?php endif; ?>
                 </section>
             <?php endif; ?>
         </div>
@@ -603,30 +659,10 @@ class NPQ_Activite {
             $certification_id
         ) );
 
-        // Domaines couverts : sur combien de domaines distincts a-t-il travaillé ?
-        // Même règle : un domaine seulement effleuré par des questions non
-        // répondues n'est pas un domaine couvert.
-        $domaines_couverts = (int) $wpdb->get_var( $wpdb->prepare(
-            "SELECT COUNT(DISTINCT q.domaine)
-             FROM {$p}reponse r
-             INNER JOIN {$p}tentative t ON t.id = r.tentative_id
-             INNER JOIN {$p}question  q ON q.id = r.question_id
-             WHERE t.utilisateur_id = %d
-               AND t.certification_id = %d
-               AND t.date_fin IS NOT NULL
-               AND EXISTS ( SELECT 1 FROM {$p}reponse_option ro
-                            WHERE ro.reponse_id = r.id )",
-            $fiche['id'],
-            $certification_id
-        ) );
-
-        // Total de domaines existants (pour donner le contexte : 5 sur 7).
-        // Filtré sur la certification : sans cela, le dénominateur cumulait les
-        // domaines de TOUS les référentiels et affichait « 5 sur 34 ».
-        $domaines_total = (int) $wpdb->get_var( $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$p}domaine WHERE certification_id = %d",
-            $certification_id
-        ) );
+        // Le compte des domaines couverts était calculé ici. Il est désormais
+        // rendu par couverture_domaines(), qui donne aussi leurs NOMS : « 5 sur
+        // 7 » dit qu'il manque quelque chose sans dire quoi, ce qui laisse le
+        // candidat sans prise.
 
         // Sessions, en distinguant examens et révisions.
         $sessions = $wpdb->get_row( $wpdb->prepare(
@@ -642,12 +678,71 @@ class NPQ_Activite {
         ), ARRAY_A );
 
         return [
-            'questions'         => $questions,
-            'domaines_couverts' => $domaines_couverts,
-            'domaines_total'    => $domaines_total,
-            'sessions_examens'  => (int) ( $sessions['examens'] ?? 0 ),
-            'sessions_revisions'=> (int) ( $sessions['revisions'] ?? 0 ),
+            'questions'          => $questions,
+            'sessions_examens'   => (int) ( $sessions['examens'] ?? 0 ),
+            'sessions_revisions' => (int) ( $sessions['revisions'] ?? 0 ),
         ];
+    }
+
+    /**
+     * Couverture du programme : quels domaines le candidat a déjà ouverts, et
+     * lesquels il n'a jamais touchés.
+     *
+     * INCLUT les révisions, contrairement au taux par domaine : la question
+     * n'est pas « suis-je bon ? » mais « ai-je seulement ouvert ce chapitre ? ».
+     * Un domaine travaillé en révision est un domaine ouvert.
+     *
+     * Même règle qu'ailleurs pour ce qui compte comme travaillé : au moins une
+     * option cochée. Un domaine seulement effleuré par des questions laissées
+     * blanches n'est pas un domaine couvert.
+     *
+     * Renvoie la liste complète des domaines du référentiel, chacun marqué
+     * couvert ou non — et non les seuls manquants : c'est la liste entière qui
+     * permet au candidat de situer le trou dans le programme.
+     */
+    private static function couverture_domaines( $certification_id ) {
+        $fiche = NPQ_Comptes::fiche_courante();
+        if ( ! $fiche ) {
+            return [];
+        }
+
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        // Le référentiel est filtré sur la certification : sans cela, la liste
+        // cumulait les domaines de TOUS les référentiels et annonçait « 5 sur
+        // 34 ». Le piège a déjà été rencontré sur le compteur qu'on remplace.
+        $domaines = (array) $wpdb->get_results( $wpdb->prepare(
+            "SELECT code, libelle FROM {$p}domaine
+             WHERE certification_id = %d
+             ORDER BY code",
+            $certification_id
+        ), ARRAY_A );
+
+        if ( empty( $domaines ) ) {
+            return [];
+        }
+
+        $codes_couverts = (array) $wpdb->get_col( $wpdb->prepare(
+            "SELECT DISTINCT q.domaine
+             FROM {$p}reponse r
+             INNER JOIN {$p}tentative t ON t.id = r.tentative_id
+             INNER JOIN {$p}question  q ON q.id = r.question_id
+             WHERE t.utilisateur_id = %d
+               AND t.certification_id = %d
+               AND t.date_fin IS NOT NULL
+               AND EXISTS ( SELECT 1 FROM {$p}reponse_option ro
+                            WHERE ro.reponse_id = r.id )",
+            $fiche['id'],
+            $certification_id
+        ) );
+
+        foreach ( $domaines as &$d ) {
+            $d['couvert'] = in_array( $d['code'], $codes_couverts, true );
+        }
+        unset( $d );
+
+        return $domaines;
     }
 
     /**
