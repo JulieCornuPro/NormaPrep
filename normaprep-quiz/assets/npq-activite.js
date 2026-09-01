@@ -93,20 +93,81 @@
 
         // Largeur du dernier tracé, pour ne redessiner que si elle a bougé.
         var largeurRendue = 0;
+        // L'animation d'entrée ne se joue qu'une fois : un redimensionnement
+        // n'est pas une arrivée à l'écran, et rejouer le tracé à chaque cran de
+        // la souris donne un graphique qui clignote.
+        var dejaAnime = false;
+        // Un redessin est déjà programmé pour la prochaine image.
+        var redessinPrevu = false;
 
         tracer();
+        surveillerLargeur();
 
-        // Le passage paysage/portrait change la largeur sans recharger la page.
-        // On ne redessine qu'au-delà d'un écart net : sinon la barre d'adresse
-        // d'un téléphone, qui se replie au défilement, relancerait l'animation.
-        window.addEventListener('resize', function () {
-            if (Math.abs(mesurerLargeur() - largeurRendue) > 40) {
-                tracer();
+        /**
+         * Le graphique est le seul composant de la page dont la largeur est
+         * mesurée en pixels à un instant donné : les barres et le calendrier
+         * sont en flex et en grille, ils suivent la mise en page d'eux-mêmes.
+         * C'est ce qui le rendait seul vulnérable au défaut suivant.
+         *
+         * L'événement « resize » de la fenêtre est tiré dès que le viewport a
+         * fini de changer — mais la barre latérale de l'espace, elle, met
+         * encore 300 ms à retrouver sa largeur (transition CSS sur .sidebar).
+         * En repassant du format mobile au format bureau, la mesure tombait
+         * donc pendant la transition : le conteneur mesurait alors 0, la
+         * courbe se redessinait à une largeur fausse, et plus aucun événement
+         * ne venait la corriger. Elle restait rétrécie jusqu'au rechargement.
+         *
+         * ResizeObserver observe la BOÎTE de l'élément et non la fenêtre : il
+         * se déclenche à chaque étape de la transition, donc aussi à la
+         * dernière. La mesure finale est toujours vue.
+         */
+        function surveillerLargeur() {
+            if (typeof ResizeObserver !== 'undefined') {
+                new ResizeObserver(redessinerSiBesoin).observe(el);
+                return;
             }
-        });
+            // Repli pour les navigateurs sans ResizeObserver : l'événement de
+            // fenêtre, avec son défaut connu. Mieux vaut une courbe parfois
+            // mal dimensionnée qu'une courbe qui ne suit jamais l'écran.
+            window.addEventListener('resize', redessinerSiBesoin);
+        }
+
+        function redessinerSiBesoin() {
+            if (!aRedessiner() || redessinPrevu) {
+                return;
+            }
+            // Une transition CSS déclenche l'observateur à chaque image : on
+            // n'en retient qu'un redessin par image, et on remesure au dernier
+            // moment. Sans cela, revenir du format mobile au format bureau
+            // redessinerait la courbe une soixantaine de fois pour rien.
+            //
+            // Aucun seuil de tolérance : un premier essai en ignorait les
+            // écarts de moins de huit pixels, et c'est le tout dernier
+            // ajustement de la barre latérale — six pixels — qui passait alors
+            // à la trappe, laissant la courbe légèrement en retrait pour de
+            // bon. Ce qu'il fallait écarter, ce n'était pas les petits écarts,
+            // c'était la rafale.
+            redessinPrevu = true;
+            requestAnimationFrame(function () {
+                redessinPrevu = false;
+                if (aRedessiner()) {
+                    tracer();
+                }
+            });
+        }
+
+        /**
+         * Une largeur nulle n'est pas une largeur : l'élément est masqué, ou la
+         * mise en page n'est pas encore posée. Redessiner là-dessus, c'est ce
+         * qui gravait le défaut décrit plus haut.
+         */
+        function aRedessiner() {
+            var largeur = mesurerLargeur();
+            return largeur > 0 && largeur !== largeurRendue;
+        }
 
         function mesurerLargeur() {
-            return Math.round(el.clientWidth) || 720;
+            return Math.round(el.clientWidth);
         }
 
         function tracer() {
@@ -114,8 +175,13 @@
             // ses unités valent des pixels : un dessin de 720 de large réduit à
             // 340 sur un téléphone afficherait des libellés à moitié de leur
             // taille, donc illisibles.
-            var W = Math.max(300, mesurerLargeur());
-            largeurRendue = W;
+            // On retient la largeur MESURÉE, pas la largeur dessinée : sur un
+            // conteneur plus étroit que le minimum de 300, les comparer
+            // reviendrait à trouver un écart à chaque fois et à redessiner sans
+            // fin. Le repli à 720 ne sert qu'au tout premier tracé, si la page
+            // n'est pas encore disposée ; ResizeObserver corrige aussitôt.
+            largeurRendue = mesurerLargeur() || 720;
+            var W = Math.max(300, largeurRendue);
 
             var H = 240;
             // Marges : à gauche les graduations (« 100 % »), en bas les dates,
@@ -245,14 +311,25 @@
                 ligne.setAttribute('stroke-dashoffset', longueur);
                 ligne.style.transition = 'stroke-dashoffset 1.4s ' + EASE;
             }
-            auVue(el, function () {
+            function afficherTrace() {
                 if (ligne) {
                     ligne.setAttribute('stroke-dashoffset', 0);
                 }
                 if (aire) {
                     aire.style.fillOpacity = '0.12';
                 }
-            });
+            }
+
+            if (dejaAnime) {
+                // Redessin après changement de taille : le tracé était déjà
+                // visible, il doit le rester tout de suite.
+                afficherTrace();
+            } else {
+                auVue(el, function () {
+                    dejaAnime = true;
+                    afficherTrace();
+                });
+            }
         }
     }
 

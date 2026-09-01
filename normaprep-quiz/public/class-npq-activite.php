@@ -250,132 +250,6 @@ class NPQ_Activite {
                 </div>
             </section>
 
-            <?php
-            $domaines = self::taux_par_domaine( $certification_id );
-            $seuil    = self::seuil_reussite();
-            ?>
-            <?php if ( ! empty( $domaines ) ) : ?>
-                <!-- Points faibles -->
-                <section class="npq-kpi-bloc reveal-on-scroll">
-                    <div class="sec-title">Mes points faibles</div>
-                    <p class="npq-kpi-aide">
-                        Taux de réussite par domaine, calculé sur les questions
-                        que vous avez traitées. Les domaines sous
-                        <?php echo (int) $seuil; ?> % sont à travailler.
-                    </p>
-
-                    <?php
-                    // Calculé une fois : sert au graphique et à décider s'il y
-                    // a seulement quelque chose à tracer. Un candidat qui n'a
-                    // répondu à aucune question n'a aucune barre — on n'affiche
-                    // pas un cadre vide.
-                    $barres = self::donnees_barres( $domaines, $seuil );
-                    ?>
-                    <?php if ( ! empty( $barres ) ) : ?>
-                        <div class="npq-barres-cadre">
-                            <div id="npq-barres-domaines"
-                                 data-domaines="<?php echo esc_attr( wp_json_encode( $barres ) ); ?>"></div>
-                        </div>
-                    <?php endif; ?>
-
-                    <!-- Légende : les codes sous les barres ne parlent pas seuls.
-                         On donne ici le libellé complet, le taux, et sur combien de
-                         questions il repose (un taux sur 1 question n'est pas fiable). -->
-                    <div class="npq-legende-domaines">
-                        <?php foreach ( $domaines as $d ) :
-                            $mesure = ( $d['taux'] !== null );
-                            $fiable = ( $mesure && $d['fiable'] );
-                            $faible = ( $fiable && $d['taux'] < $seuil );
-                        ?>
-                            <div class="npq-legende-ligne<?php echo $faible ? ' faible' : ''; ?><?php echo $mesure ? '' : ' non-aborde'; ?><?php echo ( $mesure && ! $fiable ) ? ' peu-fiable' : ''; ?>">
-                                <span class="npq-leg-code"><?php echo esc_html( $d['code'] ); ?></span>
-                                <span class="npq-leg-nom"><?php echo esc_html( $d['libelle'] ); ?></span>
-                                <?php if ( $mesure ) : ?>
-                                    <span class="npq-leg-taux"><?php echo (int) $d['taux']; ?> %</span>
-                                    <span class="npq-leg-nb">
-                                        <?php echo (int) $d['total']; ?> q.<?php
-                                        // Les questions non atteintes sont signalées
-                                        // à côté du taux, sans peser dessus : elles
-                                        // relèvent du temps, pas de la connaissance.
-                                        if ( $d['non_atteintes'] > 0 ) :
-                                            ?> <span class="npq-leg-blanches">+<?php
-                                                echo (int) $d['non_atteintes'];
-                                            ?> non traitée(s)</span><?php
-                                        endif;
-                                        // Trop peu de questions pour conclure : on
-                                        // le dit, plutôt que de laisser un taux
-                                        // spectaculaire passer pour un constat.
-                                        if ( ! $fiable ) :
-                                            ?> <span class="npq-leg-blanches">trop peu pour conclure</span><?php
-                                        endif; ?>
-                                    </span>
-                                <?php else : ?>
-                                    <span class="npq-leg-taux">&mdash;</span>
-                                    <span class="npq-leg-nb">
-                                        <span class="npq-leg-blanches">jamais abordé</span>
-                                    </span>
-                                <?php endif; ?>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-
-                    <?php
-                    // Total des questions laissées blanches, tous domaines
-                    // confondus. Ne pas terminer l'épreuve est un vrai problème,
-                    // mais il appelle un autre remède que la révision — d'où un
-                    // message distinct du conseil de révision qui suit.
-                    $non_traitees = 0;
-                    foreach ( $domaines as $d ) {
-                        $non_traitees += (int) $d['non_atteintes'];
-                    }
-                    ?>
-                    <?php if ( $non_traitees > 0 ) : ?>
-                        <div class="npq-conseil npq-conseil-temps">
-                            <p>
-                                <strong><?php echo (int) $non_traitees; ?> question(s)</strong>
-                                sont restées sans réponse sur l'ensemble de vos examens.
-                                Elles comptent fausses au score, mais ne pèsent pas sur
-                                les taux ci-dessus : c'est votre gestion du temps qu'elles
-                                interrogent, pas vos connaissances.
-                            </p>
-                        </div>
-                    <?php endif; ?>
-
-                    <?php
-                    // Le domaine le plus faible PARMI CEUX QUI SONT MESURÉS.
-                    // Un domaine jamais abordé a un taux null : le désigner
-                    // comme « le plus fragile » serait faux, et en PHP la
-                    // comparaison null < seuil est vraie — le piège est discret.
-                    // On exige aussi un nombre de questions suffisant : envoyer
-                    // réviser un domaine sur la foi de deux questions ratées
-                    // ferait perdre du temps au candidat sur un faux signal.
-                    $plus_faible = null;
-                    foreach ( $domaines as $d ) {
-                        if ( $d['taux'] !== null && $d['fiable'] ) {
-                            $plus_faible = $d;
-                            break; // la liste est déjà triée du plus faible au plus fort
-                        }
-                    }
-                    $url_reviser = $plus_faible
-                        ? self::url_reviser_domaine( $plus_faible['code'], $certification_id )
-                        : '';
-                    ?>
-                    <?php if ( $plus_faible && $plus_faible['taux'] < $seuil && $url_reviser ) : ?>
-                        <div class="npq-conseil">
-                            <p>
-                                Votre domaine le plus fragile est
-                                <strong><?php echo esc_html( $plus_faible['libelle'] ); ?></strong>
-                                (<?php echo (int) $plus_faible['taux']; ?> % sur
-                                <?php echo (int) $plus_faible['total']; ?> question(s)).
-                            </p>
-                            <a href="<?php echo esc_url( $url_reviser ); ?>" class="npq-btn">
-                                Réviser ce domaine
-                            </a>
-                        </div>
-                    <?php endif; ?>
-                </section>
-            <?php endif; ?>
-
             <?php $volume = self::volume_travail( $certification_id ); ?>
             <?php if ( $volume && $volume['questions'] > 0 ) : ?>
                 <!-- Régularité et couverture -->
@@ -575,6 +449,133 @@ class NPQ_Activite {
                     <?php endif; ?>
                 </section>
             <?php endif; ?>
+
+            <?php
+            $domaines = self::taux_par_domaine( $certification_id );
+            $seuil    = self::seuil_reussite();
+            ?>
+            <?php if ( ! empty( $domaines ) ) : ?>
+                <!-- Points faibles -->
+                <section class="npq-kpi-bloc reveal-on-scroll">
+                    <div class="sec-title">Mes points faibles</div>
+                    <p class="npq-kpi-aide">
+                        Taux de réussite par domaine, calculé sur les questions
+                        que vous avez traitées. Les domaines sous
+                        <?php echo (int) $seuil; ?> % sont à travailler.
+                    </p>
+
+                    <?php
+                    // Calculé une fois : sert au graphique et à décider s'il y
+                    // a seulement quelque chose à tracer. Un candidat qui n'a
+                    // répondu à aucune question n'a aucune barre — on n'affiche
+                    // pas un cadre vide.
+                    $barres = self::donnees_barres( $domaines, $seuil );
+                    ?>
+                    <?php if ( ! empty( $barres ) ) : ?>
+                        <div class="npq-barres-cadre">
+                            <div id="npq-barres-domaines"
+                                 data-domaines="<?php echo esc_attr( wp_json_encode( $barres ) ); ?>"></div>
+                        </div>
+                    <?php endif; ?>
+
+                    <!-- Légende : les codes sous les barres ne parlent pas seuls.
+                         On donne ici le libellé complet, le taux, et sur combien de
+                         questions il repose (un taux sur 1 question n'est pas fiable). -->
+                    <div class="npq-legende-domaines">
+                        <?php foreach ( $domaines as $d ) :
+                            $mesure = ( $d['taux'] !== null );
+                            $fiable = ( $mesure && $d['fiable'] );
+                            $faible = ( $fiable && $d['taux'] < $seuil );
+                        ?>
+                            <div class="npq-legende-ligne<?php echo $faible ? ' faible' : ''; ?><?php echo $mesure ? '' : ' non-aborde'; ?><?php echo ( $mesure && ! $fiable ) ? ' peu-fiable' : ''; ?>">
+                                <span class="npq-leg-code"><?php echo esc_html( $d['code'] ); ?></span>
+                                <span class="npq-leg-nom"><?php echo esc_html( $d['libelle'] ); ?></span>
+                                <?php if ( $mesure ) : ?>
+                                    <span class="npq-leg-taux"><?php echo (int) $d['taux']; ?> %</span>
+                                    <span class="npq-leg-nb">
+                                        <?php echo (int) $d['total']; ?> q.<?php
+                                        // Les questions non atteintes sont signalées
+                                        // à côté du taux, sans peser dessus : elles
+                                        // relèvent du temps, pas de la connaissance.
+                                        if ( $d['non_atteintes'] > 0 ) :
+                                            ?> <span class="npq-leg-blanches">+<?php
+                                                echo (int) $d['non_atteintes'];
+                                            ?> non traitée(s)</span><?php
+                                        endif;
+                                        // Trop peu de questions pour conclure : on
+                                        // le dit, plutôt que de laisser un taux
+                                        // spectaculaire passer pour un constat.
+                                        if ( ! $fiable ) :
+                                            ?> <span class="npq-leg-blanches">trop peu pour conclure</span><?php
+                                        endif; ?>
+                                    </span>
+                                <?php else : ?>
+                                    <span class="npq-leg-taux">&mdash;</span>
+                                    <span class="npq-leg-nb">
+                                        <span class="npq-leg-blanches">jamais abordé</span>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <?php
+                    // Total des questions laissées blanches, tous domaines
+                    // confondus. Ne pas terminer l'épreuve est un vrai problème,
+                    // mais il appelle un autre remède que la révision — d'où un
+                    // message distinct du conseil de révision qui suit.
+                    $non_traitees = 0;
+                    foreach ( $domaines as $d ) {
+                        $non_traitees += (int) $d['non_atteintes'];
+                    }
+                    ?>
+                    <?php if ( $non_traitees > 0 ) : ?>
+                        <div class="npq-conseil npq-conseil-temps">
+                            <p>
+                                <strong><?php echo (int) $non_traitees; ?> question(s)</strong>
+                                sont restées sans réponse sur l'ensemble de vos examens.
+                                Elles comptent fausses au score, mais ne pèsent pas sur
+                                les taux ci-dessus : c'est votre gestion du temps qu'elles
+                                interrogent, pas vos connaissances.
+                            </p>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php
+                    // Le domaine le plus faible PARMI CEUX QUI SONT MESURÉS.
+                    // Un domaine jamais abordé a un taux null : le désigner
+                    // comme « le plus fragile » serait faux, et en PHP la
+                    // comparaison null < seuil est vraie — le piège est discret.
+                    // On exige aussi un nombre de questions suffisant : envoyer
+                    // réviser un domaine sur la foi de deux questions ratées
+                    // ferait perdre du temps au candidat sur un faux signal.
+                    $plus_faible = null;
+                    foreach ( $domaines as $d ) {
+                        if ( $d['taux'] !== null && $d['fiable'] ) {
+                            $plus_faible = $d;
+                            break; // la liste est déjà triée du plus faible au plus fort
+                        }
+                    }
+                    $url_reviser = $plus_faible
+                        ? self::url_reviser_domaine( $plus_faible['code'], $certification_id )
+                        : '';
+                    ?>
+                    <?php if ( $plus_faible && $plus_faible['taux'] < $seuil && $url_reviser ) : ?>
+                        <div class="npq-conseil">
+                            <p>
+                                Votre domaine le plus fragile est
+                                <strong><?php echo esc_html( $plus_faible['libelle'] ); ?></strong>
+                                (<?php echo (int) $plus_faible['taux']; ?> % sur
+                                <?php echo (int) $plus_faible['total']; ?> question(s)).
+                            </p>
+                            <a href="<?php echo esc_url( $url_reviser ); ?>" class="npq-btn">
+                                Réviser ce domaine
+                            </a>
+                        </div>
+                    <?php endif; ?>
+                </section>
+            <?php endif; ?>
+
         </div>
         <?php
         return ob_get_clean();
