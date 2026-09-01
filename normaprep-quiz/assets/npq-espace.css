@@ -1104,21 +1104,40 @@
      s'alignent alors exactement en haut. */
   padding:18px 20px; margin-bottom:20px;
 }
-.npq-app .npq-scen-titre{
+/* Le titre du scénario se lisait mal, et ce n'était pas qu'une affaire de
+   taille : c'était l'habillage de rubrique — monospace, capitales, lettres
+   très espacées — appliqué à une PHRASE de quatre-vingt-dix caractères.
+   Ce traitement est juste pour « PROGRESSION » ou « QUESTIONS », deux mots
+   qu'on reconnaît d'un bloc. Sur une phrase il coûte cher : les capitales
+   effacent la silhouette des mots (plus de jambages ni de hampes), l'espacement
+   les empêche de se grouper, et une chasse fixe ralentit la lecture suivie.
+   La rubrique est donc rendue à son rôle d'étiquette, et le résumé redevient
+   du texte. */
+.npq-app .npq-scen-titre{ line-height:1.5; }
+.npq-app .npq-scen-etiquette{
+  display:block; margin-bottom:6px;
   font-family:'Inconsolata',monospace; font-size:11px;
   letter-spacing:0.18em; text-transform:uppercase; color:var(--orange);
-  line-height:1.5;
 }
+.npq-app .npq-scen-resume{
+  display:block;
+  font-size:17px; font-weight:600; color:var(--text); line-height:1.45;
+}
+/* Le contexte est ce qu'il faut VRAIMENT lire : il passe de 14 à 16 px et
+   quitte la couleur secondaire, qui n'a rien à faire sur du contenu principal.
+   L'interligne s'ouvre d'autant : un paragraphe long se relit à la ligne. */
 .npq-app .npq-scen-corps{
   display:none;
-  font-size:14px; color:var(--text-lo); line-height:1.7;
-  margin-top:12px; padding-top:12px; border-top:1px solid var(--border);
+  font-size:16px; color:var(--text); line-height:1.75;
+  margin-top:14px; padding-top:14px; border-top:1px solid var(--border);
 }
 .npq-app .npq-scen-corps.ouvert{ display:block; }
+/* La bascule est un bouton : à 11 px et 75 % d'opacité, c'était une cible
+   minuscule et pâle. Le monospace reste — ici c'est bien une étiquette. */
 .npq-app .npq-scen-bascule{
-  display:inline-block; margin-top:8px;
-  font-family:'Inconsolata',monospace; font-size:11px;
-  letter-spacing:0.1em; color:var(--orange); cursor:pointer; opacity:0.75;
+  display:inline-block; margin-top:12px;
+  font-family:'Inconsolata',monospace; font-size:12px; font-weight:700;
+  letter-spacing:0.1em; color:var(--orange); cursor:pointer; opacity:0.9;
   transition:opacity .15s var(--ease);
 }
 .npq-app .npq-scen-bascule:hover{ opacity:1; }
