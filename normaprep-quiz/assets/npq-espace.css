@@ -586,11 +586,11 @@
 .npq-app .npq-nombre-case input{ accent-color:var(--teal); margin:0; }
 
 /* ============ CORRECTION IMMÉDIATE (mode révision) ============ */
-/* Le plafond de 820 px est retiré : il faisait double emploi avec celui du
-   bloc deux colonnes, qui borne désormais l'ensemble. La colonne principale y
-   fait un peu plus de 850 px — la longueur de ligne reste dans les clous, et
-   la correction s'aligne enfin sur le scénario au-dessus d'elle. */
-.npq-app .npq-correction{ max-width:none; }
+/* La correction reste bornée à 820 px, indépendamment de la largeur de la
+   colonne : au-delà, les lignes dépassent la centaine de caractères et l'œil
+   perd la ligne en revenant à la marge. Ce sont les textes les plus longs de
+   l'application. */
+.npq-app .npq-correction{ max-width:820px; }
 .npq-app .npq-corr-verdict{
   font-family:'Rajdhani',sans-serif; font-weight:700; font-size:24px;
   text-transform:uppercase; margin-bottom:20px;
@@ -1075,17 +1075,17 @@
 
 
 /* ============ EXAMEN : DEUX COLONNES ============ */
-/* La largeur totale est bornée, et c'est ce plafond qui tient tout l'écran.
-   Sans lui, la colonne principale s'étirait sur 1200 px tandis que la
-   correction restait plafonnée à 820 : le scénario et le verdict se
-   retrouvaient à deux largeurs différentes, et 400 px de vide séparaient le
-   texte de la colonne de suivi. Ce trou était le vrai défaut — pas la
-   correction, dont le plafond protège la longueur de ligne. Contenu et suivi
-   restent désormais côte à côte, et l'espace restant se retrouve au bord de la
-   page, où il se lit comme une marge. */
+/* PAS de largeur maximale : la colonne de suivi reste collée au bord droit de
+   l'écran, quelle que soit sa taille.
+   
+   Un plafond de 1180 px a été essayé, pour rapprocher le suivi du texte et
+   supprimer l'espace qui les sépare sur un grand écran. Testé, puis écarté :
+   le suivi se retrouvait flottant au milieu de la page, et le repère qu'il
+   constitue — toujours au même endroit, en haut à droite — comptait davantage
+   que le vide. Ne pas le remettre sans avoir reposé la question. */
 .npq-app .npq-examen-deux-col{
   display:grid; grid-template-columns:1fr 300px; gap:24px;
-  align-items:start; max-width:1180px;
+  align-items:start; max-width:none;
 }
 @media (max-width:1100px){
   .npq-app .npq-examen-deux-col{ grid-template-columns:1fr; }
