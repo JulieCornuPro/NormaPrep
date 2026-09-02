@@ -586,15 +586,28 @@
 .npq-app .npq-nombre-case input{ accent-color:var(--teal); margin:0; }
 
 /* ============ CORRECTION IMMÉDIATE (mode révision) ============ */
-/* La correction reste bornée à 820 px, indépendamment de la largeur de la
-   colonne : au-delà, les lignes dépassent la centaine de caractères et l'œil
-   perd la ligne en revenant à la marge. Ce sont les textes les plus longs de
-   l'application. */
-.npq-app .npq-correction{ max-width:820px; }
+/* Pas de plafond : la correction occupe la colonne entière, comme l'écran de
+   question qu'elle remplace.
+   
+   Ce plafond de 820 px était un reste : il avait été écrit avant que le bloc
+   deux colonnes existe, et personne ne l'avait revu depuis. Résultat, les
+   MÊMES quatre propositions passaient de 1200 px pendant qu'on répond à 820 px
+   une fois validé — mesuré, et visible : le bloc scénario au-dessus restait à
+   1200. La correction était le seul élément désaligné de l'écran.
+   
+   L'enjeu n'est pas la largeur mais la HAUTEUR : à 820 px chaque proposition
+   tenait sur deux lignes, ce qui repoussait le bouton « Continuer » 133 px
+   sous le bas de l'écran dès que le scénario était déplié. Il fallait faire
+   défiler pour valider. En pleine largeur, elles tiennent sur une ligne. */
+.npq-app .npq-correction{ max-width:none; }
+/* Les respirations de la correction sont resserrées d'un cran — pas davantage.
+   Le verdict garde ses 24 px : c'est le moment où le candidat apprend s'il a
+   juste, il n'a pas à être discret. Seuls les rembourrages et les marges
+   cèdent du terrain, ce qui suffit à ramener le bouton dans l'écran. */
 .npq-app .npq-corr-verdict{
   font-family:'Rajdhani',sans-serif; font-weight:700; font-size:24px;
-  text-transform:uppercase; margin-bottom:20px;
-  padding:14px 20px; border-left:3px solid;
+  text-transform:uppercase; margin-bottom:16px;
+  padding:11px 18px; border-left:3px solid;
 }
 .npq-app .npq-corr-verdict.ok{
   color:var(--green); border-color:var(--green); background:rgba(74,222,128,0.08);
@@ -603,7 +616,7 @@
   color:var(--orange); border-color:var(--orange); background:rgba(255,122,80,0.08);
 }
 .npq-app .npq-corr-option{
-  padding:14px 18px; margin-bottom:10px; font-size:16px; line-height:1.5;
+  padding:12px 16px; margin-bottom:9px; font-size:16px; line-height:1.5;
   border:1px solid var(--border); color:var(--text-lo);
 }
 .npq-app .npq-corr-option.bonne{
@@ -624,7 +637,7 @@
   font-size:12px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
   margin-bottom:10px;
 }
-.npq-app .npq-corr-suite{ margin-top:26px; }
+.npq-app .npq-corr-suite{ margin-top:20px; }
 .npq-app .npq-corr-suite .npq-btn{
   font-family:'Inconsolata',monospace; font-size:14px; font-weight:700;
   letter-spacing:0.08em; text-transform:uppercase;
