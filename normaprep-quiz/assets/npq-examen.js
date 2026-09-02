@@ -327,6 +327,10 @@
     /**
      * Met à jour la zone scénario. Si le candidat avait déplié ce scénario,
      * il reste déplié — on ne le force pas à recliquer à chaque question.
+     *
+     * ATTENTION : ce balisage est le jumeau de celui écrit par
+     * NPQ_Examen::ecran_question(). Les deux doivent rester identiques —
+     * le PHP sert la première question, celui-ci toutes les suivantes.
      */
     function majScenario(sc) {
         var box = document.getElementById('npq-scenario-box');
@@ -344,7 +348,10 @@
 
         var titre = sc.resume ? sc.resume : sc.nom;
         box.innerHTML =
-            '<div class="npq-scen-titre">\u2B21 ' + echapper(titre) + '</div>' +
+            '<div class="npq-scen-titre">' +
+                '<span class="npq-scen-etiquette">\u2B21 Sc\u00e9nario</span>' +
+                '<span class="npq-scen-resume">' + echapper(titre) + '</span>' +
+            '</div>' +
             '<div class="npq-scen-corps' + (ouvert ? ' ouvert' : '') + '" id="npq-scen-corps">' +
                 echapper(sc.contexte) +
             '</div>' +

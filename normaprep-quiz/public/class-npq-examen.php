@@ -919,9 +919,18 @@ class NPQ_Examen {
 
                 <?php if ( $scenario ) : ?>
                     <!-- Scénario repliable : le candidat le lit une fois, puis le replie.
-                         Sans lui, l'énoncé serait incompréhensible. -->
+                         Sans lui, l'énoncé serait incompréhensible.
+
+                         ATTENTION : npq-examen.js reconstruit ce balisage à
+                         l'identique quand on passe d'une question à l'autre
+                         (majScenario). Toute modification ici doit y être
+                         reportée, sinon le scénario change d'allure dès la
+                         deuxième question. -->
                     <div class="npq-scenario-box" id="npq-scenario-box">
-                        <div class="npq-scen-titre">&#11041; <?php echo esc_html( $scenario['resume'] ? $scenario['resume'] : $scenario['nom'] ); ?></div>
+                        <div class="npq-scen-titre">
+                            <span class="npq-scen-etiquette">&#11041; Scénario</span>
+                            <span class="npq-scen-resume"><?php echo esc_html( $scenario['resume'] ? $scenario['resume'] : $scenario['nom'] ); ?></span>
+                        </div>
                         <div class="npq-scen-corps" id="npq-scen-corps"><?php echo esc_html( $scenario['contexte'] ); ?></div>
                         <span class="npq-scen-bascule" id="npq-scen-bascule">[ + Lire le scénario ]</span>
                     </div>

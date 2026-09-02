@@ -14,6 +14,10 @@
   --teal-dim:rgba(0,207,207,0.12);
   --orange:#FF7A50;
   --orange-dim:rgba(255,122,80,0.12);
+  /* Ambre du thème CARTO : ce qui n'est pas encore acquis mais qui est visé —
+     la ligne de seuil de la courbe de progression. Ni teal (acquis), ni orange
+     (échec) : un objectif. */
+  --amber:#E8B84B;
   --green:#4ADE80;
   --text:#E7ECF5;
   --text-lo:#8B98B3;
@@ -582,11 +586,28 @@
 .npq-app .npq-nombre-case input{ accent-color:var(--teal); margin:0; }
 
 /* ============ CORRECTION IMMÉDIATE (mode révision) ============ */
-.npq-app .npq-correction{ max-width:820px; }
+/* Pas de plafond : la correction occupe la colonne entière, comme l'écran de
+   question qu'elle remplace.
+   
+   Ce plafond de 820 px était un reste : il avait été écrit avant que le bloc
+   deux colonnes existe, et personne ne l'avait revu depuis. Résultat, les
+   MÊMES quatre propositions passaient de 1200 px pendant qu'on répond à 820 px
+   une fois validé — mesuré, et visible : le bloc scénario au-dessus restait à
+   1200. La correction était le seul élément désaligné de l'écran.
+   
+   L'enjeu n'est pas la largeur mais la HAUTEUR : à 820 px chaque proposition
+   tenait sur deux lignes, ce qui repoussait le bouton « Continuer » 133 px
+   sous le bas de l'écran dès que le scénario était déplié. Il fallait faire
+   défiler pour valider. En pleine largeur, elles tiennent sur une ligne. */
+.npq-app .npq-correction{ max-width:none; }
+/* Les respirations de la correction sont resserrées d'un cran — pas davantage.
+   Le verdict garde ses 24 px : c'est le moment où le candidat apprend s'il a
+   juste, il n'a pas à être discret. Seuls les rembourrages et les marges
+   cèdent du terrain, ce qui suffit à ramener le bouton dans l'écran. */
 .npq-app .npq-corr-verdict{
   font-family:'Rajdhani',sans-serif; font-weight:700; font-size:24px;
-  text-transform:uppercase; margin-bottom:20px;
-  padding:14px 20px; border-left:3px solid;
+  text-transform:uppercase; margin-bottom:16px;
+  padding:11px 18px; border-left:3px solid;
 }
 .npq-app .npq-corr-verdict.ok{
   color:var(--green); border-color:var(--green); background:rgba(74,222,128,0.08);
@@ -595,7 +616,7 @@
   color:var(--orange); border-color:var(--orange); background:rgba(255,122,80,0.08);
 }
 .npq-app .npq-corr-option{
-  padding:14px 18px; margin-bottom:10px; font-size:16px; line-height:1.5;
+  padding:12px 16px; margin-bottom:9px; font-size:16px; line-height:1.5;
   border:1px solid var(--border); color:var(--text-lo);
 }
 .npq-app .npq-corr-option.bonne{
@@ -616,7 +637,7 @@
   font-size:12px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
   margin-bottom:10px;
 }
-.npq-app .npq-corr-suite{ margin-top:26px; }
+.npq-app .npq-corr-suite{ margin-top:20px; }
 .npq-app .npq-corr-suite .npq-btn{
   font-family:'Inconsolata',monospace; font-size:14px; font-weight:700;
   letter-spacing:0.08em; text-transform:uppercase;
@@ -650,10 +671,11 @@
   border-left:3px solid var(--teal);
   padding:24px 28px 18px; margin-bottom:26px;
 }
-/* Le composant du thème produit un SVG en largeur 100% : sans contrainte, il
-   s'étire en hauteur proportionnellement. On borne la hauteur affichée. */
+/* La courbe cale son viewBox sur la largeur du conteneur (voir
+   npq-activite.js) : à 100% de large, elle fait donc exactement 240px de haut.
+   Le plafond n'est là que pour la borner si ce calcul devait dériver. */
 .npq-app .npq-courbe-cadre svg{
-  max-height:170px;
+  max-height:240px;
 }
 
 /* Chiffres clés sous la courbe (composants .stat-block du thème) */
@@ -676,6 +698,9 @@
 .npq-app .npq-ev-hausse{ color:var(--green) !important; }
 .npq-app .npq-ev-baisse{ color:var(--orange) !important; }
 .npq-app .npq-ev-stable{ color:var(--text-lo) !important; }
+/* Ni acquis ni manqué : le seuil est tenu une fois sur deux. L'ambre dit
+   exactement cela — en cours, il faut continuer. */
+.npq-app .npq-ev-partiel{ color:var(--amber) !important; }
 
 /* Écran vide (aucun examen encore passé) */
 .npq-app .npq-act-vide{
@@ -754,27 +779,184 @@
 .npq-app .npq-conseil .npq-btn:hover{
   transform:translateY(-2px); box-shadow:0 10px 24px rgba(0,207,207,0.25);
 }
+/* Conseil de découverte : ambre, et non l'orange du conseil de révision.
+   L'orange annonce un échec — n'avoir jamais ouvert un domaine n'en est pas
+   un, c'est un chapitre qui reste à commencer. Même distinction que les
+   pointillés de la liste juste au-dessus. */
+.npq-app .npq-conseil-decouverte{
+  background:rgba(232,184,75,0.06);
+  border-left-color:var(--amber);
+  margin-top:20px;
+}
 
-/* ---- Volume de travail : compteurs animés ---- */
-.npq-app .npq-volume-grille{
-  display:grid; grid-template-columns:repeat(4,1fr); gap:18px;
-}
-@media (max-width:980px){
-  .npq-app .npq-volume-grille{ grid-template-columns:repeat(2,1fr); }
-}
-@media (max-width:560px){
-  .npq-app .npq-volume-grille{ grid-template-columns:1fr; }
-}
-.npq-app .npq-compteur{
+/* ---- Calendrier d'assiduité ----
+   Une case par jour, les semaines en colonnes. L'intensité dit le travail
+   fourni dans la journée : elle monte en teal, parce qu'ici une journée
+   chargée est une bonne nouvelle — c'est du fait, pas du reste à faire. */
+.npq-app .npq-calendrier-cadre{
   background:var(--surface); border:1px solid var(--border);
   border-left:3px solid var(--teal);
-  padding:24px 26px;
+  padding:22px 26px 20px; margin-bottom:22px;
 }
-/* Le composant counter du thème produit une valeur très grande : on la calme,
-   pour rester cohérent avec les autres chiffres de la page. */
-.npq-app .npq-compteur .counter-value,
-.npq-app .npq-compteur [class*="value"]{
-  font-size:38px !important;
+.npq-app .npq-cal-titre{
+  font-family:'Inconsolata',monospace; font-size:12px; font-weight:700;
+  letter-spacing:0.12em; text-transform:uppercase; color:var(--text-lo);
+  margin:0 0 16px;
+}
+.npq-app .npq-cal-sous{
+  font-weight:400; letter-spacing:0.06em; text-transform:none;
+  color:var(--muted);
+}
+
+/* La largeur d'une colonne est la même partout : c'est elle qui aligne le
+   bandeau des mois sur la grille des jours. */
+.npq-app .npq-calendrier{
+  --npq-cal-case:20px;
+  --npq-cal-ecart:4px;
+  --npq-cal-gouttiere:34px;   /* colonne des libellés de jours */
+}
+/* Sur un petit écran on fait défiler plutôt que de déformer les cases. Seule
+   cette zone défile : la légende, en dehors, reste toujours visible. */
+.npq-app .npq-cal-defile{ overflow-x:auto; }
+/* Le nombre de colonnes est posé par PHP (--npq-cal-semaines) : la constante
+   SEMAINES_CALENDRIER est la seule source, ici comme là-bas. */
+.npq-app .npq-cal-mois,
+.npq-app .npq-cal-grille{
+  display:grid;
+  grid-template-columns:repeat(var(--npq-cal-semaines, 12), var(--npq-cal-case));
+  gap:var(--npq-cal-ecart);
+}
+.npq-app .npq-cal-mois{
+  margin-left:calc(var(--npq-cal-gouttiere) + var(--npq-cal-ecart));
+  margin-bottom:6px;
+}
+.npq-app .npq-cal-mois span{
+  font-family:'Inconsolata',monospace; font-size:10px;
+  letter-spacing:0.06em; color:var(--muted);
+  /* Le nom du mois est plus large qu'une colonne : on le laisse déborder vers
+     la droite sans pousser les colonnes suivantes. */
+  white-space:nowrap; overflow:visible;
+}
+.npq-app .npq-cal-corps{
+  display:flex; gap:var(--npq-cal-ecart); align-items:flex-start;
+  /* Aussi large que la grille, et non que la zone visible : une colonne collée
+     à gauche ne peut pas dépasser les bords de son parent, donc un parent
+     limité à l'écran l'emporterait hors champ dès le premier défilement. */
+  width:max-content;
+}
+.npq-app .npq-cal-jours{
+  display:grid; grid-template-rows:repeat(7, var(--npq-cal-case));
+  gap:var(--npq-cal-ecart);
+  width:var(--npq-cal-gouttiere); flex:none;
+  /* Collée à gauche pendant le défilement : sans les jours de la semaine, une
+     ligne de cases ne se lit pas. Le fond du cadre l'accompagne pour que les
+     cases passent dessous sans transparaître. */
+  position:sticky; left:0; z-index:1;
+  background:var(--surface);
+}
+.npq-app .npq-cal-jours span{
+  font-family:'Inconsolata',monospace; font-size:10px; color:var(--muted);
+  display:flex; align-items:center; justify-content:flex-end;
+  line-height:1;
+}
+/* Les jours se lisent de haut en bas dans une colonne, les colonnes de gauche
+   à droite : c'est l'ordre dans lequel le PHP les écrit. */
+.npq-app .npq-cal-grille{
+  grid-auto-flow:column;
+  grid-template-rows:repeat(7, var(--npq-cal-case));
+}
+.npq-app .npq-cal-case{
+  width:var(--npq-cal-case); height:var(--npq-cal-case);
+  border-radius:2px; display:block;
+}
+/* Jour sans travail : un creux, pas une alerte. */
+.npq-app .npq-cal-n0{ background:var(--bg-2); border:1px solid var(--border); }
+.npq-app .npq-cal-n1{ background:rgba(0,207,207,0.26); }
+.npq-app .npq-cal-n2{ background:rgba(0,207,207,0.45); }
+.npq-app .npq-cal-n3{ background:rgba(0,207,207,0.70); }
+.npq-app .npq-cal-n4{ background:var(--teal); }
+/* Un jour à venir n'est pas un jour sans travail : il occupe la place pour ne
+   pas déformer la grille, mais ne se dessine pas. */
+.npq-app .npq-cal-futur{ background:none; border:none; }
+
+.npq-app .npq-cal-legende{
+  display:flex; align-items:center; gap:4px; margin-top:14px;
+  font-family:'Inconsolata',monospace; font-size:10px; color:var(--muted);
+}
+.npq-app .npq-cal-legende span:first-child{ margin-right:4px; }
+.npq-app .npq-cal-legende span:last-child{ margin-left:4px; }
+.npq-app .npq-cal-legende i{ width:12px; height:12px; }
+
+/* Repli quand le calendrier n'a pas assez de jours pour dire quelque chose. */
+.npq-app .npq-cal-repli{
+  background:var(--surface); border:1px solid var(--border);
+  border-left:3px solid var(--teal);
+  padding:20px 26px; margin-bottom:22px;
+  color:var(--text-lo); font-size:15px; line-height:1.6;
+}
+.npq-app .npq-cal-repli strong{ color:var(--text); }
+
+/* ---- Ligne de contexte : les cumuls, en petit ----
+   Ils étaient quatre compteurs animés grand format. Un cumul ne peut que
+   monter : en vedette, il félicitait le candidat quel que soit son niveau. Il
+   reste utile pour savoir sur quel volume repose le reste de la page, d'où
+   cette ligne discrète. */
+.npq-app .npq-volume-ligne{
+  display:flex; flex-wrap:wrap; gap:8px 26px;
+  font-family:'Inconsolata',monospace; font-size:13px;
+  color:var(--text-lo); margin:0 0 22px;
+}
+.npq-app .npq-volume-ligne strong{
+  color:var(--text); font-weight:700; font-size:15px;
+}
+
+/* ---- Couverture du programme ---- */
+.npq-app .npq-couverture-cadre{
+  background:var(--surface); border:1px solid var(--border);
+  border-left:3px solid var(--teal);
+  padding:22px 26px 20px;
+}
+.npq-app .npq-couv-titre{
+  display:flex; align-items:baseline; gap:12px;
+  font-family:'Inconsolata',monospace; font-size:12px; font-weight:700;
+  letter-spacing:0.12em; text-transform:uppercase; color:var(--text-lo);
+  margin:0 0 16px;
+}
+.npq-app .npq-couv-compte{
+  font-size:16px; letter-spacing:0.04em; color:var(--teal);
+}
+/* Programme incomplet : ambre, pas teal. Le teal dirait « acquis » d'un
+   parcours auquel il manque un domaine. */
+.npq-app .npq-couv-compte.incomplet{ color:var(--amber); }
+.npq-app .npq-couv-liste{
+  display:flex; flex-wrap:wrap; gap:10px;
+}
+/* Un domaine ouvert : plein, liseré teal — c'est de l'acquis au sens du
+   parcours, pas au sens du score. */
+.npq-app .npq-couv-domaine{
+  display:flex; align-items:baseline; gap:8px;
+  background:var(--bg-2); border:1px solid var(--border);
+  border-left:3px solid var(--teal);
+  padding:8px 14px;
+}
+/* Jamais ouvert : en pointillés, et en retrait. Le pointillé dit « il manque
+   quelque chose ici » sans emprunter l'orange, qui annonce un échec — or ne
+   pas avoir commencé n'est pas avoir échoué. */
+.npq-app .npq-couv-domaine.vierge{
+  background:none; border:1px dashed var(--muted);
+  border-left:3px dashed var(--muted);
+}
+.npq-app .npq-couv-code{
+  font-family:'Inconsolata',monospace; font-size:12px; font-weight:700;
+  letter-spacing:0.08em; color:var(--teal);
+}
+.npq-app .npq-couv-domaine.vierge .npq-couv-code{ color:var(--muted); }
+.npq-app .npq-couv-nom{
+  font-size:14px; color:var(--text-lo);
+}
+.npq-app .npq-couv-domaine.vierge .npq-couv-nom{ color:var(--muted); }
+.npq-app .npq-couv-pied{
+  color:var(--muted); font-size:13px; margin:16px 0 0;
 }
 
 /* ============ ÉCRAN D'ACCUEIL DE L'EXAMEN ============ */
@@ -906,6 +1088,14 @@
 
 
 /* ============ EXAMEN : DEUX COLONNES ============ */
+/* PAS de largeur maximale : la colonne de suivi reste collée au bord droit de
+   l'écran, quelle que soit sa taille.
+   
+   Un plafond de 1180 px a été essayé, pour rapprocher le suivi du texte et
+   supprimer l'espace qui les sépare sur un grand écran. Testé, puis écarté :
+   le suivi se retrouvait flottant au milieu de la page, et le repère qu'il
+   constitue — toujours au même endroit, en haut à droite — comptait davantage
+   que le vide. Ne pas le remettre sans avoir reposé la question. */
 .npq-app .npq-examen-deux-col{
   display:grid; grid-template-columns:1fr 300px; gap:24px;
   align-items:start; max-width:none;
@@ -929,27 +1119,50 @@
 
 /* ---- Scénario repliable ---- */
 .npq-app .npq-scenario-box{
-  background:var(--surface); border:1px solid var(--border);
-  border-left:3px solid var(--teal);
+  /* Orange plutôt que teal : le scénario porte le contexte sans lequel l'énoncé
+     n'a pas de sens, il doit se voir avant qu'on lise la question. Le teal, lui,
+     reste réservé à ce qui est acquis. Le fond légèrement orangé reprend celui
+     de .npq-conseil : même registre, un encart qui demande à être lu. */
+  background:rgba(255,122,80,0.06); border:1px solid var(--border);
+  border-left:3px solid var(--orange);
   /* Padding vertical identique au panneau de suivi (18px) : les deux colonnes
      s'alignent alors exactement en haut. */
   padding:18px 20px; margin-bottom:20px;
 }
-.npq-app .npq-scen-titre{
+/* Le titre du scénario se lisait mal, et ce n'était pas qu'une affaire de
+   taille : c'était l'habillage de rubrique — monospace, capitales, lettres
+   très espacées — appliqué à une PHRASE de quatre-vingt-dix caractères.
+   Ce traitement est juste pour « PROGRESSION » ou « QUESTIONS », deux mots
+   qu'on reconnaît d'un bloc. Sur une phrase il coûte cher : les capitales
+   effacent la silhouette des mots (plus de jambages ni de hampes), l'espacement
+   les empêche de se grouper, et une chasse fixe ralentit la lecture suivie.
+   La rubrique est donc rendue à son rôle d'étiquette, et le résumé redevient
+   du texte. */
+.npq-app .npq-scen-titre{ line-height:1.5; }
+.npq-app .npq-scen-etiquette{
+  display:block; margin-bottom:6px;
   font-family:'Inconsolata',monospace; font-size:11px;
-  letter-spacing:0.18em; text-transform:uppercase; color:var(--teal);
-  line-height:1.5;
+  letter-spacing:0.18em; text-transform:uppercase; color:var(--orange);
 }
+.npq-app .npq-scen-resume{
+  display:block;
+  font-size:17px; font-weight:600; color:var(--text); line-height:1.45;
+}
+/* Le contexte est ce qu'il faut VRAIMENT lire : il passe de 14 à 16 px et
+   quitte la couleur secondaire, qui n'a rien à faire sur du contenu principal.
+   L'interligne s'ouvre d'autant : un paragraphe long se relit à la ligne. */
 .npq-app .npq-scen-corps{
   display:none;
-  font-size:14px; color:var(--text-lo); line-height:1.7;
-  margin-top:12px; padding-top:12px; border-top:1px solid var(--border);
+  font-size:16px; color:var(--text); line-height:1.75;
+  margin-top:14px; padding-top:14px; border-top:1px solid var(--border);
 }
 .npq-app .npq-scen-corps.ouvert{ display:block; }
+/* La bascule est un bouton : à 11 px et 75 % d'opacité, c'était une cible
+   minuscule et pâle. Le monospace reste — ici c'est bien une étiquette. */
 .npq-app .npq-scen-bascule{
-  display:inline-block; margin-top:8px;
-  font-family:'Inconsolata',monospace; font-size:11px;
-  letter-spacing:0.1em; color:var(--teal); cursor:pointer; opacity:0.75;
+  display:inline-block; margin-top:12px;
+  font-family:'Inconsolata',monospace; font-size:12px; font-weight:700;
+  letter-spacing:0.1em; color:var(--orange); cursor:pointer; opacity:0.9;
   transition:opacity .15s var(--ease);
 }
 .npq-app .npq-scen-bascule:hover{ opacity:1; }

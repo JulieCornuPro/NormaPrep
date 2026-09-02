@@ -207,7 +207,20 @@
             '</button>';
     }
 
-    /** Branche les boutons de navigation et les pastilles. */
+    /**
+     * Branche « Précédente » et « Suivante ».
+     *
+     * À N'APPELER QUE depuis afficherCarte(), qui vient de reconstruire toute
+     * la session. Ces deux boutons vivent dans la colonne principale ; ils ne
+     * sont PAS refaits quand on rafraîchit le panneau de suivi.
+     *
+     * C'est ce qui causait le saut de cartes : brancherNavigation() rebranchait
+     * tout, panneau ET navigation, et rafraichirSuivi() l'appelait à chaque
+     * retournement de carte. Les boutons de navigation, eux, survivaient — ils
+     * accumulaient donc un écouteur de plus à chaque fois. Un clic sur
+     * « Suivante » déclenchait alors autant d'avances qu'il y avait eu de
+     * retournements : la carte 1 menait à la 3, puis à la 5, et ainsi de suite.
+     */
     function brancherNavigation() {
         var prec = document.getElementById('npq-fc-prec');
         if (prec) {
@@ -229,6 +242,17 @@
             });
         }
 
+        brancherPanneau();
+    }
+
+    /**
+     * Branche les commandes du panneau de suivi : pastilles et « Terminer ».
+     *
+     * Elles, on peut les rebrancher autant qu'on veut : rafraichirSuivi()
+     * réécrit tout le panneau, donc les anciens boutons — et leurs écouteurs —
+     * ont disparu du document avec lui.
+     */
+    function brancherPanneau() {
         var apercu = document.getElementById('npq-fc-apercu');
         if (apercu) {
             apercu.querySelectorAll('.npq-pastille').forEach(function (p) {
@@ -304,7 +328,9 @@
             return;
         }
         suivi.innerHTML = panneauSuivi();
-        brancherNavigation();
+        // Le panneau SEUL : la navigation n'a pas bougé, la rebrancher lui
+        // ajouterait un écouteur en double. Voir brancherNavigation().
+        brancherPanneau();
     }
 
     /** Fin de session : bilan, et proposition de rejouer les cartes ratées. */

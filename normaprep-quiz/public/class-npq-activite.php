@@ -6,8 +6,14 @@
  *   « Suis-je en progrès ? »  -> courbe des scores dans le temps.
  *   « Sur quoi travailler ? » -> points faibles par domaine (à venir).
  *
- * Réutilise les composants dynamiques du thème (Carto.sparkline, etc.) pour
- * rester cohérent visuellement et éviter d'ajouter une bibliothèque.
+ * Réutilise le composant Carto.barChart du thème pour les points faibles, afin
+ * de rester cohérent visuellement et d'éviter d'ajouter une bibliothèque.
+ *
+ * Deux exceptions, expliquées là où elles sont écrites : la courbe de
+ * progression, qui demande une échelle et des valeurs chiffrées qu'aucun
+ * composant du thème ne sait produire (npq-activite.js) ; et le calendrier
+ * d'assiduité, dont la gamme de couleurs est l'inverse de celle de
+ * Carto.heatmap (voir calendrier_assiduite plus bas).
  *
  * @package NormaPrep_Quiz
  */
@@ -34,6 +40,58 @@ class NPQ_Activite {
      * révision.
      */
     const FIABILITE_MIN = 5;
+
+    /**
+     * Nombre d'examens en dessous duquel la constance ne veut rien dire.
+     *
+     * Deux examens ne font pas une régularité : le chiffre reste affiché, mais
+     * sans couleur qui le commente.
+     */
+    const CONSTANCE_MIN = 3;
+
+    /**
+     * Part des examens au-dessus du seuil à partir de laquelle on parle d'un
+     * niveau tenu. Quatre sur cinq n'est plus de l'irrégularité.
+     */
+    const CONSTANCE_SOLIDE = 0.8;
+
+    /**
+     * Nombre de semaines montrées par le calendrier d'assiduité.
+     *
+     * Six mois : c'est l'ordre de grandeur d'une préparation à la
+     * certification. Sur douze semaines la grille ne montrait que la poussée en
+     * cours, sans dire si elle succédait à un trimestre vide — et elle laissait
+     * les deux tiers du cadre inoccupés.
+     */
+    const SEMAINES_CALENDRIER = 26;
+
+    /**
+     * Nombre de jours travaillés en dessous duquel on n'affiche PAS le
+     * calendrier.
+     *
+     * Une grille presque vide ne renseigne sur rien : elle accuse.
+     *
+     * Le seuil est bas parce que la grille ne remonte jamais avant la première
+     * activité du candidat : un débutant obtient deux ou trois colonnes
+     * denses, pas six mois de cases éteintes. C'est ce bornage qui protège du
+     * reproche, pas ce nombre — il ne reste ici que pour éviter la grille d'une
+     * seule journée, qui ne dessine aucun rythme.
+     */
+    const JOURS_ACTIFS_MIN = 3;
+
+    /**
+     * Paliers d'intensité du calendrier, en questions répondues dans la
+     * journée.
+     *
+     * Fixes, et non calculés sur le maximum du candidat : une échelle relative
+     * rendrait deux visites incomparables et peindrait en couleur la plus vive
+     * la meilleure journée d'un candidat qui n'en a fait que dix. C'est
+     * exactement l'erreur que la courbe de progression a coûté à réparer.
+     * Les bornes correspondent à l'usage : une révision courte tourne autour de
+     * la dizaine de questions, un examen blanc complet en dépasse la
+     * cinquantaine.
+     */
+    const PALIERS_ASSIDUITE = [ 10, 25, 50 ];
 
     public static function init() {
         add_shortcode( 'npq_activite', [ __CLASS__, 'rendu' ] );
@@ -71,7 +129,7 @@ class NPQ_Activite {
         wp_enqueue_script(
             'npq-activite',
             NPQ_URL . 'assets/npq-activite.js',
-            // Dépend de la bibliothèque de composants du thème (Carto.sparkline…) :
+            // Dépend de la bibliothèque de composants du thème (Carto.barChart…) :
             // WordPress garantit ainsi qu'elle est chargée avant notre script.
             [ 'carto-components' ],
             NPQ_VERSION,
@@ -109,11 +167,23 @@ class NPQ_Activite {
             return self::ecran_vide( $selecteur );
         }
 
-        $chiffres = self::chiffres_cles( $examens );
+        // Le seuil sert trois fois : la ligne de référence tracée dans la
+        // courbe, le compte des examens qui l'atteignent, et l'écart affiché
+        // plus bas. On le lit une seule fois.
+        $seuil_reussite = self::seuil_reussite();
 
-        // Les scores, du plus ancien au plus récent (sens de lecture de la courbe).
-        $scores = array_map( function ( $e ) {
-            return (int) $e['score'];
+        $chiffres = self::chiffres_cles( $examens, $seuil_reussite );
+
+        // Les points de la courbe, du plus ancien au plus récent (sens de
+        // lecture). La date accompagne le score : sans elle, l'axe horizontal
+        // ne dit pas sur quelle période la progression s'est jouée — deux
+        // examens passés le même jour et deux examens espacés d'un mois se
+        // lisaient exactement pareil.
+        $points = array_map( function ( $e ) {
+            return [
+                'score' => (int) $e['score'],
+                'date'  => mysql2date( 'd/m', $e['date_debut'] ),
+            ];
         }, array_reverse( $examens ) );
 
         ob_start();
@@ -131,12 +201,15 @@ class NPQ_Activite {
                 <div class="sec-title">Ma progression</div>
                 <p class="npq-kpi-aide">
                     Scores de vos <?php echo count( $examens ); ?> derniers examens,
-                    du plus ancien au plus récent.
+                    du plus ancien au plus récent. La ligne ambre marque le seuil
+                    de réussite : en teal les examens qui l'atteignent, en orange
+                    ceux qui restent en dessous.
                 </p>
 
                 <div class="npq-courbe-cadre">
                     <div id="npq-courbe-progression"
-                         data-scores="<?php echo esc_attr( wp_json_encode( $scores ) ); ?>"></div>
+                         data-points="<?php echo esc_attr( wp_json_encode( $points ) ); ?>"
+                         data-seuil="<?php echo (int) $seuil_reussite; ?>"></div>
                 </div>
 
                 <div class="npq-chiffres-cles">
@@ -148,12 +221,14 @@ class NPQ_Activite {
                         <div class="stat-block__sub"><?php echo esc_html( $chiffres['date_dernier'] ); ?></div>
                     </div>
 
+                    <?php $constance = self::constance( $chiffres['au_dessus'], $chiffres['total'] ); ?>
                     <div class="stat-block">
-                        <div class="stat-block__value">
-                            <?php echo (int) $chiffres['meilleur']; ?><span class="accent">%</span>
+                        <div class="stat-block__value npq-ev-<?php echo esc_attr( $constance['classe'] ); ?>">
+                            <?php echo (int) $chiffres['au_dessus']; ?><span class="accent">/<?php
+                                echo (int) $chiffres['total']; ?></span>
                         </div>
-                        <div class="stat-block__label">Meilleur score</div>
-                        <div class="stat-block__sub">Votre record</div>
+                        <div class="stat-block__label">Examens au-dessus du seuil</div>
+                        <div class="stat-block__sub"><?php echo esc_html( $constance['texte'] ); ?></div>
                     </div>
 
                     <?php
@@ -166,7 +241,9 @@ class NPQ_Activite {
                     // rechutes. Surtout, la question qui décide de tout est
                     // binaire — suis-je au-dessus du seuil ? — et aucun
                     // indicateur n'y répondait.
-                    $seuil_reussite = self::seuil_reussite();
+                    //
+                    // $seuil_reussite est lu plus haut : la courbe en trace la
+                    // ligne de référence, ce chiffre en donne l'écart.
                     $ecart  = (int) $chiffres['dernier'] - $seuil_reussite;
                     $classe = ( $ecart >= 0 ) ? 'hausse' : 'baisse';
                     $signe  = ( $ecart > 0 ) ? '+' : '';
@@ -189,6 +266,206 @@ class NPQ_Activite {
                     </div>
                 </div>
             </section>
+
+            <?php $volume = self::volume_travail( $certification_id ); ?>
+            <?php if ( $volume && $volume['questions'] > 0 ) : ?>
+                <!-- Régularité et couverture -->
+                <section class="npq-kpi-bloc reveal-on-scroll">
+                    <div class="sec-title">Ma régularité</div>
+                    <p class="npq-kpi-aide">
+                        Travailler souvent compte autant que travailler beaucoup.
+                        Examens et révisions confondus : ici on mesure l'effort,
+                        pas la performance.
+                    </p>
+
+                    <?php
+                    // Fenêtre du calendrier : on remonte jusqu'au lundi d'il y a
+                    // douze semaines, pour que la grille commence toujours en
+                    // haut d'une colonne pleine.
+                    //
+                    // current_time() et non date() : les dates de tentative sont
+                    // écrites avec current_time('mysql'), donc dans le fuseau du
+                    // site. Comparer à l'heure serveur décalerait les journées
+                    // d'un cran pour toute activité de fin de soirée.
+                    $aujourdhui   = current_time( 'Y-m-d' );
+                    $lundi_actuel = gmdate( 'Y-m-d', strtotime( 'monday this week', strtotime( $aujourdhui ) ) );
+                    $lundi_fenetre = gmdate(
+                        'Y-m-d',
+                        strtotime( $lundi_actuel . ' -' . ( self::SEMAINES_CALENDRIER - 1 ) . ' weeks' )
+                    );
+
+                    $assiduite = self::assiduite( $certification_id, $lundi_fenetre );
+
+                    // La grille ne commence jamais avant la première activité du
+                    // candidat : sinon un inscrit de la semaine verrait cinq
+                    // mois de cases éteintes antérieures à son arrivée.
+                    $lundi_depart = $lundi_fenetre;
+                    if ( ! empty( $assiduite['premiere'] ) ) {
+                        $lundi_premiere = gmdate(
+                            'Y-m-d',
+                            strtotime( 'monday this week', strtotime( gmdate( 'Y-m-d', strtotime( $assiduite['premiere'] ) ) ) )
+                        );
+                        if ( $lundi_premiere > $lundi_depart ) {
+                            $lundi_depart = $lundi_premiere;
+                        }
+                    }
+
+                    // Nombre de colonnes réellement tracées, entre ce lundi de
+                    // départ et la semaine en cours (incluse).
+                    $nb_semaines = 1 + (int) round(
+                        ( strtotime( $lundi_actuel ) - strtotime( $lundi_depart ) ) / ( 7 * 86400 )
+                    );
+
+                    $jours_actifs = count( $assiduite['jours'] );
+                    ?>
+
+                    <?php if ( $jours_actifs >= self::JOURS_ACTIFS_MIN ) : ?>
+                        <div class="npq-calendrier-cadre">
+                            <p class="npq-cal-titre">
+                                <?php echo (int) $jours_actifs; ?> jours travaillés
+                                <span class="npq-cal-sous">depuis
+                                le <?php echo esc_html( mysql2date( 'j F Y', $lundi_depart ) ); ?></span>
+                            </p>
+                            <?php echo self::calendrier_assiduite( $assiduite['jours'], $lundi_depart, $aujourdhui, $nb_semaines ); ?>
+                        </div>
+                    <?php elseif ( $assiduite['derniere'] ) : ?>
+                        <?php
+                        // Trop peu de jours travaillés pour qu'une grille de
+                        // douze semaines dise quelque chose. La date, elle, est
+                        // vraie et suffit.
+                        ?>
+                        <p class="npq-cal-repli">
+                            Dernière activité le
+                            <strong><?php echo esc_html( mysql2date( 'j F Y', $assiduite['derniere'] ) ); ?></strong>.
+                            Votre calendrier d'assiduité apparaîtra ici après
+                            <?php echo (int) self::JOURS_ACTIFS_MIN; ?> jours de travail.
+                        </p>
+                    <?php endif; ?>
+
+                    <?php
+                    // Les cumuls ne sont plus des compteurs animés mais une
+                    // ligne de contexte. Un cumul ne peut que monter : il ne
+                    // dit rien à la deuxième visite, et affiché en grand il
+                    // félicitait un candidat quel que soit son niveau. Il garde
+                    // sa place — savoir sur quel volume repose le reste est
+                    // utile — mais pas la vedette.
+                    ?>
+                    <p class="npq-volume-ligne">
+                        <span><strong><?php echo (int) $volume['questions']; ?></strong> questions traitées</span>
+                        <span><strong><?php echo (int) $volume['sessions_examens']; ?></strong> examen(s) blanc(s)</span>
+                        <span><strong><?php echo (int) $volume['sessions_revisions']; ?></strong> session(s) de révision</span>
+                    </p>
+
+                    <?php
+                    $couverture = self::couverture_domaines( $certification_id );
+                    $nb_couverts = 0;
+                    foreach ( $couverture as $d ) {
+                        if ( $d['couvert'] ) { $nb_couverts++; }
+                    }
+                    ?>
+                    <?php if ( ! empty( $couverture ) ) : ?>
+                        <div class="npq-couverture-cadre">
+                            <p class="npq-couv-titre">
+                                Couverture du programme
+                                <?php
+                                // Teal seulement si le programme est entier :
+                                // le teal annonce ce qui est acquis, et « 5/7 »
+                                // dit précisément le contraire. Tant qu'il
+                                // manque un domaine, l'ambre — ce qui est visé,
+                                // pas encore atteint.
+                                ?>
+                                <span class="npq-couv-compte<?php echo ( $nb_couverts < count( $couverture ) ) ? ' incomplet' : ''; ?>">
+                                    <?php echo (int) $nb_couverts; ?>/<?php echo count( $couverture ); ?>
+                                </span>
+                            </p>
+
+                            <?php
+                            // La liste ENTIÈRE, chaque domaine marqué ouvert ou
+                            // non. « 5 sur 7 » dit qu'il manque quelque chose
+                            // sans dire quoi : le candidat ne peut rien en
+                            // faire. Nommer les domaines non ouverts, si.
+                            ?>
+                            <div class="npq-couv-liste">
+                                <?php foreach ( $couverture as $d ) : ?>
+                                    <span class="npq-couv-domaine<?php echo $d['couvert'] ? '' : ' vierge'; ?>"
+                                          title="<?php echo esc_attr(
+                                              $d['couvert']
+                                                  ? $d['libelle'] . ' — déjà travaillé'
+                                                  : $d['libelle'] . ' — jamais ouvert'
+                                          ); ?>">
+                                        <span class="npq-couv-code"><?php echo esc_html( $d['code'] ); ?></span>
+                                        <span class="npq-couv-nom"><?php echo esc_html( $d['libelle'] ); ?></span>
+                                    </span>
+                                <?php endforeach; ?>
+                            </div>
+
+                            <p class="npq-couv-pied">
+                                <?php if ( $nb_couverts === count( $couverture ) ) : ?>
+                                    Vous avez travaillé chacun des domaines du référentiel.
+                                <?php else : ?>
+                                    Les domaines en pointillés n'ont jamais été ouverts,
+                                    ni en examen ni en révision.
+                                <?php endif; ?>
+                            </p>
+                        </div>
+
+                        <?php
+                        // Un domaine jamais ouvert est le trou le plus grave de
+                        // la page, et c'était le seul sans bouton.
+                        //
+                        // Le conseil des points faibles ne peut pas le couvrir :
+                        // il désigne le domaine au taux le plus bas, or un
+                        // domaine jamais abordé n'a pas de taux du tout. Il ne
+                        // pouvait donc jamais être « le plus fragile », et
+                        // n'apparaissait qu'en gris dans une liste. On peut
+                        // réviser un domaine faible ; on ne peut pas réviser
+                        // celui dont on ignore l'avoir manqué.
+                        $vierges = [];
+                        foreach ( $couverture as $d ) {
+                            if ( ! $d['couvert'] ) {
+                                $vierges[] = $d;
+                            }
+                        }
+
+                        // Le premier dans l'ordre du référentiel, et non un
+                        // « meilleur choix » : aucune donnée ne permet de
+                        // classer des domaines dont on ne sait rien. Le bouton
+                        // le nomme, plutôt que de laisser croire à une
+                        // recommandation.
+                        $premier_vierge = $vierges ? $vierges[0] : null;
+                        $url_decouvrir  = $premier_vierge
+                            ? self::url_reviser_domaine( $premier_vierge['code'], $certification_id )
+                            : '';
+                        ?>
+                        <?php if ( $premier_vierge && $url_decouvrir ) : ?>
+                            <div class="npq-conseil npq-conseil-decouverte">
+                                <p>
+                                    <?php if ( count( $vierges ) === 1 ) : ?>
+                                        Un domaine du référentiel n'a jamais été ouvert :
+                                        <strong><?php echo esc_html( $premier_vierge['libelle'] ); ?></strong>.
+                                    <?php else : ?>
+                                        <strong><?php echo count( $vierges ); ?> domaines</strong>
+                                        du référentiel n'ont jamais été ouverts :
+                                        <?php
+                                        $noms = array_map( 'esc_html', wp_list_pluck( $vierges, 'libelle' ) );
+                                        echo implode( ', ', $noms );
+                                        ?>.
+                                    <?php endif; ?>
+                                    Les questions de l'examen s'y répartissent pourtant comme
+                                    ailleurs.
+                                </p>
+                                <a href="<?php echo esc_url( $url_decouvrir ); ?>" class="npq-btn">
+                                    <?php if ( count( $vierges ) === 1 ) : ?>
+                                        Découvrir ce domaine
+                                    <?php else : ?>
+                                        Commencer par <?php echo esc_html( $premier_vierge['code'] ); ?>
+                                    <?php endif; ?>
+                                </a>
+                            </div>
+                        <?php endif; ?>
+                    <?php endif; ?>
+                </section>
+            <?php endif; ?>
 
             <?php
             $domaines = self::taux_par_domaine( $certification_id );
@@ -296,22 +573,8 @@ class NPQ_Activite {
                             break; // la liste est déjà triée du plus faible au plus fort
                         }
                     }
-                    $url_revision = get_option( 'npq_page_revision_id' );
-
-                    // Le lien porte le domaine ET la certification, pour que la
-                    // page Révisions arrive pré-réglée. Sans ces paramètres, le
-                    // bouton promettait de réviser CE domaine puis déposait le
-                    // candidat sur la page nue, à lui de retrouver lequel.
-                    // L'ancre l'amène directement au formulaire, situé sous les
-                    // parcours proposés.
-                    $url_reviser = ( $url_revision && $plus_faible )
-                        ? add_query_arg(
-                            [
-                                'npq_domaine' => $plus_faible['code'],
-                                'npq_certif'  => $certification_id,
-                            ],
-                            get_permalink( $url_revision )
-                          ) . '#npq-composer'
+                    $url_reviser = $plus_faible
+                        ? self::url_reviser_domaine( $plus_faible['code'], $certification_id )
                         : '';
                     ?>
                     <?php if ( $plus_faible && $plus_faible['taux'] < $seuil && $url_reviser ) : ?>
@@ -330,35 +593,6 @@ class NPQ_Activite {
                 </section>
             <?php endif; ?>
 
-            <?php $volume = self::volume_travail( $certification_id ); ?>
-            <?php if ( $volume && $volume['questions'] > 0 ) : ?>
-                <!-- Volume de travail -->
-                <section class="npq-kpi-bloc reveal-on-scroll">
-                    <div class="sec-title">Mon volume de travail</div>
-                    <p class="npq-kpi-aide">
-                        Vos efforts accumulés, examens et révisions confondus.
-                    </p>
-
-                    <div class="npq-volume-grille">
-                        <div class="npq-compteur"
-                             data-valeur="<?php echo (int) $volume['questions']; ?>"
-                             data-libelle="Questions travaillées"></div>
-
-                        <div class="npq-compteur"
-                             data-valeur="<?php echo (int) $volume['domaines_couverts']; ?>"
-                             data-suffixe="/<?php echo (int) $volume['domaines_total']; ?>"
-                             data-libelle="Domaines couverts"></div>
-
-                        <div class="npq-compteur"
-                             data-valeur="<?php echo (int) $volume['sessions_examens']; ?>"
-                             data-libelle="Examens passés"></div>
-
-                        <div class="npq-compteur"
-                             data-valeur="<?php echo (int) $volume['sessions_revisions']; ?>"
-                             data-libelle="Sessions de révision"></div>
-                    </div>
-                </section>
-            <?php endif; ?>
         </div>
         <?php
         return ob_get_clean();
@@ -484,30 +718,10 @@ class NPQ_Activite {
             $certification_id
         ) );
 
-        // Domaines couverts : sur combien de domaines distincts a-t-il travaillé ?
-        // Même règle : un domaine seulement effleuré par des questions non
-        // répondues n'est pas un domaine couvert.
-        $domaines_couverts = (int) $wpdb->get_var( $wpdb->prepare(
-            "SELECT COUNT(DISTINCT q.domaine)
-             FROM {$p}reponse r
-             INNER JOIN {$p}tentative t ON t.id = r.tentative_id
-             INNER JOIN {$p}question  q ON q.id = r.question_id
-             WHERE t.utilisateur_id = %d
-               AND t.certification_id = %d
-               AND t.date_fin IS NOT NULL
-               AND EXISTS ( SELECT 1 FROM {$p}reponse_option ro
-                            WHERE ro.reponse_id = r.id )",
-            $fiche['id'],
-            $certification_id
-        ) );
-
-        // Total de domaines existants (pour donner le contexte : 5 sur 7).
-        // Filtré sur la certification : sans cela, le dénominateur cumulait les
-        // domaines de TOUS les référentiels et affichait « 5 sur 34 ».
-        $domaines_total = (int) $wpdb->get_var( $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$p}domaine WHERE certification_id = %d",
-            $certification_id
-        ) );
+        // Le compte des domaines couverts était calculé ici. Il est désormais
+        // rendu par couverture_domaines(), qui donne aussi leurs NOMS : « 5 sur
+        // 7 » dit qu'il manque quelque chose sans dire quoi, ce qui laisse le
+        // candidat sans prise.
 
         // Sessions, en distinguant examens et révisions.
         $sessions = $wpdb->get_row( $wpdb->prepare(
@@ -523,12 +737,274 @@ class NPQ_Activite {
         ), ARRAY_A );
 
         return [
-            'questions'         => $questions,
-            'domaines_couverts' => $domaines_couverts,
-            'domaines_total'    => $domaines_total,
-            'sessions_examens'  => (int) ( $sessions['examens'] ?? 0 ),
-            'sessions_revisions'=> (int) ( $sessions['revisions'] ?? 0 ),
+            'questions'          => $questions,
+            'sessions_examens'   => (int) ( $sessions['examens'] ?? 0 ),
+            'sessions_revisions' => (int) ( $sessions['revisions'] ?? 0 ),
         ];
+    }
+
+    /**
+     * Lien vers la page Révisions, pré-réglée sur un domaine.
+     *
+     * Le lien porte le domaine ET la certification. Sans ces paramètres, le
+     * bouton promettait de réviser CE domaine puis déposait le candidat sur la
+     * page nue, à lui de retrouver lequel. L'ancre l'amène directement au
+     * formulaire, situé sous les parcours proposés.
+     *
+     * Renvoie une chaîne vide si la page Révisions n'est pas configurée : un
+     * bouton qui ne mène nulle part est pire que pas de bouton.
+     */
+    private static function url_reviser_domaine( $code, $certification_id ) {
+        $page_revision = get_option( 'npq_page_revision_id' );
+        if ( ! $page_revision ) {
+            return '';
+        }
+
+        return add_query_arg(
+            [
+                'npq_domaine' => $code,
+                'npq_certif'  => $certification_id,
+            ],
+            get_permalink( $page_revision )
+        ) . '#npq-composer';
+    }
+
+    /**
+     * Couverture du programme : quels domaines le candidat a déjà ouverts, et
+     * lesquels il n'a jamais touchés.
+     *
+     * INCLUT les révisions, contrairement au taux par domaine : la question
+     * n'est pas « suis-je bon ? » mais « ai-je seulement ouvert ce chapitre ? ».
+     * Un domaine travaillé en révision est un domaine ouvert.
+     *
+     * Même règle qu'ailleurs pour ce qui compte comme travaillé : au moins une
+     * option cochée. Un domaine seulement effleuré par des questions laissées
+     * blanches n'est pas un domaine couvert.
+     *
+     * Renvoie la liste complète des domaines du référentiel, chacun marqué
+     * couvert ou non — et non les seuls manquants : c'est la liste entière qui
+     * permet au candidat de situer le trou dans le programme.
+     */
+    private static function couverture_domaines( $certification_id ) {
+        $fiche = NPQ_Comptes::fiche_courante();
+        if ( ! $fiche ) {
+            return [];
+        }
+
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        // Le référentiel est filtré sur la certification : sans cela, la liste
+        // cumulait les domaines de TOUS les référentiels et annonçait « 5 sur
+        // 34 ». Le piège a déjà été rencontré sur le compteur qu'on remplace.
+        $domaines = (array) $wpdb->get_results( $wpdb->prepare(
+            "SELECT code, libelle FROM {$p}domaine
+             WHERE certification_id = %d
+             ORDER BY code",
+            $certification_id
+        ), ARRAY_A );
+
+        if ( empty( $domaines ) ) {
+            return [];
+        }
+
+        $codes_couverts = (array) $wpdb->get_col( $wpdb->prepare(
+            "SELECT DISTINCT q.domaine
+             FROM {$p}reponse r
+             INNER JOIN {$p}tentative t ON t.id = r.tentative_id
+             INNER JOIN {$p}question  q ON q.id = r.question_id
+             WHERE t.utilisateur_id = %d
+               AND t.certification_id = %d
+               AND t.date_fin IS NOT NULL
+               AND EXISTS ( SELECT 1 FROM {$p}reponse_option ro
+                            WHERE ro.reponse_id = r.id )",
+            $fiche['id'],
+            $certification_id
+        ) );
+
+        foreach ( $domaines as &$d ) {
+            $d['couvert'] = in_array( $d['code'], $codes_couverts, true );
+        }
+        unset( $d );
+
+        return $domaines;
+    }
+
+    /**
+     * Assiduité : combien de questions le candidat a réellement traitées chaque
+     * jour, sur la fenêtre du calendrier.
+     *
+     * INCLUT les révisions, comme le volume de travail : on mesure l'effort
+     * fourni, pas la performance. Et on applique la même règle qu'ailleurs —
+     * une question « traitée » est une question dont au moins une option a été
+     * cochée. Compter les copies blanches gonflerait l'assiduité de journées où
+     * le candidat n'a rien fait d'autre que lancer un examen.
+     *
+     * Renvoie [ 'jours' => [ 'AAAA-MM-JJ' => nb ], 'premiere' => …, 'derniere' => … ].
+     */
+    private static function assiduite( $certification_id, $debut ) {
+        $fiche = NPQ_Comptes::fiche_courante();
+        if ( ! $fiche ) {
+            return [ 'jours' => [], 'premiere' => null, 'derniere' => null ];
+        }
+
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $lignes = (array) $wpdb->get_results( $wpdb->prepare(
+            "SELECT DATE(t.date_debut) AS jour, COUNT(*) AS questions
+             FROM {$p}reponse r
+             INNER JOIN {$p}tentative t ON t.id = r.tentative_id
+             WHERE t.utilisateur_id = %d
+               AND t.certification_id = %d
+               AND t.date_fin IS NOT NULL
+               AND t.date_debut >= %s
+               AND EXISTS ( SELECT 1 FROM {$p}reponse_option ro
+                            WHERE ro.reponse_id = r.id )
+             GROUP BY DATE(t.date_debut)",
+            $fiche['id'],
+            $certification_id,
+            $debut . ' 00:00:00'
+        ), ARRAY_A );
+
+        $jours = [];
+        foreach ( $lignes as $l ) {
+            $jours[ $l['jour'] ] = (int) $l['questions'];
+        }
+
+        // La dernière activité est cherchée SANS borne de date : un candidat
+        // qui n'a rien fait depuis quatre mois doit lire « depuis le 12/04 »,
+        // pas « aucune activité » — c'est précisément l'information utile.
+        //
+        // La PREMIÈRE activité sert, elle, à ne pas remonter avant l'arrivée du
+        // candidat : une grille de six mois affichée à quelqu'un d'inscrit
+        // depuis deux semaines lui montrerait cinq mois de cases éteintes qui
+        // ne sont pas les siennes. Ce serait un reproche fabriqué.
+        $bornes = $wpdb->get_row( $wpdb->prepare(
+            "SELECT MIN(date_debut) AS premiere, MAX(date_debut) AS derniere
+             FROM {$p}tentative
+             WHERE utilisateur_id = %d
+               AND certification_id = %d
+               AND date_fin IS NOT NULL",
+            $fiche['id'],
+            $certification_id
+        ), ARRAY_A );
+
+        return [
+            'jours'    => $jours,
+            'premiere' => $bornes['premiere'] ?? null,
+            'derniere' => $bornes['derniere'] ?? null,
+        ];
+    }
+
+    /**
+     * Le calendrier d'assiduité : une case par jour, douze semaines en colonnes.
+     *
+     * Rendu en PHP et non en JavaScript, contrairement à la courbe : c'est une
+     * grille de cases, donc du CSS suffit. Le composant Carto.heatmap du thème
+     * ne convenait pas — sa gamme va du teal à l'orange avec le chaud pour le
+     * mauvais, alors qu'ici une journée chargée est une bonne nouvelle. Il
+     * aurait inversé le sens des couleurs.
+     *
+     * La semaine commence le lundi : les libellés de lignes sont écrits en dur
+     * dans cet ordre.
+     */
+    private static function calendrier_assiduite( $jours, $lundi_depart, $aujourdhui, $nb_semaines ) {
+        $jours_semaine = [ 'Lun', '', 'Mer', '', 'Ven', '', 'Dim' ];
+        $mois_courts   = [ 1 => 'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
+                           'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.' ];
+
+        ob_start();
+        ?>
+        <div class="npq-calendrier" style="--npq-cal-semaines:<?php echo (int) $nb_semaines; ?>">
+            <!-- Seule la grille défile sur un écran étroit. La légende reste en
+                 dehors, et la colonne des jours reste collée à gauche : sans
+                 cela, le défilement emportait les deux repères qui permettent
+                 de lire la grille. -->
+            <div class="npq-cal-defile">
+            <div class="npq-cal-mois">
+                <?php
+                $mois_precedent = '';
+                for ( $sem = 0; $sem < $nb_semaines; $sem++ ) {
+                    $lundi = gmdate( 'Y-m-d', strtotime( $lundi_depart . ' +' . ( $sem * 7 ) . ' days' ) );
+                    $mois  = gmdate( 'n', strtotime( $lundi ) );
+                    // Le mois n'est écrit qu'au-dessus de la colonne où il
+                    // change : répété douze fois, il ferait un bandeau illisible.
+                    $libelle = ( $mois !== $mois_precedent ) ? $mois_courts[ (int) $mois ] : '';
+                    $mois_precedent = $mois;
+                    ?>
+                    <span><?php echo esc_html( $libelle ); ?></span>
+                    <?php
+                }
+                ?>
+            </div>
+
+            <div class="npq-cal-corps">
+                <div class="npq-cal-jours">
+                    <?php foreach ( $jours_semaine as $j ) : ?>
+                        <span><?php echo esc_html( $j ); ?></span>
+                    <?php endforeach; ?>
+                </div>
+
+                <div class="npq-cal-grille">
+                    <?php
+                    for ( $sem = 0; $sem < $nb_semaines; $sem++ ) {
+                        for ( $jour = 0; $jour < 7; $jour++ ) {
+                            $date = gmdate(
+                                'Y-m-d',
+                                strtotime( $lundi_depart . ' +' . ( $sem * 7 + $jour ) . ' days' )
+                            );
+
+                            // Les jours à venir ne sont pas des jours sans
+                            // travail : ils n'ont pas encore eu lieu. On garde
+                            // la place pour ne pas déformer la grille, sans
+                            // dessiner de case.
+                            if ( $date > $aujourdhui ) {
+                                echo '<span class="npq-cal-case npq-cal-futur"></span>';
+                                continue;
+                            }
+
+                            $nb      = isset( $jours[ $date ] ) ? (int) $jours[ $date ] : 0;
+                            $niveau  = self::niveau_assiduite( $nb );
+                            $lisible = mysql2date( 'j F Y', $date );
+                            $titre   = ( $nb > 0 )
+                                ? sprintf( '%s : %d question(s) traitée(s)', $lisible, $nb )
+                                : sprintf( '%s : aucune activité', $lisible );
+                            ?>
+                            <span class="npq-cal-case npq-cal-n<?php echo (int) $niveau; ?>"
+                                  title="<?php echo esc_attr( $titre ); ?>"></span>
+                            <?php
+                        }
+                    }
+                    ?>
+                </div>
+            </div>
+            </div>
+
+            <div class="npq-cal-legende">
+                <span>Moins</span>
+                <?php for ( $n = 0; $n <= 4; $n++ ) : ?>
+                    <i class="npq-cal-case npq-cal-n<?php echo $n; ?>"></i>
+                <?php endfor; ?>
+                <span>Plus</span>
+            </div>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
+
+    /** Palier d'intensité d'une journée, de 0 (rien) à 4 (grosse journée). */
+    private static function niveau_assiduite( $nb ) {
+        if ( $nb <= 0 ) {
+            return 0;
+        }
+        $niveau = 1;
+        foreach ( self::PALIERS_ASSIDUITE as $palier ) {
+            if ( $nb >= $palier ) {
+                $niveau++;
+            }
+        }
+        return $niveau;
     }
 
     /**
@@ -683,25 +1159,79 @@ class NPQ_Activite {
      * Chiffres clés autour de la courbe.
      *
      * - dernier   : score du dernier examen (« où j'en suis »).
-     * - meilleur  : record personnel (« ce dont je suis capable »).
+     * - au_dessus : combien de ces examens atteignent le seuil (« est-ce que
+     *               je tiens ce niveau, ou l'ai-je touché une fois ? »).
      *
-     * L'écart au seuil de réussite est calculé à l'affichage, à partir de
-     * « dernier » : il dépend d'un réglage administrable, pas de l'historique.
+     * Ce deuxième chiffre remplace le meilleur score. Un record est un trophée,
+     * et il peut dater de six mois ; surtout, la courbe juste au-dessus le
+     * montre déjà. Il ne disait rien que les deux autres chiffres ne disent, et
+     * ceux-ci portent tous deux sur le dernier examen — l'écart au seuil n'en
+     * est que la soustraction. La constance, elle, dit ce qu'aucun ne dit :
+     * passer le seuil une fois sur cinq, ce n'est pas être prêt.
+     *
+     * Le décompte porte sur les mêmes examens que la courbe, pour que le
+     * dénominateur corresponde aux points tracés.
+     *
+     * L'écart au seuil est calculé à l'affichage, à partir de « dernier » : il
+     * dépend d'un réglage administrable, pas de l'historique.
      *
      * On n'affiche pas la moyenne ici : elle est sur le tableau de bord, et sur une
      * page de progression une moyenne écrase justement la progression.
      */
-    private static function chiffres_cles( $examens ) {
+    private static function chiffres_cles( $examens, $seuil ) {
         // $examens est trié du plus récent au plus ancien.
         $dernier = (int) $examens[0]['score'];
 
-        $scores = array_map( function ( $e ) { return (int) $e['score']; }, $examens );
-        $meilleur = max( $scores );
+        $au_dessus = 0;
+        foreach ( $examens as $e ) {
+            if ( (int) $e['score'] >= $seuil ) {
+                $au_dessus++;
+            }
+        }
 
         return [
             'dernier'      => $dernier,
-            'meilleur'     => $meilleur,
+            'au_dessus'    => $au_dessus,
+            'total'        => count( $examens ),
             'date_dernier' => mysql2date( 'd/m/Y', $examens[0]['date_debut'] ),
         ];
+    }
+
+    /**
+     * Ce que vaut la constance : une classe de couleur et une phrase.
+     *
+     * Trois écueils, tous rencontrés en éprouvant les cas limites :
+     *
+     * 1. En dessous de trois examens il n'y a pas de constance à mesurer. Le
+     *    chiffre reste affiché — il est vrai — mais en gris : un « 1/1 » en
+     *    vert annoncerait comme acquis ce qui tient à un seul tirage, et le
+     *    vert, comme le teal, ne doit jamais annoncer ce qui ne l'est pas.
+     * 2. Tout n'est pas « ou bien parfait, ou bien irrégulier ». Neuf examens
+     *    sur dix au-dessus du seuil est une belle régularité ; un premier
+     *    découpage la rangeait avec le trois sur cinq.
+     * 3. Le sans-faute mérite sa propre phrase : « presque à chaque fois » se
+     *    dit mal quand c'est à chaque fois.
+     */
+    private static function constance( $au_dessus, $total ) {
+        if ( $total < self::CONSTANCE_MIN ) {
+            return [
+                'classe' => 'stable',
+                'texte'  => "Encore trop peu d'examens pour juger",
+            ];
+        }
+
+        if ( $au_dessus === $total ) {
+            return [ 'classe' => 'hausse', 'texte' => 'Vous tenez le niveau à chaque fois' ];
+        }
+
+        $part = $au_dessus / $total;
+
+        if ( $part >= self::CONSTANCE_SOLIDE ) {
+            return [ 'classe' => 'hausse', 'texte' => 'Vous tenez le niveau presque à chaque fois' ];
+        }
+        if ( $part >= 0.5 ) {
+            return [ 'classe' => 'partiel', 'texte' => 'Un résultat encore irrégulier' ];
+        }
+        return [ 'classe' => 'baisse', 'texte' => "Le seuil n'est pas encore acquis" ];
     }
 }

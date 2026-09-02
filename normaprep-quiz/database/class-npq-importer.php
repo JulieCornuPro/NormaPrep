@@ -123,6 +123,7 @@ class NPQ_Importer {
                             <th>Certification</th>
                             <th>Dossier</th>
                             <th>Fichiers de scénario</th>
+                            <th>Cartes</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -142,6 +143,13 @@ class NPQ_Importer {
                                     <em>aucun</em>
                                 <?php else : ?>
                                     <?php echo esc_html( implode( ', ', $cert['fichiers'] ) ); ?>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <?php if ( $cert['flashcards'] ) : ?>
+                                    <code>_flashcards.json</code>
+                                <?php else : ?>
+                                    <em>aucune</em>
                                 <?php endif; ?>
                             </td>
                         </tr>
@@ -191,11 +199,12 @@ class NPQ_Importer {
             }
 
             $ligne = [
-                'dossier'  => $entree,
-                'code'     => '',
-                'nom'      => '',
-                'fichiers' => [],
-                'erreur'   => '',
+                'dossier'    => $entree,
+                'code'       => '',
+                'nom'        => '',
+                'fichiers'   => [],
+                'flashcards' => false,
+                'erreur'     => '',
             ];
 
             $manifeste = self::lire_json( $chemin . '/_certification.json' );
@@ -209,6 +218,11 @@ class NPQ_Importer {
             foreach ( self::fichiers_scenarios( $chemin ) as $f ) {
                 $ligne['fichiers'][] = basename( $f );
             }
+
+            // Le fichier de cartes est signalé au même titre que les scénarios.
+            // Il ne l'était pas, ce qui laissait croire, quand il était le seul
+            // présent, que le dossier ne contenait rien à importer.
+            $ligne['flashcards'] = file_exists( $chemin . '/_flashcards.json' );
 
             $resultat[] = $ligne;
         }
@@ -325,6 +339,22 @@ class NPQ_Importer {
             $rapport[] = self::importer_scenario(
                 $fichier,
                 'data/' . $nom_dossier . '/' . basename( $fichier ),
+                $certification_id,
+                $cert_code,
+                $domaines_connus
+            );
+        }
+
+        /* ---- Flashcards (fichier optionnel) ----
+         * Absent, il ne produit aucune ligne de compte rendu : une
+         * certification sans cartes n'est pas une anomalie. Surtout, on
+         * n'entre pas dans la fonction, donc le ménage des cartes obsolètes
+         * n'a pas lieu — sans quoi retirer le fichier effacerait la banque. */
+        $fichier_fc = $dossier . '/_flashcards.json';
+        if ( file_exists( $fichier_fc ) ) {
+            $rapport[] = self::importer_flashcards(
+                $fichier_fc,
+                'data/' . $nom_dossier . '/_flashcards.json',
                 $certification_id,
                 $cert_code,
                 $domaines_connus
@@ -494,6 +524,180 @@ class NPQ_Importer {
     /* =====================================================================
      * CONTRÔLES DE COHÉRENCE
      * ===================================================================== */
+
+    /**
+     * Importe le fichier de cartes d'une certification.
+     *
+     * Les flashcards ne sont rattachées qu'à un DOMAINE, jamais à un scénario :
+     * ce sont des questions de restitution, retirées des examens blancs parce
+     * que l'épreuve se passe en livre ouvert. Elles n'ont donc ni options ni
+     * bonne réponse — un recto, un verso.
+     *
+     * La référence externe reprend le motif des scénarios et des questions :
+     * « LI27001-FC001 ». C'est elle qui rend l'import rejouable — réimporter
+     * le même fichier met à jour, il ne duplique pas.
+     *
+     * Les tags portés par le fichier ne sont pas enregistrés : il n'existe pas
+     * de table de liaison pour les cartes, et rien ne les exploite côté public,
+     * où le filtre se fait par domaine. Les ignorer est un choix, pas un oubli.
+     *
+     * @return array Une ligne de compte rendu.
+     */
+    private static function importer_flashcards( $chemin, $libelle, $certification_id, $cert_code, $domaines_connus ) {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $data = self::lire_json( $chemin );
+        if ( ! $data ) {
+            return [ 'fichier' => $libelle, 'statut' => 'erreur',
+                     'message' => 'Fichier illisible ou JSON invalide.' ];
+        }
+
+        $cartes = $data['flashcards'] ?? null;
+        if ( ! is_array( $cartes ) ) {
+            return [ 'fichier' => $libelle, 'statut' => 'erreur',
+                     'message' => 'Bloc « flashcards » absent ou mal formé.' ];
+        }
+
+        if ( empty( $cartes ) ) {
+            return [ 'fichier' => $libelle, 'statut' => 'ok',
+                     'message' => 'Aucune carte dans le fichier — rien à importer.' ];
+        }
+
+        /* ---- Contrôle AVANT toute écriture ----
+         * Même principe que pour les questions : un fichier à moitié importé
+         * est pire qu'un fichier rejeté, parce qu'on ne sait plus ce qui est
+         * en base. */
+        $erreurs = self::valider_flashcards( $cartes, $domaines_connus );
+        if ( ! empty( $erreurs ) ) {
+            return [ 'fichier' => $libelle, 'statut' => 'erreur',
+                     'message' => 'Import annulé — ' . implode( ' | ', $erreurs ) ];
+        }
+
+        $refs_vues = [];
+        $nb_creees = 0;
+        $nb_majs   = 0;
+
+        foreach ( $cartes as $c ) {
+            $ref = sprintf( '%s-%s', $cert_code, $c['id'] );   // ex. LI27001-FC001
+            $refs_vues[] = $ref;
+
+            $donnees = [
+                'certification_id' => $certification_id,
+                'ref_externe'      => $ref,
+                'domaine'          => $c['domain'],
+                'recto'            => $c['recto'],
+                'verso'            => $c['verso'],
+            ];
+            if ( ! empty( $c['status'] ) ) {
+                $donnees['statut'] = ( $c['status'] === 'draft' ) ? 'brouillon' : 'publie';
+            }
+
+            $id = $wpdb->get_var( $wpdb->prepare(
+                "SELECT id FROM {$p}flashcard WHERE ref_externe = %s", $ref
+            ) );
+
+            if ( $id ) {
+                $wpdb->update( "{$p}flashcard", $donnees, [ 'id' => $id ] );
+                $nb_majs++;
+            } else {
+                $wpdb->insert( "{$p}flashcard", $donnees );
+                $nb_creees++;
+            }
+        }
+
+        $nb_supprimees = self::supprimer_flashcards_obsoletes( $cert_code, $refs_vues );
+
+        return [
+            'fichier' => $libelle,
+            'statut'  => 'ok',
+            'message' => sprintf(
+                '%d carte(s) créée(s), %d mise(s) à jour, %d supprimée(s).',
+                $nb_creees, $nb_majs, $nb_supprimees
+            ),
+        ];
+    }
+
+    /**
+     * Contrôle de cohérence d'un lot de cartes.
+     *
+     * @return array Messages d'erreur. Vide si tout est bon.
+     */
+    private static function valider_flashcards( $cartes, $domaines_connus ) {
+        $erreurs = [];
+        $vus     = [];
+
+        foreach ( $cartes as $i => $c ) {
+            // Le rang sert de repère quand l'identifiant manque : sans lui,
+            // « id manquant » ne dit pas QUELLE carte est en cause.
+            $ou = sprintf( 'carte n°%d', $i + 1 );
+
+            if ( empty( $c['id'] ) ) {
+                $erreurs[] = $ou . ' : identifiant manquant';
+                continue;
+            }
+            $ou = sprintf( 'carte %s', $c['id'] );
+
+            // Deux cartes de même identifiant s'écraseraient l'une l'autre, et
+            // la seconde ferait disparaître la première sans le dire.
+            if ( isset( $vus[ $c['id'] ] ) ) {
+                $erreurs[] = $ou . ' : identifiant en double dans le fichier';
+                continue;
+            }
+            $vus[ $c['id'] ] = true;
+
+            if ( empty( $c['domain'] ) ) {
+                $erreurs[] = $ou . ' : domaine manquant';
+            } elseif ( ! empty( $domaines_connus ) && ! isset( $domaines_connus[ $c['domain'] ] ) ) {
+                // Le manifeste fait autorité sur les domaines. Créer à la volée
+                // celui d'une carte égarée ferait apparaître un domaine fantôme
+                // dans la couverture du programme et dans les points faibles.
+                $erreurs[] = sprintf(
+                    '%s : domaine « %s » inconnu de cette certification (déclarés : %s)',
+                    $ou, $c['domain'], implode( ', ', array_keys( $domaines_connus ) )
+                );
+            }
+
+            if ( empty( $c['recto'] ) ) {
+                $erreurs[] = $ou . ' : recto vide';
+            }
+            if ( empty( $c['verso'] ) ) {
+                $erreurs[] = $ou . ' : verso vide';
+            }
+        }
+
+        return $erreurs;
+    }
+
+    /**
+     * Supprime les cartes de cette certification absentes du fichier.
+     *
+     * Le filtre porte sur le préfixe de référence, comme pour les questions :
+     * l'import d'une certification ne doit jamais toucher aux cartes d'une
+     * autre.
+     *
+     * @return int Nombre de cartes supprimées.
+     */
+    private static function supprimer_flashcards_obsoletes( $cert_code, $refs_vues ) {
+        global $wpdb;
+        $p = $wpdb->prefix . NPQ_TABLE_PREFIX;
+
+        $like = $wpdb->esc_like( $cert_code . '-' ) . '%';
+        $existantes = $wpdb->get_results( $wpdb->prepare(
+            "SELECT id, ref_externe FROM {$p}flashcard WHERE ref_externe LIKE %s", $like
+        ), ARRAY_A );
+
+        $nb = 0;
+        foreach ( $existantes as $ligne ) {
+            if ( in_array( $ligne['ref_externe'], $refs_vues, true ) ) {
+                continue;
+            }
+            $wpdb->delete( "{$p}flashcard", [ 'id' => (int) $ligne['id'] ] );
+            $nb++;
+        }
+
+        return $nb;
+    }
 
     /**
      * Vérifie chaque question avant écriture.
