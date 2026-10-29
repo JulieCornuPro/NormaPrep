@@ -414,7 +414,7 @@ une ligne vide.
 |---|---|---|
 | Ateliers | Espace apprenant | Liste par certification (sélecteur de certification existant), progression par atelier |
 | Atelier | Espace apprenant | Contexte de l'entreprise, tâches ordonnées avec état et score |
-| Tâche « rédaction » | Espace apprenant | Situation, enjeu, consigne ; zone de texte (enregistrement automatique) ; QCM ; réponse modèle et grille |
+| Tâche « rédaction » | Espace apprenant | Situation (volet « L'entreprise » repliable), consigne ; zone de texte (enregistrement automatique) ; QCM ; réponse modèle et grille |
 | Tâche « écart » | Espace apprenant | Documents en lignes cliquables ; validation ; retour « où regarder » ; correction ligne par ligne |
 | Ateliers (admin) | Administration | Liste en lecture seule : atelier, nombre de tâches, apprenants ayant commencé, ayant terminé, score moyen |
 | Import | Administration | La page d'import existante affiche aussi les fichiers `ateliers/` et leur compte rendu |
