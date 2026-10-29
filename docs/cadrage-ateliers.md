@@ -1,7 +1,7 @@
 # NormaPrep — Note de cadrage : les Ateliers
 
-> Statut : **proposition**, à valider avant le plan de tests puis le développement.
-> Version 0.1, octobre 2026.
+> Statut : **validé**, base du plan de tests puis du développement.
+> Version 0.2, octobre 2026 (décisions du § 11 intégrées).
 
 ---
 
@@ -43,7 +43,8 @@ français** (CNIL, ANSSI, NIS 2). C'est un argument à afficher.
 | Tâche « écart » | Un ou deux documents en lignes numérotées ; l'apprenant clique les lignes non conformes ; indice puis correction ligne par ligne |
 | Progression | Enregistrée par tâche ; un atelier est terminé quand toutes ses tâches le sont |
 | Import | Fichiers JSON dans un sous-dossier `ateliers/` de la certification, rejouables, tout ou rien |
-| Accès | Celui de la certification (bibliothèque) |
+| Accès | Celui de la certification (bibliothèque), sauf les ateliers « découverte », ouverts à tout compte connecté |
+| Prérequis | Une tâche peut conseiller d'en faire d'autres avant elle, sans rien bloquer |
 
 ### Reporté à plus tard
 
@@ -65,17 +66,23 @@ français** (CNIL, ANSSI, NIS 2). C'est un argument à afficher.
 
 | Acteur | Ce qu'il peut faire |
 |---|---|
-| Apprenant détenant la certification | Ouvrir les ateliers publiés de cette certification, enregistrer ses réponses, voir ses corrections |
-| Apprenant sans la certification | Voir la liste des ateliers (titre, résumé) avec l'invitation à acquérir la certification ; ne peut ouvrir aucune tâche |
+| Visiteur non connecté | Rien : l'espace apprenant demande de se connecter, comme aujourd'hui |
+| Compte connecté sans la certification | Ouvrir et faire les ateliers **découverte** ; voir la liste des autres ateliers (titre, résumé) avec l'invitation à acquérir la certification, sans pouvoir ouvrir leurs tâches |
+| Apprenant détenant la certification | Ouvrir tous les ateliers publiés de cette certification, enregistrer ses réponses, voir ses corrections |
 | Administrateur | Importer, lister, voir les statistiques de passage |
 
-Le droit d'accès est **le même que pour les examens** :
-`NPQ_Bibliotheque::a_acces()`. Aucun registre de droit supplémentaire.
+Chaque atelier porte un attribut d'**accès** :
 
-> **À valider** : faut-il un atelier « découverte », accessible à tout compte
-> connecté, pour donner envie ? Le modèle le permet avec un simple drapeau
-> `decouverte` sur l'atelier ; il n'est pas développé tant que ce n'est pas
-> décidé.
+| Valeur | Qui peut ouvrir les tâches |
+|---|---|
+| `certification` (par défaut) | Les détenteurs d'un accès non expiré à la certification : `NPQ_Bibliotheque::a_acces()`, le même droit que pour les examens |
+| `decouverte` | Tout compte connecté, qu'il détienne ou non la certification |
+
+L'accès « découverte » ne crée **aucun droit** dans la bibliothèque : il
+ouvre cet atelier-là, rien d'autre. Un compte reste nécessaire, pour
+enregistrer la progression et pour que la découverte mène à l'inscription.
+La vérification se fait **côté serveur** à chaque ouverture et à chaque
+enregistrement, pas seulement en masquant des liens.
 
 Les réponses d'un apprenant ne sont lues **que par lui**. L'administrateur
 voit des compteurs (tâches terminées, score moyen), jamais les textes libres.
@@ -98,6 +105,19 @@ voit des compteurs (tâches terminées, score moyen), jamais les textes libres.
    terminée, et le score des parties notées.
 3. **Une tâche** — voir § 5. Les tâches s'ouvrent **dans n'importe quel
    ordre** : l'ordre est conseillé, pas imposé.
+
+   L'ordre logique est tenu de deux façons :
+   - la **position** des tâches dans l'atelier suit le déroulé d'un projet
+     (contexte, puis risques, puis DdA…) ; c'est l'ordre d'affichage ;
+   - une tâche peut déclarer des **prérequis** : les tâches dont elle
+     reprend les résultats. Si l'apprenant ouvre une tâche dont un prérequis
+     n'est pas terminé, un bandeau le conseille (« Cette tâche s'appuie sur
+     *Définir le périmètre* : nous vous conseillons de la faire d'abord »),
+     avec un lien. Il peut passer outre.
+
+   Un prérequis est toujours une tâche **placée avant** dans le même
+   atelier ; l'import refuse le contraire. Cela suffit à garantir qu'il n'y
+   a jamais de boucle.
 4. **Correction** — reste consultable ensuite ; l'apprenant peut **refaire**
    une tâche, le meilleur score est conservé.
 
@@ -160,6 +180,8 @@ de Do GRC.
   manque 2 écarts, dont un dans le registre des risques », « 1 ligne
   sélectionnée est conforme ». Chaque écart peut porter un **indice** propre,
   affiché à ce moment.
+- **Premier essai parfait** (tous les écarts, aucune fausse alerte) : la
+  correction s'affiche directement, il n'y a rien à chercher de plus.
 - **Deuxième essai**, ou bouton « Voir la correction » à tout moment :
   correction ligne par ligne. Chaque ligne affiche son explication, qu'elle
   soit un écart (pourquoi elle ne va pas, quelle exigence elle viole) ou
@@ -220,8 +242,8 @@ aux examens.
 
 | Table | Colonnes principales | Remarques |
 |---|---|---|
-| `atelier` | id, certification_id, scenario_id, ref_externe, titre, resume, position, statut | ref : `LI27001-AT01` |
-| `atelier_tache` | id, atelier_id, ref_externe, position, type, titre, situation, enjeu, consigne, reponse_modele, clause, domaine, statut | type : `redaction`, `ecart` (`matrice` réservé). ref : `LI27001-AT01-T03` |
+| `atelier` | id, certification_id, scenario_id, ref_externe, titre, resume, acces, position, statut | ref : `LI27001-AT01` ; acces : `certification` ou `decouverte` |
+| `atelier_tache` | id, atelier_id, ref_externe, position, type, titre, situation, enjeu, consigne, reponse_modele, clause, domaine, prerequis, statut | type : `redaction`, `ecart` (`matrice` réservé). prerequis : liste JSON de références de tâches. ref : `LI27001-AT01-T03` |
 | `atelier_question` | id, tache_id, ref_externe, position, enonce, multi_reponses, explication | ref : `…-T03-Q02` |
 | `atelier_option` | id, question_id, position, texte, correcte | |
 | `atelier_critere` | id, tache_id, position, texte | grille d'auto-évaluation |
@@ -232,23 +254,35 @@ aux examens.
 Dans `atelier_progression` :
 - `statut` : `en_cours` ou `terminee` ;
 - `reponses` (JSON) : dernières options cochées (rédaction) ou lignes
-  sélectionnées (écart) ;
+  sélectionnées (écart), **désignées par leurs références de fichier**
+  (`Q02` → `B`, `D01` → ligne 5), jamais par des id internes : un réimport
+  ne les rend pas illisibles ;
 - `criteres` (JSON) : critères de la grille cochés ;
 - `modele_vu` : la réponse modèle ou la correction a été affichée avant la
   fin (sert à l'avertissement du § 5.1 et aux statistiques).
 
 ### 6.3 Statuts et suppressions
 
-- `statut` = `publie` ou `brouillon` sur l'atelier et la tâche, comme pour
-  les scénarios et les questions. Seul le publié est visible des apprenants.
+- `statut` = `publie` ou `brouillon` sur l'atelier, `publie`, `brouillon`
+  ou `retiree` sur la tâche. Seul le publié est visible des apprenants.
 - Un atelier dont le scénario est en brouillon ou absent n'est **pas
   visible**.
 - Suppression d'un compte apprenant : ses lignes de progression sont
   supprimées avec lui (texte libre compris).
-- Une tâche retirée du fichier d'import est supprimée, **avec la progression
-  qui s'y rattache**. L'import l'annonce dans son compte rendu (« 1 tâche
-  supprimée, 14 progressions perdues ») : c'est le prix d'un import qui fait
-  autorité.
+- **Une tâche retirée du fichier d'import n'est pas supprimée** : elle passe
+  au statut `retiree`. Elle disparaît pour les apprenants et ne compte plus
+  dans la progression ni dans le score de l'atelier, mais la progression de
+  chacun est **conservée**. Si la tâche revient dans le fichier (même
+  référence), elle est republiée et retrouve sa progression. Le compte rendu
+  d'import l'annonce (« 1 tâche retirée, 14 progressions conservées »).
+  Raison : une erreur dans un fichier ne doit jamais effacer le travail des
+  apprenants ; c'est la règle déjà suivie par le reste du plugin.
+- À l'intérieur d'une tâche, le contenu (questions, options, documents,
+  lignes) est **remplacé** à chaque import : c'est du contenu, pas une
+  donnée d'apprenant. Les scores déjà obtenus ne sont **pas recalculés**
+  après une correction de contenu : ils restent ceux de la version passée.
+- Un fichier d'atelier qui disparaît du dossier ne déclenche rien : pour
+  retirer un atelier, on le passe en `draft` dans son fichier.
 
 ---
 
@@ -279,6 +313,7 @@ lit que les `.json` du dossier lui-même) : les deux imports ne se gênent pas.
     "scenario": "SC01",
     "title": "Remettre le SMSI de Rhodanis sur les rails",
     "summary": "…",
+    "access": "certification",
     "status": "published"
   },
   "tasks": [
@@ -301,6 +336,7 @@ lit que les `.json` du dossier lui-même) : les deux imports ne se gênent pas.
       "title": "Relire la Déclaration d'applicabilité",
       "situation": "…", "stakes": "…", "instruction": "…",
       "clause": "6.1.3", "domain": "D3",
+      "requires": ["T01"],
       "documents": [
         { "id": "D01", "title": "Extrait de la DdA", "nature": "dda",
           "lines": [
@@ -314,6 +350,12 @@ lit que les `.json` du dossier lui-même) : les deux imports ne se gênent pas.
 ```
 
 Les clés suivent la convention anglaise des fichiers de scénario existants.
+Correspondances : `access` → `acces` (`certification` ou `discovery` →
+`decouverte`), `requires` → `prerequis`, `status` → `statut`
+(`published` → `publie`, `draft` → `brouillon`).
+
+Une tâche peut aussi porter `"status": "draft"` pour être préparée sans
+être visible.
 
 ### 7.3 Contrôles à l'import (fichier rejeté en entier si l'un échoue)
 
@@ -321,6 +363,8 @@ Les clés suivent la convention anglaise des fichiers de scénario existants.
   cette certification.
 - Identifiants uniques dans le fichier (tâches, questions, documents).
 - Type de tâche connu (`redaction` ou `ecart`).
+- Accès connu (`certification` ou `discovery`) ; absent = `certification`.
+- Chaque prérequis désigne une tâche **placée avant** dans le même fichier.
 - Domaine connu de la certification.
 - Tâche « rédaction » : réponse modèle non vide ; chaque question a au
   moins deux options et au moins une bonne réponse ; `answer` ne cite que
@@ -359,8 +403,9 @@ déconseillé sur petit écran) : ce sont des exercices courts.
 
 Chaque lot a son script de tests de bout en bout, sur le modèle de NormaPrep
 Diagnostic (`wp eval-file tests/test-ateliers-lotN.php`), à exécuter sur un
-WordPress **de test**. Le **plan de tests** est écrit avant le développement
-(prochaine étape).
+WordPress **de test**. Le [plan de tests](ateliers-plan-de-tests.md) est
+écrit avant le développement ; son jeu d'essai est dans
+`tests/fixtures/ateliers/`.
 
 ---
 
@@ -384,13 +429,11 @@ techniques (code, cloud), hors du champ du Lead Implementer.
 
 ---
 
-## 11. Questions ouvertes
+## 11. Décisions
 
-1. Atelier « découverte » accessible sans la certification (§ 3) : oui ou
-   non ?
-2. Nom du module dans le menu : « Ateliers », « Mises en situation »,
-   « Cas pratiques » ?
-3. Faut-il imposer l'ordre des tâches (une tâche ouverte seulement quand la
-   précédente est terminée), ou le laisser libre comme proposé ?
-4. Perte de progression quand une tâche est retirée du fichier (§ 6.3) :
-   acceptable, ou faut-il plutôt passer la tâche en brouillon ?
+| # | Question | Décision |
+|---|---|---|
+| 1 | Atelier ouvert sans la certification ? | **Oui**, attribut d'accès `decouverte`, compte connecté requis (§ 3) |
+| 2 | Nom du module | **Ateliers** |
+| 3 | Ordre des tâches | **Libre**, avec un ordre d'affichage logique et des prérequis conseillés, non bloquants (§ 4) |
+| 4 | Tâche retirée du fichier | **Passée en `retiree`**, progression conservée et restaurée si la tâche revient (§ 6.3) |

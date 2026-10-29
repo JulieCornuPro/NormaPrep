@@ -1,0 +1,126 @@
+{
+  "schema_version": "1.0",
+  "notes": "Atelier d'exemple pour les tests automatisés (voir docs/ateliers-plan-de-tests.md, § 3). Les chiffres attendus par les tests dépendent de ce fichier : toute modification doit être reportée dans le plan.",
+  "atelier": {
+    "id": "AT01",
+    "scenario": "SC01",
+    "title": "Lancer le SMSI de Rhodanis",
+    "summary": "Rhodanis, PME lyonnaise de logistique, démarre son projet ISO 27001 : périmètre, engagement de la direction, première relecture de la DdA.",
+    "access": "certification",
+    "status": "published"
+  },
+  "tasks": [
+    {
+      "id": "T01",
+      "type": "redaction",
+      "title": "Définir le périmètre du SMSI",
+      "situation": "Rhodanis compte 180 salariés, un siège à Lyon et un entrepôt à Vénissieux. Le directeur général souhaite exclure l'entrepôt du périmètre, « pour aller plus vite ». L'entrepôt utilise pourtant le même ERP et le même portail clients que le siège.",
+      "stakes": "Le principal client, un distributeur national, exige un certificat ISO 27001 couvrant « l'ensemble des prestations logistiques » d'ici 18 mois.",
+      "instruction": "Rédigez la déclaration de périmètre du SMSI de Rhodanis et dites si l'exclusion de l'entrepôt est défendable.",
+      "clause": "4.3",
+      "domain": "D2",
+      "model_answer": "Le SMSI couvre la conception, la vente et la réalisation des prestations logistiques de Rhodanis, sur les sites de Lyon (siège) et de Vénissieux (entrepôt), ainsi que les systèmes qui les soutiennent (ERP, portail clients). L'exclusion de l'entrepôt n'est pas défendable : il réalise une partie des prestations exigées par le client et partage l'ERP et le portail avec le siège. Une exclusion n'est possible que si elle est justifiée et si les interfaces et dépendances avec la partie exclue sont décrites.",
+      "criteria": [
+        "J'ai nommé les activités, les sites et les systèmes couverts.",
+        "J'ai relié le périmètre à l'exigence du client (partie intéressée, 4.2).",
+        "J'ai traité les interfaces et dépendances entre le siège et l'entrepôt."
+      ],
+      "questions": [
+        {
+          "id": "Q01",
+          "question": "Le directeur général veut exclure l'entrepôt de Vénissieux du périmètre. Que permet la norme ?",
+          "options": [
+            { "id": "A", "text": "Aucune exclusion de site n'est possible." },
+            { "id": "B", "text": "L'exclusion est possible si elle est justifiée et si les interfaces et dépendances avec l'entrepôt sont prises en compte." },
+            { "id": "C", "text": "L'exclusion est possible sans justification, le périmètre étant libre." },
+            { "id": "D", "text": "L'exclusion n'est possible que si l'entrepôt est sous-traité." }
+          ],
+          "answer": ["B"],
+          "explanation": "La clause 4.3 laisse l'organisme fixer son périmètre, mais il doit tenir compte des enjeux (4.1), des exigences des parties intéressées (4.2) et des interfaces et dépendances. Ici, l'exigence du client rend de toute façon l'exclusion indéfendable."
+        },
+        {
+          "id": "Q02",
+          "question": "Que faut-il prendre en compte pour déterminer le périmètre (clause 4.3) ? Plusieurs réponses possibles.",
+          "options": [
+            { "id": "A", "text": "Les enjeux externes et internes (4.1)." },
+            { "id": "B", "text": "Les exigences des parties intéressées (4.2)." },
+            { "id": "C", "text": "Les interfaces et dépendances avec les activités d'autres organismes." },
+            { "id": "D", "text": "Le budget annuel de la DSI." }
+          ],
+          "answer": ["A", "B", "C"],
+          "explanation": "La clause 4.3 cite ces trois éléments. Le budget peut peser sur le calendrier du projet, mais ce n'est pas un critère de périmètre."
+        }
+      ]
+    },
+    {
+      "id": "T02",
+      "type": "redaction",
+      "title": "Obtenir l'engagement de la direction",
+      "situation": "Le comité de direction se réunit lundi. Le directeur général a accepté le projet, mais n'a encore ni désigné de responsable ni prévu de moyens.",
+      "stakes": "Sans engagement visible de la direction, les managers de l'entrepôt traitent le projet comme une affaire de la DSI.",
+      "instruction": "Rédigez les trois décisions que le comité de direction devrait prendre lundi pour démontrer son leadership.",
+      "clause": "5.1",
+      "domain": "D2",
+      "requires": ["T01"],
+      "model_answer": "1. Approuver la politique de sécurité de l'information et le périmètre du SMSI. 2. Désigner un responsable du SMSI, avec l'autorité et le temps nécessaires, et attribuer les rôles. 3. Allouer un budget et des ressources au projet, et fixer une revue de direction à six mois.",
+      "criteria": [
+        "J'ai fait approuver la politique par la direction.",
+        "J'ai attribué des rôles et des responsabilités.",
+        "J'ai prévu des ressources et un point de suivi."
+      ],
+      "questions": []
+    },
+    {
+      "id": "T03",
+      "type": "ecart",
+      "title": "Relire la DdA à la lumière du registre des risques",
+      "situation": "Le consultant précédent a laissé une première Déclaration d'applicabilité et un registre des risques. Les deux documents ont été écrits à des dates différentes.",
+      "stakes": "L'audit à blanc a lieu dans trois semaines ; la DdA sera le premier document demandé.",
+      "instruction": "Sélectionnez les lignes non conformes, dans l'un ou l'autre document.",
+      "clause": "6.1.3",
+      "domain": "D3",
+      "requires": ["T01"],
+      "documents": [
+        {
+          "id": "D01",
+          "title": "Extrait de la Déclaration d'applicabilité",
+          "nature": "dda",
+          "lines": [
+            { "text": "A.5.1 Politiques de sécurité de l'information — Applicable — Mise en œuvre — Justification : exigence de la direction et des clients.", "gap": false, "explanation": "Mesure retenue, état de mise en œuvre et justification présents : conforme." },
+            { "text": "A.5.15 Contrôle d'accès — Applicable — Mise en œuvre — Justification : traitement du risque R05.", "gap": false, "explanation": "Mesure reliée à un risque du registre : conforme." },
+            { "text": "A.8.13 Sauvegarde des informations — Exclue — Justification : aucune donnée critique n'est hébergée.", "gap": true, "explanation": "La justification est contredite par le registre des risques : R04 (perte des données de l'ERP) est un risque élevé traité par une sauvegarde quotidienne. La mesure doit être retenue.", "hint": "Comparez les justifications d'exclusion avec les risques élevés du registre." },
+            { "text": "A.7.4 Surveillance de la sécurité physique — Applicable — En cours de mise en œuvre (vidéosurveillance de l'entrepôt prévue au premier trimestre) — Justification : risque R02.", "gap": false, "explanation": "Piège : une mesure peut être retenue sans être encore en place. La DdA doit indiquer si elle est mise en œuvre ou non (6.1.3 d), ce qui est fait." },
+            { "text": "A.5.23 Sécurité de l'information dans l'utilisation de services en nuage — Exclue — Justification : —", "gap": true, "explanation": "Toute exclusion doit être justifiée (6.1.3 d). Rhodanis utilise de plus un portail clients hébergé : l'exclusion est douteuse.", "hint": "Chaque exclusion de la DdA a-t-elle sa justification ?" },
+            { "text": "A.8.24 Utilisation de la cryptographie — Applicable — Mise en œuvre — Justification : obligation contractuelle du client (chiffrement des données de livraison).", "gap": false, "explanation": "Une exigence contractuelle est une justification valable : conforme." }
+          ]
+        },
+        {
+          "id": "D02",
+          "title": "Extrait du registre des risques",
+          "nature": "registre",
+          "lines": [
+            { "text": "R01 Panne de l'ERP — vraisemblance 3, impact 4, niveau 12 (élevé) — Traitement : réduire (A.8.14, redondance) — Propriétaire : DSI.", "gap": false, "explanation": "Risque évalué, traité et doté d'un propriétaire : conforme." },
+            { "text": "R02 Vol de matériel à l'entrepôt — vraisemblance 2, impact 3, niveau 6 (moyen) — Traitement : réduire (A.7.4) — Propriétaire : responsable logistique.", "gap": false, "explanation": "Conforme ; c'est la ligne qui justifie A.7.4 dans la DdA." },
+            { "text": "R03 Hameçonnage du service comptable — vraisemblance 4, impact 3, niveau 12 (élevé) — Traitement : réduire (A.6.3, sensibilisation) — Propriétaire : directeur administratif et financier.", "gap": false, "explanation": "Conforme." },
+            { "text": "R04 Perte des données de l'ERP — vraisemblance 2, impact 5, niveau 10 (élevé) — Traitement : réduire (A.8.13, sauvegarde quotidienne) — Propriétaire : DSI.", "gap": false, "explanation": "Cette ligne est conforme ; c'est elle qui révèle l'écart de la DdA sur A.8.13." },
+            { "text": "R05 Accès non autorisé au portail clients — vraisemblance 3, impact 4, niveau 12 (élevé) — Traitement : réduire (A.5.15) — Propriétaire : à désigner.", "gap": true, "explanation": "Chaque risque doit avoir un propriétaire (6.1.2 c 2). Sans lui, personne n'approuve le plan de traitement ni le risque résiduel.", "hint": "Chaque risque a-t-il quelqu'un pour en répondre ?" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T04",
+      "type": "redaction",
+      "title": "Préparer l'audit interne (brouillon)",
+      "situation": "Tâche en préparation.",
+      "stakes": "—",
+      "instruction": "—",
+      "clause": "9.2",
+      "domain": "D4",
+      "status": "draft",
+      "model_answer": "À rédiger.",
+      "criteria": [],
+      "questions": []
+    }
+  ]
+}
