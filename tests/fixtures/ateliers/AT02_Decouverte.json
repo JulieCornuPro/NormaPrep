@@ -14,8 +14,10 @@
       "id": "T01",
       "type": "ecart",
       "title": "Trouver l'écart dans le compte rendu",
-      "situation": "Voici le compte rendu de la première revue de direction de Rhodanis.",
-      "stakes": "Ce compte rendu sera remis à l'auditeur de certification.",
+      "situation": [
+        "Voici le compte rendu de la première revue de direction de Rhodanis.",
+        "Ce compte rendu sera remis à l'auditeur de certification."
+      ],
       "instruction": "Sélectionnez la ou les lignes non conformes à la clause 9.3.",
       "clause": "9.3",
       "domain": "D4",
@@ -25,10 +27,27 @@
           "title": "Compte rendu de la revue de direction du 14 mars 2026",
           "nature": "compte_rendu",
           "lines": [
-            { "text": "Participants : directrice générale, RSSI, directeur administratif et financier, responsable logistique.", "gap": false, "explanation": "La direction est présente : conforme." },
-            { "text": "Points examinés : suivi des actions de la revue précédente, évolution des enjeux, indicateurs, non-conformités et résultats d'audit.", "gap": false, "explanation": "Ces éléments d'entrée figurent bien dans la clause 9.3.2 : conforme." },
-            { "text": "Objectifs de sécurité 2026 : reconduits sans être examinés, faute de temps.", "gap": true, "explanation": "La revue doit examiner l'atteinte des objectifs de sécurité (9.3.2). Les reconduire sans examen prive la direction de son principal outil de pilotage.", "hint": "La clause 9.3.2 liste ce que la revue doit examiner : tout y est-il ?" },
-            { "text": "Décision : 15 k€ alloués à la sauvegarde externalisée ; responsable : DSI ; échéance : juin 2026.", "gap": false, "explanation": "Décision chiffrée, avec un responsable et une échéance : conforme (9.3.3)." }
+            {
+              "text": "Participants : directrice générale, RSSI, directeur administratif et financier, responsable logistique.",
+              "gap": false,
+              "explanation": "La direction est présente : conforme."
+            },
+            {
+              "text": "Points examinés : suivi des actions de la revue précédente, évolution des enjeux, indicateurs, non-conformités et résultats d'audit.",
+              "gap": false,
+              "explanation": "Ces éléments d'entrée figurent bien dans la clause 9.3.2 : conforme."
+            },
+            {
+              "text": "Objectifs de sécurité 2026 : reconduits sans être examinés, faute de temps.",
+              "gap": true,
+              "explanation": "La revue doit examiner l'atteinte des objectifs de sécurité (9.3.2). Les reconduire sans examen prive la direction de son principal outil de pilotage.",
+              "hint": "La clause 9.3.2 liste ce que la revue doit examiner : tout y est-il ?"
+            },
+            {
+              "text": "Décision : 15 k€ alloués à la sauvegarde externalisée ; responsable : DSI ; échéance : juin 2026.",
+              "gap": false,
+              "explanation": "Décision chiffrée, avec un responsable et une échéance : conforme (9.3.3)."
+            }
           ]
         }
       ]

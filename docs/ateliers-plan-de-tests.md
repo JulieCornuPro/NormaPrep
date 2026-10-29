@@ -61,6 +61,11 @@ l'original n'est jamais touché.
 | T03 Relire la DdA | écart | publiée | D01 (6 lignes), D02 (5 lignes) ; écarts : **D01-3, D01-5, D02-5** | T01 |
 | T04 Préparer l'audit interne | rédaction | **brouillon** | — | — |
 
+T01 est la **tâche de référence** du gabarit d'écriture (cadrage, § 5) :
+situation en cinq paragraphes, 444 mots, avec ses fausses pistes. Les autres
+tâches sont volontairement courtes (3 à 44 mots) : elles servent à vérifier
+la mécanique, et que l'import signale les situations hors fourchette.
+
 ### 3.2 `AT02_Decouverte.json` — accès `discovery`
 
 | Tâche | Type | Contenu noté |
@@ -127,6 +132,8 @@ contourner en appelant directement l'action (requête AJAX forgée).
 | I-13 | A | Ordre | `position` des tâches de AT01 = 1, 2, 3, 4 ; lignes de D01 numérotées 1 à 6 |
 | I-14 | A | Rattachement | Les deux ateliers pointent vers le scénario `TEST27001-SC01` |
 | I-15 | A | Accès absent du fichier | Un atelier sans clé `access` est importé avec `acces` = `certification` |
+| I-16 | A | Situation en paragraphes | La situation de T01 est enregistrée en 5 paragraphes séparés par une ligne vide, relue à l'identique |
+| I-17 | A | Longueur des situations | Le compte rendu **signale sans rejeter** les situations hors de 350 à 600 mots : AT01-T02, AT01-T03, AT01-T04, AT02-T01 ; **pas** AT01-T01 |
 
 ### 5.3 Rejouabilité
 
@@ -176,6 +183,8 @@ est importé normalement dans le même passage.
 | I-56 | T01 avec `requires` = `["T03"]` | prérequis placé après la tâche |
 | I-57 | T03 avec `requires` = `["T09"]` | prérequis inconnu |
 | I-58 | T02 avec `requires` = `["T02"]` | prérequis placé après la tâche (une tâche n'est pas son propre prérequis) |
+| I-59 | T02 avec `situation` = `[]`, puis avec `["  "]` | situation vide |
+| I-5A | T02 avec `instruction` vide | consigne manquante |
 
 ### 5.6 Non-régression
 
@@ -328,6 +337,8 @@ arrondie à l'entier le plus proche.
 |---|---|---|---|
 | C-01 | A | Import du fichier réel dans `data/LI27001/ateliers/` | Aucun rejet |
 | C-02 | M | Relecture du contenu | Chaque explication cite la bonne clause de l'ISO 27001:2022 ; aucun texte repris d'une autre plateforme |
+| C-05 | M | Gabarit d'écriture | Chaque situation suit les cinq paragraphes du cadrage (§ 5), compte de 350 à 600 mots, porte au moins deux fausses pistes, et contient tous les faits dont la réponse modèle a besoin |
+| C-06 | A | Compte rendu d'import | Aucune situation signalée hors fourchette |
 | C-03 | M | Faisabilité | Une personne extérieure fait l'atelier sans aide ; chaque écart est trouvable à partir des seuls documents |
 | C-04 | M | Durée | Chaque tâche prend entre 10 et 30 minutes |
 

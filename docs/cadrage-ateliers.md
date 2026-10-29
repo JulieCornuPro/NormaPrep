@@ -125,15 +125,36 @@ voit des compteurs (tâches terminées, score moyen), jamais les textes libres.
 
 ## 5. Les types de tâche
 
-Chaque tâche, quel que soit son type, commence par le même gabarit
-d'écriture, repris des scénarios de Do GRC (§ 10) :
+Chaque tâche, quel que soit son type, commence par une **situation
+développée**, puis une **consigne**. La situation suit un gabarit en cinq
+paragraphes, dont on reprend la structure aux scénarios de Do GRC (§ 10) :
 
-| Bloc | Rôle | Exemple |
+| § | Paragraphe | Ce qu'il apporte |
 |---|---|---|
-| Situation | Ce qui se passe, avec des faits précis et chiffrés | « Lors de la revue des accès, 12 comptes d'anciens salariés sont encore actifs, dont 3 administrateurs. » |
-| Enjeu | La pression du moment et les contraintes | « Le comité de direction se réunit dans 5 jours ; la DSI n'a qu'une personne disponible. » |
-| Consigne | Ce que l'on attend de l'apprenant | « Classez ces constats et proposez une action corrective pour chacun. » |
-| Rattachement | Clause ISO 27001 et domaine d'examen | Clause 10.2, domaine D5 |
+| 1 | **Portrait** : l'entreprise aujourd'hui (taille, activités, clients, systèmes, histoire récente) | La tâche se lit **seule**, sans avoir fait les précédentes : c'est ce qui rend l'ordre libre possible (§ 4). Le portrait reprend le contexte du scénario en l'adaptant à la tâche |
+| 2 | **Le problème de fond, vu par plusieurs voix** : chaque direction a sa préoccupation | Oblige à **trier** : certaines préoccupations comptent pour la consigne, d'autres sont vraies mais hors sujet |
+| 3 | **Les déclencheurs** : faits récents, datés, chiffrés | La matière sur laquelle la réponse doit s'appuyer |
+| 4 | **La demande** : qui demande quoi, pour quel public, dans quel délai | Fixe le ton et la forme du livrable (comité de direction non spécialiste, auditeur…) |
+| 5 | **La synthèse** : ce que disent les interlocuteurs | Oriente vers le vrai sujet sans donner la réponse |
+
+Règles d'écriture :
+- **350 à 600 mots** (trois minutes de lecture environ) ;
+- des **noms et des fonctions** (« Nadia Ferrand, directrice générale »),
+  des **chiffres** et des **dates** plutôt que des généralités ;
+- **au moins deux fausses pistes** : des faits exacts, mais sans rapport
+  avec la consigne ;
+- **tout ce dont la réponse modèle a besoin figure dans le texte** :
+  l'apprenant ne doit jamais deviner un fait ;
+- un **contexte français** (CNIL, ANSSI, NIS 2, clients publics français) ;
+- aucun texte repris d'une autre plateforme.
+
+Le rattachement (clause ISO 27001 et domaine d'examen) s'affiche sous la
+consigne. Le contexte complet du scénario reste consultable dans un volet
+repliable « L'entreprise ».
+
+Les fausses pistes servent aussi les questions fermées : la plus naturelle
+est « Parmi ces éléments de la situation, lesquels doivent peser sur… ? »,
+qui transpose en choix multiple le tri que demande la consigne.
 
 ### 5.1 Tâche « rédaction »
 
@@ -243,7 +264,7 @@ aux examens.
 | Table | Colonnes principales | Remarques |
 |---|---|---|
 | `atelier` | id, certification_id, scenario_id, ref_externe, titre, resume, acces, position, statut | ref : `LI27001-AT01` ; acces : `certification` ou `decouverte` |
-| `atelier_tache` | id, atelier_id, ref_externe, position, type, titre, situation, enjeu, consigne, reponse_modele, clause, domaine, prerequis, statut | type : `redaction`, `ecart` (`matrice` réservé). prerequis : liste JSON de références de tâches. ref : `LI27001-AT01-T03` |
+| `atelier_tache` | id, atelier_id, ref_externe, position, type, titre, situation, consigne, reponse_modele, clause, domaine, prerequis, statut | type : `redaction`, `ecart` (`matrice` réservé). prerequis : liste JSON de références de tâches. ref : `LI27001-AT01-T03` |
 | `atelier_question` | id, tache_id, ref_externe, position, enonce, multi_reponses, explication | ref : `…-T03-Q02` |
 | `atelier_option` | id, question_id, position, texte, correcte | |
 | `atelier_critere` | id, tache_id, position, texte | grille d'auto-évaluation |
@@ -321,7 +342,8 @@ lit que les `.json` du dossier lui-même) : les deux imports ne se gênent pas.
       "id": "T01",
       "type": "redaction",
       "title": "Définir le périmètre du SMSI",
-      "situation": "…", "stakes": "…", "instruction": "…",
+      "situation": ["Portrait…", "Voix…", "Déclencheurs…", "Demande…", "Synthèse…"],
+      "instruction": "…",
       "clause": "4.3", "domain": "D2",
       "model_answer": "…",
       "criteria": ["J'ai exclu explicitement…", "J'ai justifié…"],
@@ -334,7 +356,8 @@ lit que les `.json` du dossier lui-même) : les deux imports ne se gênent pas.
       "id": "T02",
       "type": "ecart",
       "title": "Relire la Déclaration d'applicabilité",
-      "situation": "…", "stakes": "…", "instruction": "…",
+      "situation": ["…", "…"],
+      "instruction": "…",
       "clause": "6.1.3", "domain": "D3",
       "requires": ["T01"],
       "documents": [
@@ -357,6 +380,11 @@ Correspondances : `access` → `acces` (`certification` ou `discovery` →
 Une tâche peut aussi porter `"status": "draft"` pour être préparée sans
 être visible.
 
+La `situation` est une **liste de paragraphes**, plus simple à écrire et à
+relire dans un fichier JSON qu'un long texte avec des sauts de ligne. Elle
+est enregistrée en base comme un texte dont les paragraphes sont séparés par
+une ligne vide.
+
 ### 7.3 Contrôles à l'import (fichier rejeté en entier si l'un échoue)
 
 - La certification du dossier existe ; le scénario référencé existe dans
@@ -364,6 +392,10 @@ Une tâche peut aussi porter `"status": "draft"` pour être préparée sans
 - Identifiants uniques dans le fichier (tâches, questions, documents).
 - Type de tâche connu (`redaction` ou `ecart`).
 - Accès connu (`certification` ou `discovery`) ; absent = `certification`.
+- Situation : au moins un paragraphe non vide ; consigne non vide.
+  La longueur conseillée (350 à 600 mots) n'est **pas** bloquante : le
+  compte rendu signale seulement les situations hors de cette fourchette,
+  pour la relecture.
 - Chaque prérequis désigne une tâche **placée avant** dans le même fichier.
 - Domaine connu de la certification.
 - Tâche « rédaction » : réponse modèle non vide ; chaque question a au
@@ -418,7 +450,7 @@ textes : leurs contenus sont protégés.
 |---|---|
 | grcengineeringlab.com | Leçon en trois temps « lire, décider, construire » ; réponse structurée vérifiée point par point ; indices et solution révélée seulement après plusieurs essais |
 | dogrc.com — environnements de lab | Documents d'une entreprise fictive, sans indice ; écarts nés du croisement de deux documents ; retour qui dit ce qu'on n'a pas exploité sans donner la réponse ; meilleur score conservé |
-| dogrc.com — parcours de scénarios | Une entreprise fil rouge sur dix tâches ; gabarit situation → enjeu → faits chiffrés → personnages → consigne |
+| dogrc.com — parcours de scénarios | Une entreprise fil rouge sur dix tâches ; chaque tâche se lit seule ; situation en cinq paragraphes (portrait, voix, déclencheurs, demande, synthèse) avec des fausses pistes |
 | grcengineer.com — CTRL+F | Jeu quotidien où les lignes fausses s'expliquent d'elles-mêmes |
 | dogrc.com — Arcade | Matrice des risques à manipuler (reportée, § 2) |
 | grc.engineering, grcengclub.com | Ressources et communauté ; peu transposables au module, utiles pour une future page « Ressources » |
