@@ -15,6 +15,13 @@
  * @package NormaPrep_Quiz
  */
 
+if ( ! defined( 'ABSPATH' ) ) {
+    // Appelé directement par son adresse, hors de WordPress : sans cette garde,
+    // la première fonction de WordPress provoquait une erreur fatale, et un
+    // serveur qui affiche les erreurs révélait le chemin complet du site.
+    exit;
+}
+
 if ( ! is_user_logged_in() ) {
     // Même règle que les autres pages de l'espace : c'est l'écran de connexion
     // de NormaPrep qui accueille, pas celui de WooCommerce. Deux formulaires de

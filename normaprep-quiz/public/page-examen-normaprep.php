@@ -11,6 +11,13 @@
  * @package NormaPrep_Quiz
  */
 
+if ( ! defined( 'ABSPATH' ) ) {
+    // Appelé directement par son adresse, hors de WordPress : sans cette garde,
+    // la première fonction de WordPress provoquait une erreur fatale, et un
+    // serveur qui affiche les erreurs révélait le chemin complet du site.
+    exit;
+}
+
 if ( ! is_user_logged_in() ) {
     $page_connexion = get_option( 'npq_page_connexion_id' );
     wp_safe_redirect( $page_connexion ? get_permalink( $page_connexion ) : home_url( '/' ) );

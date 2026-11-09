@@ -254,8 +254,9 @@ class NPQ_Question_Form {
                     <p>
                         <strong>Cette question vient de l'import.</strong>
                         Vos modifications seront <strong>écrasées au prochain import</strong>.
-                        Pour les conserver durablement, modifiez le fichier
-                        <code>question_bank.json</code>.
+                        Pour les conserver durablement, modifiez le fichier du
+                        scénario auquel elle appartient, dans le dossier
+                        <code>data/</code> de sa certification.
                     </p>
                 </div>
             <?php endif; ?>

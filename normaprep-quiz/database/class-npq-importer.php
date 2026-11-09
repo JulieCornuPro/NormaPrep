@@ -94,6 +94,8 @@ class NPQ_Importer {
         <div class="wrap">
             <h1>NormaPrep Quiz</h1>
 
+            <?php self::afficher_exposition_data(); ?>
+
             <?php if ( $rapport ) : ?>
                 <h2>Résultat du dernier import</h2>
                 <?php foreach ( $rapport as $ligne ) :
@@ -228,6 +230,81 @@ class NPQ_Importer {
         }
 
         return $resultat;
+    }
+
+    /* =====================================================================
+     * PROTECTION DU DOSSIER DE CONTENU
+     * ===================================================================== */
+
+    /**
+     * Vérifie, en le demandant comme le ferait un visiteur, que le dossier
+     * data/ n'est PAS lisible depuis le web.
+     *
+     * Il contient les banques de questions avec leurs réponses. Le .htaccess
+     * posé dans ce dossier le protège sous Apache et LiteSpeed — mais Nginx
+     * l'ignore sans un mot, et le contenu redevient téléchargeable par
+     * n'importe qui. Une protection qui peut s'éteindre en silence doit être
+     * vérifiée là où on la verrait : sur la page où l'on dépose ce contenu.
+     *
+     * Le contrôle porte sur _secteurs.json, présent dans toute installation.
+     * Seule une réponse 200 signifie « exposé » : un 403 ou un 404 veut dire
+     * que le serveur refuse de servir le fichier, ce qui est le but.
+     */
+    private static function afficher_exposition_data() {
+        $url = NPQ_URL . 'data/_secteurs.json';
+
+        // Délai court : la page d'import ne doit pas attendre longtemps un
+        // serveur qui ne répond pas. sslverify reste actif — un certificat
+        // invalide en production est un problème à voir, pas à masquer.
+        $reponse = wp_remote_get( $url, [ 'timeout' => 4, 'redirection' => 0 ] );
+
+        if ( is_wp_error( $reponse ) ) {
+            ?>
+            <div class="notice notice-warning">
+                <p>
+                    <strong>Protection du contenu : vérification impossible.</strong>
+                    Le site n'a pas pu s'interroger lui-même
+                    (<?php echo esc_html( $reponse->get_error_message() ); ?>).
+                    Ouvrez dans un navigateur privé l'adresse
+                    <code><?php echo esc_html( $url ); ?></code> :
+                    le fichier ne doit <strong>pas</strong> s'afficher.
+                </p>
+            </div>
+            <?php
+            return;
+        }
+
+        $code = (int) wp_remote_retrieve_response_code( $reponse );
+
+        if ( $code === 200 ) {
+            ?>
+            <div class="notice notice-error">
+                <p>
+                    <strong>Votre contenu est téléchargeable par n'importe qui.</strong>
+                    Le serveur sert les fichiers du dossier <code>data/</code> à tout
+                    visiteur — banques de questions, réponses et explications comprises.
+                </p>
+                <p>
+                    Le plugin y dépose pourtant un fichier <code>.htaccess</code> qui
+                    l'interdit : votre serveur l'ignore, ce qui est le cas de Nginx.
+                    Demandez à votre hébergeur de refuser l'accès à
+                    <code><?php echo esc_html( wp_parse_url( NPQ_URL . 'data/', PHP_URL_PATH ) ); ?></code>,
+                    puis rechargez cette page pour vérifier.
+                </p>
+            </div>
+            <?php
+            return;
+        }
+
+        ?>
+        <div class="notice notice-success">
+            <p>
+                <strong>Contenu protégé.</strong>
+                Le dossier <code>data/</code> n'est pas lisible depuis le web
+                (réponse <?php echo (int) $code; ?>).
+            </p>
+        </div>
+        <?php
     }
 
     /* =====================================================================

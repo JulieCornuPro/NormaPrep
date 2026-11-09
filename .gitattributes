@@ -1,0 +1,5 @@
+# archives/ conserve les banques de questions historiques, au format d'origine.
+# Elles ne servent plus au plugin — l'importeur lit data/<CERTIFICATION>/ — et
+# ne doivent en aucun cas être distribuées : export-ignore les retire des ZIP
+# produits par GitHub (« Download ZIP ») et par git archive.
+archives/ export-ignore

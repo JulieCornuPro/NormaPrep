@@ -210,7 +210,8 @@ class NPQ_Scenario_Form {
                         <strong>Ce scénario vient de l'import.</strong>
                         Vos modifications seront <strong>écrasées au prochain import</strong>
                         du fichier de contenu. Pour les conserver durablement, modifiez
-                        plutôt le fichier <code>question_bank.json</code>.
+                        plutôt le fichier de ce scénario, dans le dossier
+                        <code>data/</code> de sa certification.
                     </p>
                 </div>
             <?php endif; ?>
